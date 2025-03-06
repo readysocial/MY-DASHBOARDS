@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye } from 'lucide-react';
+import { Search, Plus, Eye, MessageCircle } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 
@@ -36,6 +36,19 @@ interface PaginatedResponse {
   skip: number;
   limit: number;
   currentPage: number;
+}
+
+interface NotificationOptions {
+  inApp: boolean;
+  push: boolean;
+  email: boolean;
+}
+
+interface NotificationRequest {
+  userId: string;
+  title: string;
+  message: string;
+  options: NotificationOptions;
 }
 
 interface UserDetailsModalProps {
@@ -131,150 +144,128 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
     );
   }
 
- 
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-lg overflow-hidden">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <span className="h-6 w-6">✖</span>
+            </button>
+          </div>
 
-return (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-lg w-full max-w-lg overflow-hidden">
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <span className="h-6 w-6">✖</span>
-          </button>
-        </div>
+          <div className="space-y-4">
+            <img
+              src={user.picture || 'https://via.placeholder.com/150'}
+              alt={`${user.firstName} ${user.lastName}`}
+              className="w-32 h-32 rounded-full mx-auto"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Name</label>
+                <p className="text-black font-medium text-base">{`${user.firstName} ${user.lastName}`}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Email</label>
+                <p className="text-black font-medium text-base">{user.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Contact</label>
+                <p className="text-black font-medium text-base">{user.contact || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Gender</label>
+                <p className="text-black font-medium text-base">{user.gender || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Occupation</label>
+                <p className="text-black font-medium text-base">{user.occupation || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Date of Birth</label>
+                <p className="text-black font-medium text-base">
+                  {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm font-semibold text-gray-700">Bio</label>
+                <p className="text-black font-medium text-base">{user.bio || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Joined</label>
+                <p className="text-black font-medium text-base">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Status</label>
+                <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
+                  user.verified 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {user.verified ? 'Verified' : 'Unverified'}
+                </span>
+              </div>
+            </div>
 
-        <div className="space-y-4">
-          <img
-            src={user.picture || 'https://via.placeholder.com/150'}
-            alt={`${user.firstName} ${user.lastName}`}
-            className="w-32 h-32 rounded-full mx-auto"
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Name</label>
-              <p className="text-black font-medium text-base">{`${user.firstName} ${user.lastName}`}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Email</label>
-              <p className="text-black font-medium text-base">{user.email}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Contact</label>
-              <p className="text-black font-medium text-base">{user.contact || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Gender</label>
-              <p className="text-black font-medium text-base">{user.gender || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Occupation</label>
-              <p className="text-black font-medium text-base">{user.occupation || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Date of Birth</label>
-              <p className="text-black font-medium text-base">
-                {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'N/A'}
-              </p>
-            </div>
-            <div className="col-span-2">
-              <label className="text-sm font-semibold text-gray-700">Bio</label>
-              <p className="text-black font-medium text-base">{user.bio || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Joined</label>
-              <p className="text-black font-medium text-base">{new Date(user.createdAt).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Status</label>
-              <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
-                user.verified 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {user.verified ? 'Verified' : 'Unverified'}
-              </span>
+            <div className="mt-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">User Sessions</h3>
+              {sessions.length > 0 ? (
+                <ul className="mt-2 space-y-3">
+                  {sessions.map(session => (
+                    <li key={session._id} className="border p-4 rounded-lg bg-gray-50 shadow-sm">
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <span className="text-gray-700 font-semibold w-20">Topic:</span>
+                          <span className="text-black font-medium">{session.topic}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-gray-700 font-semibold w-20">Status:</span>
+                          <span className={`font-medium px-2 py-1 rounded-full text-sm ${
+                            session.status === 'completed' 
+                              ? 'bg-green-100 text-green-800' 
+                              : session.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-gray-700 font-semibold w-20">Time:</span>
+                          <span className="text-black font-medium">
+                            {new Date(session.time).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-2 p-4 rounded-lg bg-gray-50 border">
+                  <p className="text-black font-medium text-base text-center">
+                    No sessions found for this user.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        
-
-<div className="mt-4">
-  <h3 className="text-lg font-bold text-gray-900 mb-3">User Sessions</h3>
-  {sessions.length > 0 ? (
-    <ul className="mt-2 space-y-3">
-      {sessions.map(session => (
-        <li key={session._id} className="border p-4 rounded-lg bg-gray-50 shadow-sm">
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <span className="text-gray-700 font-semibold w-20">Topic:</span>
-              <span className="text-black font-medium">{session.topic}</span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-gray-700 font-semibold w-20">Status:</span>
-              <span className={`font-medium px-2 py-1 rounded-full text-sm ${
-                session.status === 'completed' 
-                  ? 'bg-green-100 text-green-800' 
-                  : session.status === 'pending'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-              </span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-gray-700 font-semibold w-20">Time:</span>
-              <span className="text-black font-medium">
-                {new Date(session.time).toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short'
-                })}
-              </span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-gray-700 font-semibold w-20">Created:</span>
-              <span className="text-black font-medium">
-                {new Date(session.createdAt).toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short'
-                })}
-              </span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-gray-700 font-semibold w-20">Updated:</span>
-              <span className="text-black font-medium">
-                {new Date(session.updatedAt).toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short'
-                })}
-              </span>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  ) : (
-    <div className="mt-2 p-4 rounded-lg bg-gray-50 border">
-      <p className="text-black font-medium text-base text-center">
-        No sessions found for this user.
-      </p>
-    </div>
-  )}
-</div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 };
 
 const Users: React.FC = () => {
-
   useEffect(() => {
     validateToken();
   }, []);
+
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -284,8 +275,18 @@ const Users: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState('firstName'); // Default sorting field
-  const [sortOrder, setSortOrder] = useState('asc'); // Default sorting order
+  const [sortBy, setSortBy] = useState('firstName');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  // Notification state
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationOptions, setNotificationOptions] = useState<NotificationOptions>({
+    inApp: true,
+    push: false,
+    email: false
+  });
 
   const fetchUsers = async () => {
     if (!validateToken()) return;
@@ -320,9 +321,56 @@ const Users: React.FC = () => {
     }
   };
 
+  const sendNotification = async (userId: string) => {
+    if (!validateToken()) return;
+
+    try {
+      const notificationData: NotificationRequest = {
+        userId,
+        title: notificationTitle,
+        message: notificationMessage,
+        options: notificationOptions
+      };
+
+      const response = await fetch(`${API_URL}/notifications/send`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(notificationData)
+      });
+
+      if (response.status === 401) {
+        return handleUnauthorized(response);
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to send notification');
+      }
+
+      alert('Notification sent successfully!');
+      setShowNotificationModal(false);
+      resetNotificationForm();
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      alert('Failed to send notification. Please try again.');
+    }
+  };
+
+  const resetNotificationForm = () => {
+    setNotificationTitle('');
+    setNotificationMessage('');
+    setNotificationOptions({
+      inApp: true,
+      push: false,
+      email: false
+    });
+  };
+
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, usersPerPage, sortBy, sortOrder]); // Add sortBy and sortOrder to dependencies
+  }, [currentPage, usersPerPage, sortBy, sortOrder]);
 
   useEffect(() => {
     setFilteredUsers(
@@ -358,16 +406,15 @@ const Users: React.FC = () => {
         throw new Error('Failed to export users');
       }
 
-      // Create a blob from the response
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'users_export.csv'; // Set the filename for the download
+      a.download = 'users_export.csv';
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url); // Clean up the URL object
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting users:', error);
       alert('Failed to export users. Please try again.');
@@ -406,6 +453,15 @@ const Users: React.FC = () => {
         >
           <Eye className="h-5 w-5" />
         </button>
+        <button 
+          className="text-purple-500 hover:text-purple-700"
+          onClick={() => {
+            setSelectedUserId(user._id);
+            setShowNotificationModal(true);
+          }}
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
@@ -443,8 +499,8 @@ const Users: React.FC = () => {
           </select>
           <button
             onClick={() => {
-              setCurrentPage(1); // Reset to first page when sorting changes
-              fetchUsers(); // Fetch users with new sorting
+              setCurrentPage(1);
+              fetchUsers();
             }}
             className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
           >
@@ -467,13 +523,13 @@ const Users: React.FC = () => {
       </div>
 
       {isLoading ? (
-  <div className="flex justify-center items-center min-h-[400px]">
-    <div className="relative">
-      <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
-      <div className="w-12 h-12 rounded-full border-4 border-red-500 border-t-transparent animate-spin absolute top-0 left-0"></div>
-    </div>
-  </div>
-) : error ? (
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
+            <div className="w-12 h-12 rounded-full border-4 border-red-500 border-t-transparent animate-spin absolute top-0 left-0"></div>
+          </div>
+        </div>
+      ) : error ? (
         <div className="p-4 text-red-500 text-center">
           {error}
         </div>
@@ -523,6 +579,15 @@ const Users: React.FC = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
+                        <button 
+                          className="text-purple-500 hover:text-purple-700"
+                          onClick={() => {
+                            setSelectedUserId(user._id);
+                            setShowNotificationModal(true);
+                          }}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -552,11 +617,113 @@ const Users: React.FC = () => {
         </>
       )}
 
-      {selectedUserId && (
+      {selectedUserId && !showNotificationModal && (
         <UserDetailsModal
           userId={selectedUserId}
           onClose={handleCloseModal}
         />
+      )}
+
+      {/* Notification Modal with improved styling */}
+      {showNotificationModal && selectedUserId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Send Notification</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
+                    <input
+                      type="text"
+                      value={notificationTitle}
+                      onChange={(e) => setNotificationTitle(e.target.value)}
+                      className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
+                      placeholder="Enter notification title"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Message</label>
+                    <textarea
+                      value={notificationMessage}
+                      onChange={(e) => setNotificationMessage(e.target.value)}
+                      rows={4}
+                      className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
+                      placeholder="Enter notification message"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Notification Options</label>
+                    <div className="flex flex-col space-y-2">
+                      <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={notificationOptions.inApp}
+                          onChange={(e) => setNotificationOptions(prev => ({
+                            ...prev,
+                            inApp: e.target.checked
+                          }))}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-900">In-App Notification</span>
+                      </label>
+                      <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={notificationOptions.push}
+                          onChange={(e) => setNotificationOptions(prev => ({
+                            ...prev,
+                            push: e.target.checked
+                          }))}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-900">Push Notification</span>
+                      </label>
+                      <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={notificationOptions.email}
+                          onChange={(e) => setNotificationOptions(prev => ({
+                            ...prev,
+                            email: e.target.checked
+                          }))}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-900">Email Notification</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={() => sendNotification(selectedUserId)}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Send
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNotificationModal(false);
+                    setSelectedUserId(null);
+                    resetNotificationForm();
+                  }}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

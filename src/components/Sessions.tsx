@@ -150,15 +150,14 @@ const Sessions: React.FC = () => {
   const [sortOrder, setSortOrder] = useState('asc'); // Default sorting order
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, boolean>>({});
 
-  // Fetch Sessions function
+  // Modify fetchSessions to handle all sessions
   const fetchSessions = async () => {
     if (!validateToken()) return;
 
     try {
       setIsLoading(true);
-      // Add a large limit to get all sessions
       const response = await fetch(
-        `${API_URL}/sessions/platform/all?limit=1000`, // Set a high limit
+        `${API_URL}/sessions/platform/all?limit=1000`, // Set high limit to get all sessions
         {
           headers: getAuthHeaders()
         }
@@ -221,17 +220,15 @@ const Sessions: React.FC = () => {
             : (compareA > compareB ? -1 : 1);
         });
 
-        // Store all sessions
         setSessions(sortedSessions);
         setTotalSessions(sortedSessions.length);
-        
+
         // Calculate pagination slice
         const startIndex = (currentPage - 1) * sessionsPerPage;
         const endIndex = startIndex + sessionsPerPage;
-        const paginatedSessions = sortedSessions.slice(startIndex, endIndex);
         
-        // Set filtered sessions to paginated result
-        setFilteredSessions(paginatedSessions);
+        // Set filtered sessions with paginated data
+        setFilteredSessions(sortedSessions.slice(startIndex, endIndex));
       }
     } catch (err) {
       console.error('Error fetching sessions:', err);
@@ -241,17 +238,9 @@ const Sessions: React.FC = () => {
     }
   };
 
-  // Fetch sessions on component mount and when dependencies change
+  // Update useEffect for search filtering
   useEffect(() => {
-    fetchSessions();
-  }, [currentPage, sessionsPerPage, sortBy, sortOrder]);
-
-  // Filter Sessions
-  useEffect(() => {
-    if (!Array.isArray(sessions)) {
-      setFilteredSessions([]);
-      return;
-    }
+    if (!Array.isArray(sessions)) return;
 
     const filtered = sessions.filter((session: Session) => {
       if (!session || !session.user || !session.listener) return false;
@@ -268,8 +257,19 @@ const Sessions: React.FC = () => {
       );
     });
 
-    setFilteredSessions(filtered);
-  }, [searchTerm, sessions]);
+    setTotalSessions(filtered.length);
+
+    // Apply pagination to filtered results
+    const startIndex = (currentPage - 1) * sessionsPerPage;
+    const endIndex = startIndex + sessionsPerPage;
+    setFilteredSessions(filtered.slice(startIndex, endIndex));
+
+  }, [searchTerm, sessions, currentPage, sessionsPerPage]);
+
+  // Add useEffect for sorting
+  useEffect(() => {
+    fetchSessions();
+  }, [sortBy, sortOrder]);
 
   // Pagination handler
   const paginate = (pageNumber: number) => {

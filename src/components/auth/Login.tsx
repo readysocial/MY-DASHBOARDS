@@ -76,55 +76,71 @@ export default function Login({ onSuccess }: LoginProps) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
+        <p className="text-gray-600 mt-2">Please sign in to your account</p>
+      </div>
       
       <Alert type={alert.type} text={alert.text} />
       
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
-          <Input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="text-gray-900 placeholder:text-gray-500"
-            required
-          />
-          
-          <div className="relative">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">
+              Email Address
+            </label>
             <Input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="text-gray-900 placeholder:text-gray-500 pr-10"
+              id="email"
+              type="email"
+              placeholder="name@company.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="text-gray-900 placeholder:text-gray-500"
               required
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-            >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
-            </button>
+          </div>
+          
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="text-gray-900 placeholder:text-gray-500 pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
         
         <Button 
           type="submit" 
           disabled={loading} 
-          className="w-full bg-red-600 hover:bg-red-700 text-white"
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5"
         >
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? 'Signing in...' : 'Sign In'}
         </Button>
       </form>
 
       <div className="text-sm text-center text-gray-600">
-        <p>Don't have an account? Contact administrator</p>
+        <p>Having trouble signing in? Contact your system administrator</p>
       </div>
     </div>
   );

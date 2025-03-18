@@ -153,25 +153,25 @@ const Sessions: React.FC = () => {
   // Fetch Sessions function
   const fetchSessions = async () => {
     if (!validateToken()) return;
-  
+
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/sessions/platform/all?page=${currentPage}&limit=${sessionsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`, {
-        headers: getAuthHeaders()
-      });
-  
+      // Add a large limit to get all sessions
+      const response = await fetch(
+        `${API_URL}/sessions/platform/all?limit=1000`, // Set a high limit
+        {
+          headers: getAuthHeaders()
+        }
+      );
+
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-  
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch sessions');
       }
-      
-      console.log('Raw API Response:', data); // Add this line
-    console.log('First session example:', data.sessions?.[0]); // Add this line
-      console.log('Raw session data:', data);
 
       if (data && Array.isArray(data.sessions)) {
         const validSessions = data.sessions.filter((session: Session) => 
@@ -179,13 +179,59 @@ const Sessions: React.FC = () => {
           session._id && 
           session.status
         );
-        console.log('Validated sessions:', validSessions);
+
+        // Sort all sessions
+        const sortedSessions = [...validSessions].sort((a, b) => {
+          let compareA, compareB;
+
+          switch (sortBy) {
+            case 'user':
+              compareA = a.user?.firstName || a.user?.name || '';
+              compareB = b.user?.firstName || b.user?.name || '';
+              break;
+            case 'listener':
+              compareA = a.listener?.name || '';
+              compareB = b.listener?.name || '';
+              break;
+            case 'time':
+              compareA = new Date(a.time).getTime();
+              compareB = new Date(b.time).getTime();
+              break;
+            case 'topic':
+              compareA = a.topic || '';
+              compareB = b.topic || '';
+              break;
+            case 'status':
+              compareA = a.status || '';
+              compareB = b.status || '';
+              break;
+            default:
+              compareA = new Date(a.time).getTime();
+              compareB = new Date(b.time).getTime();
+          }
+
+          if (typeof compareA === 'string' && typeof compareB === 'string') {
+            return sortOrder === 'asc' 
+              ? compareA.localeCompare(compareB)
+              : compareB.localeCompare(compareA);
+          }
+
+          return sortOrder === 'asc'
+            ? (compareA < compareB ? -1 : 1)
+            : (compareA > compareB ? -1 : 1);
+        });
+
+        // Store all sessions
+        setSessions(sortedSessions);
+        setTotalSessions(sortedSessions.length);
         
-        setSessions(validSessions);
-        setTotalSessions(data.total || validSessions.length);
-        setFilteredSessions(validSessions);
-      } else {
-        throw new Error('Invalid response format');
+        // Calculate pagination slice
+        const startIndex = (currentPage - 1) * sessionsPerPage;
+        const endIndex = startIndex + sessionsPerPage;
+        const paginatedSessions = sortedSessions.slice(startIndex, endIndex);
+        
+        // Set filtered sessions to paginated result
+        setFilteredSessions(paginatedSessions);
       }
     } catch (err) {
       console.error('Error fetching sessions:', err);
@@ -240,61 +286,23 @@ const Sessions: React.FC = () => {
 
   // FOR ADMINS TO UPDATE
   const handleUpdateStatus = async (sessionId: string, newStatus: SessionStatus) => {
-
     if (!validateToken()) return;
-    // Add confirmation dialog with warning icon and status-specific message
-    const session = sessions.find(s => s._id === sessionId);
     
-    if (session?.status === 'pending' && newStatus !== 'pending') {
-      // No confirmation needed when changing from pending to another status
-      try {
-        const response = await fetch(`${API_URL}/sessions/${sessionId}/update-status`, {
-          method: 'PATCH',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ status: newStatus }),
-        });
-  
-        if (response.status === 401) {
-          return handleUnauthorized(response);
-        }
-  
-        if (!response.ok) {
-          throw new Error('Failed to update session status');
-        }
-  
-        const data = await response.json();
-  
-        // Update the sessions state with the new status
-        setSessions(prevSessions =>
-          prevSessions.map(session =>
-            session._id === sessionId
-              ? { ...session, status: newStatus }
-              : session
-          )
-        );
-  
-        // Show success message
-        alert(data.message || 'Status updated successfully');
-      } catch (error) {
-        console.error('Error updating session status:', error);
-        alert('Failed to update session status. Please try again.');
-      }
-      return;
-    }
-  
-    // For non-pending status changes, show confirmation
+    // Get the current session
+    const session = sessions.find(s => s._id === sessionId);
+    if (!session) return;
+
+    // Show confirmation dialog for ALL status changes
     const confirmMessage = `⚠️ Warning: Are you sure you want to mark this session as "${newStatus}"?\n\nThis action cannot be undone.`;
     if (!window.confirm(confirmMessage)) {
       // Reset the select element to its previous value
-      if (session) {
-        const selectElement = document.querySelector(`select[data-session-id="${sessionId}"]`) as HTMLSelectElement;
-        if (selectElement) {
-          selectElement.value = session.status;
-        }
+      const selectElement = document.querySelector(`select[data-session-id="${sessionId}"]`) as HTMLSelectElement;
+      if (selectElement) {
+        selectElement.value = session.status;
       }
       return;
     }
-  
+
     // Proceed with the status update after confirmation
     try {
       const response = await fetch(`${API_URL}/sessions/${sessionId}/update-status`, {
@@ -302,17 +310,17 @@ const Sessions: React.FC = () => {
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
-  
+
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-  
+
       if (!response.ok) {
         throw new Error('Failed to update session status');
       }
-  
+
       const data = await response.json();
-  
+
       // Update the sessions state with the new status
       setSessions(prevSessions =>
         prevSessions.map(session =>
@@ -321,7 +329,7 @@ const Sessions: React.FC = () => {
             : session
         )
       );
-  
+
       // Show success message
       alert(data.message || 'Status updated successfully');
     } catch (error) {
@@ -687,6 +695,40 @@ const renderTable = () => (
     </div>
   );
 
+  // Add this helper function near the top of the file
+  const generatePageNumbers = (currentPage: number, totalPages: number) => {
+    const pageNumbers = [];
+    
+    // Always show first page
+    pageNumbers.push(1);
+    
+    // Calculate range around current page
+    let start = Math.max(2, currentPage - 2);
+    let end = Math.min(totalPages - 1, currentPage + 2);
+    
+    // Add ellipsis after first page if needed
+    if (start > 2) {
+      pageNumbers.push('...');
+    }
+    
+    // Add pages around current page
+    for (let i = start; i <= end; i++) {
+      pageNumbers.push(i);
+    }
+    
+    // Add ellipsis before last page if needed
+    if (end < totalPages - 1) {
+      pageNumbers.push('...');
+    }
+    
+    // Always show last page if there is more than one page
+    if (totalPages > 1) {
+      pageNumbers.push(totalPages);
+    }
+    
+    return pageNumbers;
+  };
+
   // Main return
 return (
   <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -790,22 +832,50 @@ return (
       )}
 
       {/* Pagination */}
-      <div className="mt-4 flex justify-center">
-        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-          {Array.from({ length: Math.ceil(totalSessions / sessionsPerPage) }).map((_, index) => (
-            <button
-              key={index}
-              onClick={() => paginate(index + 1)}
-              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                currentPage === index + 1
-                  ? 'z-10 bg-red-50 border-red-500 text-red-600'
-                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              {index + 1}
-            </button>
-          ))}
-        </nav>
+      <div className="mt-6 flex flex-wrap justify-center items-center gap-2">
+        {/* Previous button */}
+        <button
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded-md text-sm ${
+            currentPage === 1
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Previous
+        </button>
+
+        {/* Page numbers */}
+        {generatePageNumbers(currentPage, Math.ceil(totalSessions / sessionsPerPage)).map((pageNum, index) => (
+          <button
+            key={index}
+            onClick={() => typeof pageNum === 'number' ? setCurrentPage(pageNum) : null}
+            disabled={pageNum === '...'}
+            className={`px-3 py-1 rounded-md text-sm ${
+              pageNum === currentPage
+                ? 'bg-red-500 text-white'
+                : pageNum === '...'
+                ? 'bg-transparent cursor-default'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            {pageNum}
+          </button>
+        ))}
+
+        {/* Next button */}
+        <button
+          onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalSessions / sessionsPerPage), prev + 1))}
+          disabled={currentPage === Math.ceil(totalSessions / sessionsPerPage)}
+          className={`px-3 py-1 rounded-md text-sm ${
+            currentPage === Math.ceil(totalSessions / sessionsPerPage)
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Next
+        </button>
       </div>
     </div>
   </div>

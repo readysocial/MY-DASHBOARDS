@@ -547,6 +547,24 @@ const addTimeSlot = (dayOfWeek: string) => {
     fetchListeners();
   };
 
+  // Add this function after the existing functions
+  const isTimeSlotBooked = (day: string, startTime: string, endTime: string, sessions: any[]) => {
+    return sessions.some(session => {
+      const sessionDate = new Date(session.time);
+      const formatter = new Intl.DateTimeFormat('en-US', { weekday: 'long' });
+      const sessionDay = formatter.format(sessionDate).toLowerCase();
+      const sessionStartTime = sessionDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const sessionEndTime = new Date(sessionDate.getTime() + 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      return (
+        sessionDay === day &&
+        session.status === 'pending' &&
+        sessionStartTime === startTime &&
+        sessionEndTime === endTime
+      );
+    });
+  };
+
 
 
   return (
@@ -792,12 +810,18 @@ const addTimeSlot = (dayOfWeek: string) => {
                       <div key={day.dayOfWeek} className="border rounded p-2 bg-gray-50">
                         <p className="font-medium capitalize text-gray-800">{day.dayOfWeek}</p>
                         <div className="space-y-1 mt-1">
-                          {day.times.map((time, index) => (
-                            <p key={index} className="text-sm text-gray-700">
-                              {time.startTime} - {time.endTime}
-                              {time.isAvailable ? ' (Available)' : ' (Unavailable)'}
-                            </p>
-                          ))}
+                          {day.times.map((time, index) => {
+                            const isBooked = isTimeSlotBooked(day.dayOfWeek, time.startTime, time.endTime, listenerSessions);
+                            return (
+                              <div 
+                                key={index} 
+                                className={`text-sm ${isBooked ? 'text-red-600' : 'text-gray-700'}`}
+                              >
+                                {time.startTime} - {time.endTime}
+                                {isBooked ? ' (Booked Session)' : time.isAvailable ? ' (Available)' : ' (Unavailable)'}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -856,48 +880,49 @@ const addTimeSlot = (dayOfWeek: string) => {
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="space-y-6">
                 {/* Name Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Name*</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name*</label>
                   <input
                     type="text"
                     value={newListener.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
-                      ${formErrors.name ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                      formErrors.name ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter name"
                   />
                   {formErrors.name && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
+                    <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
                   )}
                 </div>
 
                 {/* Description Textarea */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description*</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description*</label>
                   <textarea
                     value={newListener.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     rows={3}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
-                      ${formErrors.description ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                      formErrors.description ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter description"
                   />
                   {formErrors.description && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
+                    <p className="mt-1 text-sm text-red-600">{formErrors.description}</p>
                   )}
                 </div>
 
                 {/* Gender Select */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Gender*</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender*</label>
                   <select
                     value={newListener.gender}
                     onChange={(e) => handleInputChange('gender', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
                   >
                     {GENDERS.map((gender) => (
-                      <option key={gender} value={gender} className="font-medium">
+                      <option key={gender} value={gender}>
                         {gender.charAt(0).toUpperCase() + gender.slice(1)}
                       </option>
                     ))}
@@ -905,52 +930,54 @@ const addTimeSlot = (dayOfWeek: string) => {
                 </div>
 
                 {/* Email Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Email*</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email*</label>
                   <input
                     type="email"
                     value={newListener.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
-                      ${formErrors.email ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                      formErrors.email ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter email"
                   />
                   {formErrors.email && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.email}</p>
+                    <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
                   )}
                 </div>
 
                 {/* Phone Number Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone Number*</label>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number*</label>
                   <input
                     type="text"
                     value={newListener.phoneNumber}
                     onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
-                      ${formErrors.phoneNumber ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white ${
+                      formErrors.phoneNumber ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter phone number"
                   />
                   {formErrors.phoneNumber && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.phoneNumber}</p>
+                    <p className="mt-1 text-sm text-red-600">{formErrors.phoneNumber}</p>
                   )}
                 </div>
 
                 {/* Availability Section */}
-                <div>
+                <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Availability*</label>
                   <div className="space-y-4">
                     {newListener.availability.map((day) => (
-                      <div key={day.dayOfWeek} className="border rounded-lg p-4">
+                      <div key={day.dayOfWeek} className="border rounded-lg p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
                               checked={availableDays.has(day.dayOfWeek)}
                               onChange={() => toggleDayAvailability(day.dayOfWeek)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                             />
-                            <h4 className="font-medium capitalize">{day.dayOfWeek}</h4>
+                            <span className="text-sm font-medium text-gray-700 capitalize">{day.dayOfWeek}</span>
                           </div>
                           {availableDays.has(day.dayOfWeek) && (
                             <button
@@ -975,10 +1002,9 @@ const addTimeSlot = (dayOfWeek: string) => {
                                     'startTime',
                                     e.target.value
                                   )}
-                                  className="rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
                                 />
-                                <span className="text-gray-900 font-medium">to</span>
+                                <span className="text-gray-500">to</span>
                                 <input
                                   type="time"
                                   value={time.endTime}
@@ -988,8 +1014,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                                     'endTime',
                                     e.target.value
                                   )}
-                                  className="rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
                                 />
                                 {day.times.length > 1 && (
                                   <button
@@ -1008,7 +1033,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                     ))}
                   </div>
                   {formErrors.availability && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.availability}</p>
+                    <p className="mt-1 text-sm text-red-600">{formErrors.availability}</p>
                   )}
                 </div>
               </div>

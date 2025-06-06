@@ -147,7 +147,7 @@ const Sessions: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('time'); // Default sorting field
-  const [sortOrder, setSortOrder] = useState('asc'); // Default sorting order
+  const [sortOrder, setSortOrder] = useState('desc'); // Changed default to descending
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, boolean>>({});
 
   // Modify fetchSessions to handle all sessions

@@ -1,18 +1,30 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Eye, Edit2, XCircle, X, RefreshCw, MessageCircle } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, XCircle, X, RefreshCw, MessageCircle, CheckCircle, PowerOff, Trash2 } from 'lucide-react';
 import { Listener, FormErrors, Message, TimeSlot } from '../types/listener';
 import { DAYS_OF_WEEK, DEFAULT_TIME_SLOTS, GENDERS } from '../constants/listener';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
-
-
-
+import { 
+  activateDeactivateListener, 
+  getListener, 
+  updateListener, 
+  createListener, 
+  deleteListener 
+} from '../api/listener/api';
 
 const Listeners: React.FC = (): JSX.Element => {
 
 
   useEffect(() => {
-    validateToken();
+    const checkAuth = () => {
+      if (!validateToken()) {
+        return;
+      }
+      fetchListeners();
+    };
+    checkAuth();
   }, []);
 
   // State Management
@@ -33,7 +45,6 @@ const Listeners: React.FC = (): JSX.Element => {
   const [messagePriority, setMessagePriority] = useState<'normal' | 'urgent'>('normal');
   const [messages, setMessages] = useState<Message[]>([]);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [listenerSessions, setListenerSessions] = useState<any[]>([]);
   const [availableDays, setAvailableDays] = useState<Set<string>>(new Set(DAYS_OF_WEEK));
 
   
@@ -44,7 +55,6 @@ const Listeners: React.FC = (): JSX.Element => {
 
   // Initialize new listener state
   const [newListener, setNewListener] = useState<Listener>({
-    _id: undefined,
     name: '',
     description: '',
     gender: 'male',
@@ -64,8 +74,16 @@ const Listeners: React.FC = (): JSX.Element => {
     }))
   });
 
+  // Add new state for activation status
+  const [isActivating, setIsActivating] = useState(false);
 
- 
+  // Add new state for unavailable slot modal
+  const [showUnavailableModal, setShowUnavailableModal] = useState(false);
+  const [unavailableSlotInfo, setUnavailableSlotInfo] = useState<{
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
 
   // Fetch Listeners
   const fetchListeners = async () => {
@@ -78,7 +96,8 @@ const Listeners: React.FC = (): JSX.Element => {
       });
       
       if (response.status === 401) {
-        return handleUnauthorized(response);
+        handleUnauthorized(response);
+        return;
       }
   
       const data = await response.json();
@@ -107,54 +126,14 @@ const Listeners: React.FC = (): JSX.Element => {
   
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/listeners/${listenerId}`, {
-        headers: getAuthHeaders()
-      });
-  
-      if (response.status === 401) {
-        return handleUnauthorized(response);
-      }
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch listener details');
-      }
-
-      setSelectedListener(data.listener);
+      const listener = await getListener(listenerId);
+      setSelectedListener(listener);
       setShowDetailsModal(true);
-      await fetchListenerSessions(listenerId);
     } catch (error) {
       console.error('Error fetching listener details:', error);
       alert('Failed to fetch listener details. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Fetch Listener Sessions
-  const fetchListenerSessions = async (listenerId: string) => {
-    if (!validateToken()) return;
-  
-    try {
-      const response = await fetch(`${API_URL}/sessions/listener/${listenerId}/sessions`, {
-        headers: getAuthHeaders()
-      });
-  
-      if (response.status === 401) {
-        return handleUnauthorized(response);
-      }
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch listener sessions');
-      }
-
-      setListenerSessions(data.sessions);
-    } catch (error) {
-      console.error('Error fetching listener sessions:', error);
-      alert('Failed to fetch listener sessions. Please try again.');
     }
   };
 
@@ -327,7 +306,6 @@ const Listeners: React.FC = (): JSX.Element => {
   };
 
   // Handle form submission
- 
   const handleSubmitListener = async () => {
     if (!validateForm()) {
       return;
@@ -346,33 +324,15 @@ const Listeners: React.FC = (): JSX.Element => {
           times: day.times.map(time => ({
             startTime: time.startTime,
             endTime: time.endTime,
-            isAvailable: true
+            isAvailable: time.isAvailable
           }))
         }))
       };
   
-      const method = selectedListener?._id ? 'PUT' : 'POST';
-      const url = selectedListener?._id
-        ? `${API_URL}/listeners/${selectedListener._id}`
-        : `${API_URL}/listeners`;
-  
-      const response = await fetch(url, {
-        method,
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(listenerData)
-      });
-  
-      if (response.status === 401) {
-        return handleUnauthorized(response);
-      }
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.message || `Failed to ${selectedListener ? 'update' : 'create'} listener`);
+      if (selectedListener?._id) {
+        await updateListener(selectedListener._id, listenerData);
+      } else {
+        await createListener(listenerData as Omit<Listener, '_id'>);
       }
   
       await fetchListeners();
@@ -405,31 +365,30 @@ const Listeners: React.FC = (): JSX.Element => {
     setSelectedListener(null);
   };
 
+  // Add this new function after the existing state declarations
+  const toggleDayAvailability = (dayOfWeek: string) => {
+    const newAvailableDays = new Set(availableDays);
+    if (newAvailableDays.has(dayOfWeek)) {
+      newAvailableDays.delete(dayOfWeek);
+    } else {
+      newAvailableDays.add(dayOfWeek);
+    }
+    setAvailableDays(newAvailableDays);
 
-  // Add this new function to handle day availability toggle
-const toggleDayAvailability = (dayOfWeek: string) => {
-  const newAvailableDays = new Set(availableDays);
-  if (newAvailableDays.has(dayOfWeek)) {
-    newAvailableDays.delete(dayOfWeek);
-  } else {
-    newAvailableDays.add(dayOfWeek);
-  }
-  setAvailableDays(newAvailableDays);
-
-  // Update the newListener state to reflect the change
-  setNewListener(prev => ({
-    ...prev,
-    availability: prev.availability.map(day => {
-      if (day.dayOfWeek === dayOfWeek) {
-        return {
-          ...day,
-          times: newAvailableDays.has(dayOfWeek) ? [{ startTime: '09:00', endTime: '17:00', isAvailable: true }] : []
-        };
-      }
-      return day;
-    })
-  }));
-};
+    // Update the newListener state to reflect the change
+    setNewListener(prev => ({
+      ...prev,
+      availability: prev.availability.map(day => {
+        if (day.dayOfWeek === dayOfWeek) {
+          return {
+            ...day,
+            times: newAvailableDays.has(dayOfWeek) ? [{ startTime: '09:00', endTime: '17:00', isAvailable: true }] : []
+          };
+        }
+        return day;
+      })
+    }));
+  };
 
 
 
@@ -443,7 +402,7 @@ const toggleDayAvailability = (dayOfWeek: string) => {
     }));
   };
 
-  // Handle time slot changes
+  // Update the handleTimeSlotChange function
   const handleTimeSlotChange = (
     dayOfWeek: string, 
     index: number, 
@@ -455,6 +414,16 @@ const toggleDayAvailability = (dayOfWeek: string) => {
       availability: prev.availability.map(day => {
         if (day.dayOfWeek === dayOfWeek) {
           const newTimes = [...day.times];
+          // Check if the time slot is unavailable
+          if (newTimes[index].isAvailable === false) {
+            setUnavailableSlotInfo({
+              dayOfWeek,
+              startTime: newTimes[index].startTime,
+              endTime: newTimes[index].endTime
+            });
+            setShowUnavailableModal(true);
+            return day;
+          }
           newTimes[index] = {
             ...newTimes[index],
             [field]: value,
@@ -467,8 +436,31 @@ const toggleDayAvailability = (dayOfWeek: string) => {
     }));
   };
 
+  // Update the removeTimeSlot function
+  const removeTimeSlot = (dayOfWeek: string, index: number) => {
+    setNewListener(prev => ({
+      ...prev,
+      availability: prev.availability.map(day => {
+        if (day.dayOfWeek === dayOfWeek) {
+          // Check if the time slot is unavailable
+          if (day.times[index].isAvailable === false) {
+            setUnavailableSlotInfo({
+              dayOfWeek,
+              startTime: day.times[index].startTime,
+              endTime: day.times[index].endTime
+            });
+            setShowUnavailableModal(true);
+            return day;
+          }
+          const newTimes = day.times.filter((_, i) => i !== index);
+          return { ...day, times: newTimes };
+        }
+        return day;
+      })
+    }));
+  };
+
   // Add new time slot
-  // Fix the addTimeSlot function
 const addTimeSlot = (dayOfWeek: string) => {
   setNewListener(prev => ({
     ...prev,
@@ -482,23 +474,6 @@ const addTimeSlot = (dayOfWeek: string) => {
             isAvailable: true 
           }]
         };
-      }
-      return day;
-    })
-  }));
-};
-
-
-
-
-  // Remove time slot
-  const removeTimeSlot = (dayOfWeek: string, index: number) => {
-    setNewListener(prev => ({
-      ...prev,
-      availability: prev.availability.map(day => {
-        if (day.dayOfWeek === dayOfWeek) {
-          const newTimes = day.times.filter((_, i) => i !== index);
-          return { ...day, times: newTimes };
         }
         return day;
       })
@@ -547,7 +522,52 @@ const addTimeSlot = (dayOfWeek: string) => {
     fetchListeners();
   };
 
+  // Add new function to handle activation/deactivation
+  const handleActivationToggle = async (listenerId: string, currentStatus: boolean) => {
+    if (!validateToken()) return;
 
+    // Show confirmation dialog for both activation and deactivation
+    const action = currentStatus ? 'deactivate' : 'activate';
+    const confirmed = window.confirm(
+      currentStatus 
+        ? 'Are you sure you want to deactivate this listener? This will prevent them from receiving new sessions.'
+        : 'Are you sure you want to activate this listener? This will allow them to receive new sessions.'
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsActivating(true);
+      await activateDeactivateListener(listenerId, { active: !currentStatus });
+      await fetchListeners(); // Refresh the list
+      alert(`Listener ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
+    } catch (error) {
+      console.error('Error toggling listener status:', error);
+      alert('Failed to update listener status. Please try again.');
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  // Add delete handler
+  const handleDeleteListener = async (listenerId: string) => {
+    if (!validateToken()) return;
+
+    if (!window.confirm('Are you sure you want to delete this listener?')) {
+      return;
+    }
+
+    try {
+      await deleteListener(listenerId);
+      await fetchListeners();
+      alert('Listener deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting listener:', error);
+      alert('Failed to delete listener. Please try again.');
+    }
+  };
 
   return (
     <div className="p-2 sm:p-4 md:p-6">
@@ -651,6 +671,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -666,6 +687,15 @@ const addTimeSlot = (dayOfWeek: string) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500 capitalize">{listener.gender}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          listener.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {listener.active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
@@ -690,12 +720,30 @@ const addTimeSlot = (dayOfWeek: string) => {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
+                        {/* Activation Toggle Button */}
+                        <button 
+                          className={`${
+                            listener.active 
+                              ? 'text-orange-600 hover:text-orange-800' 
+                              : 'text-green-600 hover:text-green-800'
+                          } transition-colors`}
+                          onClick={() => handleActivationToggle(listener._id!, listener.active || false)}
+                          disabled={isActivating}
+                          title={listener.active ? 'Deactivate Listener' : 'Activate Listener'}
+                        >
+                          {listener.active ? (
+                            <PowerOff className="h-4 w-4" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
+                        </button>
                         {/* Delete Button */}
                         <button 
                           className="text-red-600 hover:text-red-800 transition-colors"
+                          onClick={() => handleDeleteListener(listener._id!)}
                           title="Delete Listener"
                         >
-                          <XCircle className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                         {/* Message Button */}
                         <button 
@@ -714,7 +762,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                     No listeners found
                   </td>
                 </tr>
@@ -755,72 +803,68 @@ const addTimeSlot = (dayOfWeek: string) => {
 
           <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Listener Details</h3>
+              <h3 className="text-xl font-extrabold text-gray-900 mb-6">Listener Details</h3>
               
               <div className="space-y-4">
                 {/* Basic Info */}
                 <div>
-                  <label className="font-medium text-gray-800">Name:</label>
-                  <p className="text-gray-900">{selectedListener.name}</p>
+                  <label className="text-base font-extrabold text-gray-800">Name:</label>
+                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.name}</p>
                 </div>
                 
                 <div>
-                  <label className="font-medium text-gray-800">Description:</label>
-                  <p className="text-gray-900">{selectedListener.description}</p>
+                  <label className="text-base font-extrabold text-gray-800">Description:</label>
+                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.description}</p>
                 </div>
                 
                 <div>
-                  <label className="font-medium text-gray-800">Gender:</label>
-                  <p className="text-gray-900 capitalize">{selectedListener.gender}</p>
+                  <label className="text-base font-extrabold text-gray-800">Gender:</label>
+                  <p className="text-lg font-bold text-gray-900 mt-1 capitalize">{selectedListener.gender}</p>
                 </div>
                 
                 <div>
-                  <label className="font-medium text-gray-800">Email:</label>
-                  <p className="text-gray-900">{selectedListener.email}</p>
+                  <label className="text-base font-extrabold text-gray-800">Email:</label>
+                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.email}</p>
                 </div>
                 
                 <div>
-                  <label className="font-medium text-gray-800">Phone:</label>
-                  <p className="text-gray-900">{selectedListener.phoneNumber}</p>
+                  <label className="text-base font-extrabold text-gray-800">Phone:</label>
+                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.phoneNumber}</p>
                 </div>
 
                 {/* Availability Section */}
                 <div>
-                  <label className="font-medium text-gray-800">Availability:</label>
+                  <label className="text-base font-extrabold text-gray-800">Availability:</label>
                   <div className="mt-2 space-y-2">
                     {selectedListener.availability.map((day) => (
                       <div key={day.dayOfWeek} className="border rounded p-2 bg-gray-50">
-                        <p className="font-medium capitalize text-gray-800">{day.dayOfWeek}</p>
+                        <p className="text-lg font-extrabold capitalize text-gray-900 mb-2">{day.dayOfWeek}</p>
                         <div className="space-y-1 mt-1">
                           {day.times.map((time, index) => (
-                            <p key={index} className="text-sm text-gray-700">
-                              {time.startTime} - {time.endTime}
-                              {time.isAvailable ? ' (Available)' : ' (Unavailable)'}
-                            </p>
+                            <div key={index} className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-md">
+                                <span className="text-lg font-bold text-gray-900">{time.startTime}</span>
+                                <span className="text-lg font-bold text-gray-500">to</span>
+                                <span className="text-lg font-bold text-gray-900">{time.endTime}</span>
+                                {!time.isAvailable && (
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-bold text-orange-600 ml-2">
+                                      (Booked)
+                                    </span>
+                                    <div className="relative group">
+                                      <span className="text-gray-400 cursor-help">ⓘ</span>
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                        This time slot is booked and cannot be modified
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* Sessions Section */}
-                <div>
-                  <label className="font-medium text-gray-800">Sessions:</label>
-                  <div className="mt-2 space-y-2">
-                    {listenerSessions.length > 0 ? (
-                      listenerSessions.map((session) => (
-                        <div key={session._id} className="border rounded p-2 bg-gray-50">
-                          <p className="font-medium text-gray-800">Topic: {session.topic}</p>
-                          <p className="text-sm text-gray-700">Status: {session.status}</p>
-                          <p className="text-sm text-gray-700">
-                            Time: {new Date(session.time).toLocaleString()}
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-500">No sessions found for this listener.</p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -857,12 +901,12 @@ const addTimeSlot = (dayOfWeek: string) => {
               <div className="space-y-6">
                 {/* Name Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name*</label>
+                  <label className="block text-sm font-bold text-gray-700">Name*</label>
                   <input
                     type="text"
                     value={newListener.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
+                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
                       ${formErrors.name ? 'border-red-300' : 'border-gray-300'}
                       focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                   />
@@ -873,12 +917,12 @@ const addTimeSlot = (dayOfWeek: string) => {
 
                 {/* Description Textarea */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Description*</label>
+                  <label className="block text-sm font-bold text-gray-700">Description*</label>
                   <textarea
                     value={newListener.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     rows={3}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
+                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
                       ${formErrors.description ? 'border-red-300' : 'border-gray-300'}
                       focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                   />
@@ -889,15 +933,15 @@ const addTimeSlot = (dayOfWeek: string) => {
 
                 {/* Gender Select */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Gender*</label>
+                  <label className="block text-sm font-bold text-gray-700">Gender*</label>
                   <select
                     value={newListener.gender}
                     onChange={(e) => handleInputChange('gender', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-bold
                       focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     {GENDERS.map((gender) => (
-                      <option key={gender} value={gender} className="font-medium">
+                      <option key={gender} value={gender} className="font-bold">
                         {gender.charAt(0).toUpperCase() + gender.slice(1)}
                       </option>
                     ))}
@@ -906,12 +950,12 @@ const addTimeSlot = (dayOfWeek: string) => {
 
                 {/* Email Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email*</label>
+                  <label className="block text-sm font-bold text-gray-700">Email*</label>
                   <input
                     type="email"
                     value={newListener.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
+                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
                       ${formErrors.email ? 'border-red-300' : 'border-gray-300'}
                       focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                   />
@@ -922,12 +966,12 @@ const addTimeSlot = (dayOfWeek: string) => {
 
                 {/* Phone Number Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone Number*</label>
+                  <label className="block text-sm font-bold text-gray-700">Phone Number*</label>
                   <input
                     type="text"
                     value={newListener.phoneNumber}
                     onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-medium
+                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
                       ${formErrors.phoneNumber ? 'border-red-300' : 'border-gray-300'}
                       focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
                   />
@@ -938,7 +982,7 @@ const addTimeSlot = (dayOfWeek: string) => {
 
                 {/* Availability Section */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Availability*</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Availability*</label>
                   <div className="space-y-4">
                     {newListener.availability.map((day) => (
                       <div key={day.dayOfWeek} className="border rounded-lg p-4">
@@ -950,13 +994,13 @@ const addTimeSlot = (dayOfWeek: string) => {
                               onChange={() => toggleDayAvailability(day.dayOfWeek)}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <h4 className="font-medium capitalize">{day.dayOfWeek}</h4>
+                            <h4 className="text-lg font-extrabold capitalize text-gray-900">{day.dayOfWeek}</h4>
                           </div>
                           {availableDays.has(day.dayOfWeek) && (
                             <button
                               type="button"
                               onClick={() => addTimeSlot(day.dayOfWeek)}
-                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                              className="text-sm text-blue-600 hover:text-blue-700 font-bold"
                             >
                               + Add Time Slot
                             </button>
@@ -975,10 +1019,12 @@ const addTimeSlot = (dayOfWeek: string) => {
                                     'startTime',
                                     e.target.value
                                   )}
-                                  className="rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  disabled={!time.isAvailable}
+                                  className={`rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-bold
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    ${!time.isAvailable ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                                 />
-                                <span className="text-gray-900 font-medium">to</span>
+                                <span className="text-gray-900 font-bold">to</span>
                                 <input
                                   type="time"
                                   value={time.endTime}
@@ -988,10 +1034,12 @@ const addTimeSlot = (dayOfWeek: string) => {
                                     'endTime',
                                     e.target.value
                                   )}
-                                  className="rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  disabled={!time.isAvailable}
+                                  className={`rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-bold
+                                    focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                    ${!time.isAvailable ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
                                 />
-                                {day.times.length > 1 && (
+                                {day.times.length > 1 && time.isAvailable && (
                                   <button
                                     type="button"
                                     onClick={() => removeTimeSlot(day.dayOfWeek, timeIndex)}
@@ -999,6 +1047,19 @@ const addTimeSlot = (dayOfWeek: string) => {
                                   >
                                     <X className="h-4 w-4" />
                                   </button>
+                                )}
+                                {!time.isAvailable && (
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs text-orange-600 ml-2 font-bold">
+                                      (Booked)
+                                    </span>
+                                    <div className="relative group">
+                                      <span className="text-gray-400 cursor-help">ⓘ</span>
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                        This time slot is booked and cannot be modified
+                                      </div>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             ))}
@@ -1149,6 +1210,50 @@ const addTimeSlot = (dayOfWeek: string) => {
                   focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Unavailable Slot Modal */}
+    {showUnavailableModal && unavailableSlotInfo && (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Time Slot Unavailable
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      This time slot ({unavailableSlotInfo.startTime} - {unavailableSlotInfo.endTime} on {unavailableSlotInfo.dayOfWeek}) 
+                      is currently booked and cannot be modified. The slot is marked as unavailable to prevent conflicts with existing sessions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnavailableModal(false);
+                  setUnavailableSlotInfo(null);
+                }}
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 
+                  bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 
+                  focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+              >
+                Close
               </button>
             </div>
           </div>

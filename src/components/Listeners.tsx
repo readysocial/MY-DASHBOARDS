@@ -84,9 +84,13 @@ const Listeners: React.FC = (): JSX.Element => {
   // Add new state for activation status
   const [isActivating, setIsActivating] = useState(false);
 
-  // Add new state for the notification modal
-  const [showSessionNotification, setShowSessionNotification] = useState(false);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<{day: string, time: string} | null>(null);
+  // Add new state for unavailable slot modal
+  const [showUnavailableModal, setShowUnavailableModal] = useState(false);
+  const [unavailableSlotInfo, setUnavailableSlotInfo] = useState<{
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
 
   // Fetch Listeners
   const fetchListeners = async () => {
@@ -463,13 +467,14 @@ const toggleDayAvailability = (dayOfWeek: string) => {
       availability: prev.availability.map(day => {
         if (day.dayOfWeek === dayOfWeek) {
           const newTimes = [...day.times];
-          // Check if the time slot has an active session
-          if (hasActiveSession(dayOfWeek, newTimes[index])) {
-            setSelectedTimeSlot({
-              day: dayOfWeek,
-              time: `${newTimes[index].startTime} - ${newTimes[index].endTime}`
+          // Check if the time slot is unavailable
+          if (newTimes[index].isAvailable === false) {
+            setUnavailableSlotInfo({
+              dayOfWeek,
+              startTime: newTimes[index].startTime,
+              endTime: newTimes[index].endTime
             });
-            setShowSessionNotification(true);
+            setShowUnavailableModal(true);
             return day;
           }
           newTimes[index] = {
@@ -490,13 +495,14 @@ const toggleDayAvailability = (dayOfWeek: string) => {
       ...prev,
       availability: prev.availability.map(day => {
         if (day.dayOfWeek === dayOfWeek) {
-          // Check if the time slot has an active session
-          if (hasActiveSession(dayOfWeek, day.times[index])) {
-            setSelectedTimeSlot({
-              day: dayOfWeek,
-              time: `${day.times[index].startTime} - ${day.times[index].endTime}`
+          // Check if the time slot is unavailable
+          if (day.times[index].isAvailable === false) {
+            setUnavailableSlotInfo({
+              dayOfWeek,
+              startTime: day.times[index].startTime,
+              endTime: day.times[index].endTime
             });
-            setShowSessionNotification(true);
+            setShowUnavailableModal(true);
             return day;
           }
           const newTimes = day.times.filter((_, i) => i !== index);
@@ -521,11 +527,11 @@ const addTimeSlot = (dayOfWeek: string) => {
             isAvailable: true 
           }]
         };
-      }
-      return day;
-    })
-  }));
-};
+        }
+        return day;
+      })
+    }));
+  };
 
   // Handle edit click
   const handleEditClick = (listener: Listener) => {
@@ -1114,54 +1120,54 @@ const addTimeSlot = (dayOfWeek: string) => {
                             {day.times.map((time, timeIndex) => {
                               const hasSession = hasActiveSession(day.dayOfWeek, time);
                               return (
-                                <div key={timeIndex} className="flex items-center space-x-2">
-                                  <input
-                                    type="time"
-                                    value={time.startTime}
-                                    onChange={(e) => handleTimeSlotChange(
-                                      day.dayOfWeek,
-                                      timeIndex,
-                                      'startTime',
-                                      e.target.value
-                                    )}
-                                    disabled={hasSession}
-                                    className={`rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                                      focus:outline-none focus:ring-blue-500 focus:border-blue-500
-                                      ${hasSession ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
-                                  />
-                                  <span className="text-gray-900 font-medium">to</span>
-                                  <input
-                                    type="time"
-                                    value={time.endTime}
-                                    onChange={(e) => handleTimeSlotChange(
-                                      day.dayOfWeek,
-                                      timeIndex,
-                                      'endTime',
-                                      e.target.value
-                                    )}
-                                    disabled={hasSession}
-                                    className={`rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
-                                      focus:outline-none focus:ring-blue-500 focus:border-blue-500
-                                      ${hasSession ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
-                                  />
-                                  {day.times.length > 1 && !hasSession && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeTimeSlot(day.dayOfWeek, timeIndex)}
-                                      className="text-red-500 hover:text-red-700"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
+                              <div key={timeIndex} className="flex items-center space-x-2">
+                                <input
+                                  type="time"
+                                  value={time.startTime}
+                                  onChange={(e) => handleTimeSlotChange(
+                                    day.dayOfWeek,
+                                    timeIndex,
+                                    'startTime',
+                                    e.target.value
                                   )}
-                                  {hasSession && (
+                                    disabled={!time.isAvailable}
+                                    className={`rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
+                                      focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                      ${!time.isAvailable ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
+                                />
+                                <span className="text-gray-900 font-medium">to</span>
+                                <input
+                                  type="time"
+                                  value={time.endTime}
+                                  onChange={(e) => handleTimeSlotChange(
+                                    day.dayOfWeek,
+                                    timeIndex,
+                                    'endTime',
+                                    e.target.value
+                                  )}
+                                    disabled={!time.isAvailable}
+                                    className={`rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium
+                                      focus:outline-none focus:ring-blue-500 focus:border-blue-500
+                                      ${!time.isAvailable ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}`}
+                                  />
+                                  {day.times.length > 1 && time.isAvailable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTimeSlot(day.dayOfWeek, timeIndex)}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                )}
+                                  {!time.isAvailable && (
                                     <div className="flex items-center space-x-2">
                                       <span className="text-xs text-orange-600 ml-2">
-                                        (Booked - Active Session)
+                                        (Booked)
                                       </span>
                                       <div className="relative group">
                                         <span className="text-gray-400 cursor-help">ⓘ</span>
                                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                          This time slot has an active session and cannot be modified
+                                          This time slot is booked and cannot be modified
                                         </div>
                                       </div>
                                     </div>
@@ -1323,8 +1329,8 @@ const addTimeSlot = (dayOfWeek: string) => {
       </div>
     )}
 
-    {/* Notification Modal */}
-    {showSessionNotification && selectedTimeSlot && (
+    {/* Unavailable Slot Modal */}
+    {showUnavailableModal && unavailableSlotInfo && (
       <div className="fixed inset-0 z-50 overflow-y-auto">
         <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
@@ -1332,21 +1338,17 @@ const addTimeSlot = (dayOfWeek: string) => {
           <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="sm:flex sm:items-start">
-                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 sm:mx-0 sm:h-10 sm:w-10">
-                  <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <XCircle className="h-6 w-6 text-red-600" />
                 </div>
                 <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                   <h3 className="text-lg leading-6 font-medium text-gray-900">
-                    Cannot Modify Time Slot
+                    Time Slot Unavailable
                   </h3>
                   <div className="mt-2">
                     <p className="text-sm text-gray-500">
-                      This time slot ({selectedTimeSlot.day}, {selectedTimeSlot.time}) has an active session and cannot be modified.
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Please wait until the session is completed or cancelled before making any changes.
+                      This time slot ({unavailableSlotInfo.startTime} - {unavailableSlotInfo.endTime} on {unavailableSlotInfo.dayOfWeek}) 
+                      is currently booked and cannot be modified. The slot is marked as unavailable to prevent conflicts with existing sessions.
                     </p>
                   </div>
                 </div>
@@ -1356,10 +1358,12 @@ const addTimeSlot = (dayOfWeek: string) => {
               <button
                 type="button"
                 onClick={() => {
-                  setShowSessionNotification(false);
-                  setSelectedTimeSlot(null);
+                  setShowUnavailableModal(false);
+                  setUnavailableSlotInfo(null);
                 }}
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:ml-3 sm:w-auto sm:text-sm"
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 
+                  bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 
+                  focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
               >
                 Close
               </button>

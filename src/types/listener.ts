@@ -17,9 +17,19 @@ export interface Listener {
   name: string;
   description: string;
   gender: 'male' | 'female' | 'other';
-  availability: DayAvailability[];
+  availability: {
+    dayOfWeek: string;
+    times: {
+      startTime: string;
+      endTime: string;
+      isAvailable: boolean;
+      _id?: string;
+    }[];
+    _id?: string;
+  }[];
   email: string;
   phoneNumber: string;
+  active?: boolean;
 }
 
 export interface FormErrors {

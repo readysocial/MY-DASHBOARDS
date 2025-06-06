@@ -1,9 +1,17 @@
 import { getAuthToken } from './auth';
 
-export const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${getAuthToken()}`
-});
+export const getAuthHeaders = () => {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
 
 export const handleUnauthorized = (error: any) => {
   if (error.status === 401) {

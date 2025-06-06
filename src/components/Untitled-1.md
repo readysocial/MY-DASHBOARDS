@@ -1,48 +1,48 @@
-GET /users (Paginated List)
-Purpose: Dashboard overview of all users
-Returns:
-List of users
-Total count
-Pagination info
-Basic user details
-Account status
-http://localhost:5000/users?skip=0&limit=10
-
-GET /users/{id} (Detailed View)
-Purpose: View complete user profile
-Returns:
-Detailed user information
-Registration details
-Last login info
-Session history
-Account status
+listenerRouter
+  .route("/:listenerId/status")
+  .patch(
+    validateInput(ActivateDeactivateListenerSchema),
+    checkIfAdmin,
+    listenerController.activateDeactivateListener
+  );
 
 
-GET /users/search
-Purpose: Quick user lookup
-Search by:
-Name
-Email
-Phone number
-Registration date
-Returns: Same format as paginated list
+
+  // Request
+PATCH /listeners/123/status
+{
+    "active": true
+}
+
+// Response (200 OK)
+{
+    "message": "Listener activated successfully."
+}
 
 
-GET /users/stats
-Purpose: Analytics dashboard
-Returns:
-Total users count
-Active users count
-Inactive users count
-New users (last 7/30 days)
-User growth trends
+// Request
+PATCH /listeners/123/status
+{
+    "active": false
+}
+
+// Response (200 OK)
+{
+    "message": "Listener deactivated successfully."
+}
 
 
-GET /users/{id}/activity
-Purpose: User monitoring
-Returns:
-Login history
-Session durations
-Feature usage
-Last active timestamp
-Device information
+// 404 Not Found
+{
+    "message": "Listener not found"
+}
+
+// 401 Unauthorized
+{
+    "message": "Bearer token not provided."
+}
+
+// 403 Forbidden
+{
+    "message": "Cannot authenticate admin"
+}

@@ -6,6 +6,7 @@ export const API_ENDPOINTS = {
     create: `${API_URL}/sessions`,
     update: (id: string) => `${API_URL}/sessions/${id}`,
     delete: (id: string) => `${API_URL}/sessions/${id}`,
+    topics: `${API_URL}/sessions/topics`,
   },
   listeners: {
     all: `${API_URL}/listeners`,

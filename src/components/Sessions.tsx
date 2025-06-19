@@ -9,10 +9,13 @@ import {
   Video,
   Clock,
   Headphones,
-  RefreshCw
+  RefreshCw,
+  Tag,
+  Hash
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
+import { addSessionTopic, getSessionTopics } from '../api/sessions/api';
 
 interface User {
   _id: string;
@@ -26,6 +29,14 @@ interface Listener {
   _id: string;
   name: string;
   description: string;
+}
+
+interface SessionTopic {
+  _id: string;
+  topic: string;
+  count: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Session {
@@ -149,6 +160,12 @@ const Sessions: React.FC = () => {
   const [sortBy, setSortBy] = useState('time'); // Default sorting field
   const [sortOrder, setSortOrder] = useState('desc'); // Changed default to descending
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, boolean>>({});
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [newTopic, setNewTopic] = useState('');
+  const [isAddingTopic, setIsAddingTopic] = useState(false);
+  const [topics, setTopics] = useState<SessionTopic[]>([]);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [showTopicsPanel, setShowTopicsPanel] = useState(false);
 
   // Modify fetchSessions to handle all sessions
   const fetchSessions = async () => {
@@ -729,6 +746,193 @@ const renderTable = () => (
     return pageNumbers;
   };
 
+  // Add new function to handle topic addition
+  const handleAddTopic = async () => {
+    if (!validateToken() || !newTopic.trim()) return;
+
+    try {
+      setIsAddingTopic(true);
+      await addSessionTopic(newTopic.trim());
+      setShowTopicModal(false);
+      setNewTopic('');
+      await handleAddTopicSuccess();
+      alert('Topic added successfully!');
+    } catch (error) {
+      console.error('Error adding topic:', error);
+      alert('Failed to add topic. Please try again.');
+    } finally {
+      setIsAddingTopic(false);
+    }
+  };
+
+  // Update the renderTopicModal function
+  const renderTopicModal = () => (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity"></div>
+
+        <div className="inline-block align-bottom bg-gray-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-700">
+          <div className="bg-gray-900 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="sm:flex sm:items-start">
+              <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                <h3 className="text-xl font-semibold text-gray-100 mb-4">
+                  Add New Topic
+                </h3>
+                <div className="mt-2">
+                  <label htmlFor="topic" className="block text-sm font-medium text-gray-300 mb-2">
+                    Topic Name
+                  </label>
+                  <input
+                    id="topic"
+                    type="text"
+                    value={newTopic}
+                    onChange={(e) => setNewTopic(e.target.value)}
+                    className="shadow-sm bg-gray-800 focus:ring-red-500 focus:border-red-500 block w-full 
+                      text-gray-100 sm:text-sm border-gray-600 rounded-md px-3 py-2 
+                      placeholder-gray-400 transition-colors duration-200"
+                    placeholder="Enter topic name"
+                  />
+                  <p className="mt-1 text-sm text-gray-400">
+                    Add a new topic for session categorization
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-800 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              onClick={handleAddTopic}
+              disabled={isAddingTopic || !newTopic.trim()}
+              className={`w-full inline-flex justify-center rounded-md border border-transparent 
+                shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 
+                transition-colors duration-200 sm:ml-3 sm:w-auto sm:text-sm
+                ${isAddingTopic || !newTopic.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isAddingTopic ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Adding...
+                </>
+              ) : (
+                'Add Topic'
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowTopicModal(false);
+                setNewTopic('');
+              }}
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-600 
+                shadow-sm px-4 py-2 bg-gray-700 text-base font-medium text-gray-200 
+                hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 
+                focus:ring-red-500 transition-colors duration-200 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Add fetchTopics function
+  const fetchTopics = async () => {
+    if (!validateToken()) return;
+
+    try {
+      setIsLoadingTopics(true);
+      const response = await getSessionTopics();
+      setTopics(response.topics);
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      alert('Failed to fetch topics. Please try again.');
+    } finally {
+      setIsLoadingTopics(false);
+    }
+  };
+
+  // Update useEffect to fetch topics
+  useEffect(() => {
+    if (!validateToken()) return;
+    fetchTopics();
+  }, []);
+
+  // Add success callback for topic addition
+  const handleAddTopicSuccess = async () => {
+    await fetchTopics();
+  };
+
+  // Add Topics Panel component
+  const renderTopicsPanel = () => (
+    <div className="fixed inset-y-0 right-0 w-80 bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out"
+         style={{ transform: showTopicsPanel ? 'translateX(0)' : 'translateX(100%)' }}>
+      <div className="h-full flex flex-col">
+        <div className="px-4 py-3 bg-gray-800 flex justify-between items-center">
+          <h3 className="text-lg font-medium text-gray-100 flex items-center">
+            <Hash className="h-5 w-5 mr-2" />
+            Session Topics
+          </h3>
+          <button
+            onClick={() => setShowTopicsPanel(false)}
+            className="text-gray-400 hover:text-gray-200 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4">
+          {isLoadingTopics ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+            </div>
+          ) : topics.length > 0 ? (
+            <div className="space-y-2">
+              {topics.map((topic) => (
+                <div
+                  key={topic._id}
+                  className="bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-700"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-200 font-medium">{topic.topic}</span>
+                    <span className="bg-gray-700 text-gray-300 px-2 py-1 rounded-full text-xs">
+                      {topic.count} sessions
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-gray-400">
+                    Added {new Date(topic.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 mt-8">
+              No topics available
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 bg-gray-800 border-t border-gray-700">
+          <button
+            onClick={() => setShowTopicModal(true)}
+            className="w-full flex items-center justify-center px-4 py-2 border border-transparent 
+              rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 
+              transition-colors duration-200"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Topic
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Main return
 return (
   <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -739,6 +943,21 @@ return (
       </div>
 
       <div className="mt-4 sm:mt-0 sm:flex items-center space-x-4">
+        {/* Topics Button */}
+        <button 
+          className="flex items-center justify-center bg-gray-900 text-white px-4 py-2 rounded-lg 
+            hover:bg-gray-800 transition-colors relative"
+          onClick={() => setShowTopicsPanel(true)}
+        >
+          <Hash className="h-4 w-4 mr-2" />
+          <span>Topics</span>
+          {topics.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {topics.length}
+            </span>
+          )}
+        </button>
+
         {/* Refresh Button */}
         <RefreshButton 
           onClick={() => {
@@ -878,6 +1097,12 @@ return (
         </button>
       </div>
     </div>
+
+    {/* Add Topics Panel */}
+    {renderTopicsPanel()}
+
+    {/* Add Topic Modal */}
+    {showTopicModal && renderTopicModal()}
   </div>
 ); 
 

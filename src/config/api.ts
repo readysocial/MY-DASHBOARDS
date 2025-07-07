@@ -12,5 +12,11 @@ export const API_ENDPOINTS = {
     create: `${API_URL}/listeners`,
     update: (id: string) => `${API_URL}/listeners/${id}`,
     delete: (id: string) => `${API_URL}/listeners/${id}`,
+    validateToken: `${API_URL}/listeners/validate-token`,
+    register: `${API_URL}/listeners/register`,
+    registrationData: `${API_URL}/listeners/registration-data`,
+    login: `${API_URL}/listeners/login`,
+    profile: (id: string) => `${API_URL}/listeners/${id}`,
+    updateProfile: (id: string) => `${API_URL}/listeners/${id}`,
   }
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Eye, Edit2, XCircle, X, RefreshCw, MessageCircle, CheckCircle, PowerOff, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, XCircle, X, RefreshCw, MessageCircle, CheckCircle, PowerOff, Trash2, Mail, User, ArrowRight } from 'lucide-react';
 import { Listener, FormErrors, Message, TimeSlot } from '../types/listener';
 import { DAYS_OF_WEEK, DEFAULT_TIME_SLOTS, GENDERS } from '../constants/listener';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
@@ -11,7 +11,8 @@ import {
   getListener, 
   updateListener, 
   createListener, 
-  deleteListener 
+  deleteListener,
+  inviteListener 
 } from '../api/listener/api';
 
 const Listeners: React.FC = (): JSX.Element => {
@@ -35,6 +36,7 @@ const Listeners: React.FC = (): JSX.Element => {
   const [listenersPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,6 +86,9 @@ const Listeners: React.FC = (): JSX.Element => {
     startTime: string;
     endTime: string;
   } | null>(null);
+
+  // Add invite form state
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
 
   // Fetch Listeners
   const fetchListeners = async () => {
@@ -569,6 +574,24 @@ const addTimeSlot = (dayOfWeek: string) => {
     }
   };
 
+  // Add invite handler
+  const handleInvite = async () => {
+    if (!validateToken()) return;
+
+    try {
+      setIsSubmitting(true);
+      await inviteListener(inviteForm);
+      setShowInviteModal(false);
+      setInviteForm({ name: '', email: '' });
+      alert('Invitation sent successfully!');
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      alert('Failed to send invitation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-2 sm:p-4 md:p-6">
       {/* Header Section */}
@@ -583,6 +606,14 @@ const addTimeSlot = (dayOfWeek: string) => {
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
+          </button>
+          <button 
+            className="flex items-center justify-center bg-purple-600 text-white px-4 py-2 rounded-lg 
+            hover:bg-purple-700 transition-colors"
+            onClick={() => setShowInviteModal(true)}
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            <span>Invite Listener</span>
           </button>
           <button 
             className="flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg 
@@ -1254,6 +1285,117 @@ const addTimeSlot = (dayOfWeek: string) => {
                   focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Invite Modal */}
+    {showInviteModal && (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              {/* Header with Icon */}
+              <div className="sm:flex sm:items-start mb-6">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <MessageCircle className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 className="text-lg leading-6 font-semibold text-gray-900">
+                    Invite New Listener
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Send an invitation to join as a listener. They'll receive an email with instructions to complete their registration.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-6 mt-6">
+                {/* Name Input Group */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                  <div className="relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={inviteForm.name}
+                      onChange={(e) => setInviteForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="block w-full pl-10 pr-4 py-3 bg-white border-2 border-gray-300 
+                        rounded-lg shadow-sm hover:border-purple-400 
+                        focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
+                        transition duration-150 ease-in-out text-gray-900
+                        placeholder:text-gray-400"
+                      placeholder="Enter listener's full name"
+                    />
+                  </div>
+                </div>
+                
+                {/* Email Input Group */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                  <div className="relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      value={inviteForm.email}
+                      onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="block w-full pl-10 pr-4 py-3 bg-white border-2 border-gray-300 
+                        rounded-lg shadow-sm hover:border-purple-400 
+                        focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
+                        transition duration-150 ease-in-out text-gray-900
+                        placeholder:text-gray-400"
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-4 py-4 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+              <button
+                type="button"
+                onClick={handleInvite}
+                disabled={isSubmitting || !inviteForm.name || !inviteForm.email}
+                className="w-full inline-flex justify-center items-center rounded-lg border border-transparent px-6 py-3 
+                  bg-purple-600 text-base font-medium text-white shadow-sm hover:bg-purple-700 
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 
+                  sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all duration-150 ease-in-out transform hover:scale-[1.02]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    Send Invitation
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setInviteForm({ name: '', email: '' });
+                }}
+                className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 
+                  px-6 py-3 bg-white text-base font-medium text-gray-700 shadow-sm 
+                  hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 
+                  focus:ring-purple-500 sm:mt-0 sm:w-auto sm:text-sm
+                  transition-all duration-150 ease-in-out"
+              >
+                Cancel
               </button>
             </div>
           </div>

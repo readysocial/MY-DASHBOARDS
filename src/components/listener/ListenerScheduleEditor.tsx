@@ -202,34 +202,34 @@ export const ListenerScheduleEditor = () => {
   if (!profile || !availability.length) return null;
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto py-4 sm:py-8 px-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Schedule</h1>
-          <p className="text-sm text-gray-600 mt-1">Click on a time slot to edit availability</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Schedule</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">Click on a time slot to edit availability</p>
         </div>
-        <div className="space-x-4">
+        <div className="flex gap-2 sm:gap-4">
           <Button
             variant="outline"
             onClick={() => window.history.back()}
-            className="border-gray-300"
+            className="border-gray-300 text-xs sm:text-sm py-1.5 sm:py-2"
           >
-            <X className="h-4 w-4 mr-2" />
+            <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm py-1.5 sm:py-2"
           >
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className={`p-4 rounded-md mb-6 ${
+        <div className={`p-3 sm:p-4 rounded-md mb-4 sm:mb-6 text-xs sm:text-sm ${
           error.includes('success') 
             ? 'bg-green-50 text-green-700 border border-green-200'
             : 'bg-red-50 text-red-700 border border-red-200'
@@ -238,11 +238,10 @@ export const ListenerScheduleEditor = () => {
         </div>
       )}
 
-      <div className="mb-6 flex items-center space-x-4">
+      <div className="mb-4 sm:mb-6 flex flex-wrap gap-2 sm:gap-4">
         <Button
           variant="outline"
           onClick={() => {
-            // Set all current time slots to available
             setAvailability(prev => prev.map(day => ({
               ...day,
               times: day.times.map(time => ({
@@ -251,14 +250,13 @@ export const ListenerScheduleEditor = () => {
               }))
             })))
           }}
-          className="bg-purple-600 text-white hover:bg-purple-700 font-normal flex items-center"
+          className="bg-purple-600 text-white hover:bg-purple-700 font-normal flex items-center text-xs sm:text-sm py-1.5 sm:py-2"
         >
-          <Check className="h-4 w-4 mr-1" /> Available
+          <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> Available
         </Button>
         <Button
           variant="outline"
           onClick={() => {
-            // Set all current time slots to unavailable
             setAvailability(prev => prev.map(day => ({
               ...day,
               times: day.times.map(time => ({
@@ -267,78 +265,76 @@ export const ListenerScheduleEditor = () => {
               }))
             })))
           }}
-          className="border-gray-300 text-gray-700 hover:bg-gray-100 font-normal flex items-center"
+          className="border-gray-300 text-gray-700 hover:bg-gray-100 font-normal flex items-center text-xs sm:text-sm py-1.5 sm:py-2"
         >
-          <XIcon className="h-4 w-4 mr-1" /> Unavailable
+          <XIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> Unavailable
         </Button>
       </div>
 
-      <Card className="p-6">
-        <div className="grid gap-6">
+      <Card className="p-4 sm:p-6">
+        <div className="grid gap-4 sm:gap-6">
           {availability.map((day, dayIndex) => (
-            <div key={day._id} className="border-b last:border-b-0 pb-6 last:pb-0">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-gray-900 capitalize flex items-center">
-                  <Clock className="h-5 w-5 mr-2 text-purple-600" />
+            <div key={day._id} className="border-b last:border-b-0 pb-4 sm:pb-6 last:pb-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4">
+                <h3 className="text-sm sm:text-base font-medium text-gray-900 capitalize flex items-center">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-600" />
                   {day.dayOfWeek}
                 </h3>
                 <Button
                   variant="outline"
                   onClick={() => addTimeSlot(dayIndex)}
-                  className="text-purple-600 border-purple-600"
+                  className="text-purple-600 border-purple-600 text-xs sm:text-sm py-1 sm:py-1.5"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                   Add Time Slot
                 </Button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {day.times.map((time, timeIndex) => (
-                  <div key={time._id || timeIndex} className="flex items-center space-x-4">
-                    <div className="flex-1 grid grid-cols-2 gap-4">
-                      <div>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleTimeEdit(dayIndex, timeIndex, 'start')}
-                          className="w-full justify-between"
-                          disabled={!time.isAvailable}
-                        >
-                          <span>Start: {formatTimeForDisplay(time.startTime)}</span>
-                          <Clock className="h-4 w-4 ml-2" />
-                        </Button>
-                      </div>
-                      <div>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleTimeEdit(dayIndex, timeIndex, 'end')}
-                          className="w-full justify-between"
-                          disabled={!time.isAvailable}
-                        >
-                          <span>End: {formatTimeForDisplay(time.endTime)}</span>
-                          <Clock className="h-4 w-4 ml-2" />
-                        </Button>
-                      </div>
+                  <div key={time._id || timeIndex} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleTimeEdit(dayIndex, timeIndex, 'start')}
+                        className="w-full justify-between text-xs sm:text-sm py-1.5 sm:py-2"
+                        disabled={!time.isAvailable}
+                      >
+                        <span>Start: {formatTimeForDisplay(time.startTime)}</span>
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleTimeEdit(dayIndex, timeIndex, 'end')}
+                        className="w-full justify-between text-xs sm:text-sm py-1.5 sm:py-2"
+                        disabled={!time.isAvailable}
+                      >
+                        <span>End: {formatTimeForDisplay(time.endTime)}</span>
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                      </Button>
                     </div>
-                    <Button
-                      variant={time.isAvailable ? "default" : "outline"}
-                      onClick={() => handleAvailabilityToggle(dayIndex, timeIndex)}
-                      className={time.isAvailable 
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                        : 'border-gray-300 text-gray-700'
-                      }
-                    >
-                      {time.isAvailable ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <XIcon className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => removeTimeSlot(dayIndex, timeIndex)}
-                      className="text-red-600 border-red-600 hover:bg-red-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={time.isAvailable ? "default" : "outline"}
+                        onClick={() => handleAvailabilityToggle(dayIndex, timeIndex)}
+                        className={`${time.isAvailable 
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'border-gray-300 text-gray-700'
+                        } py-1.5 sm:py-2`}
+                      >
+                        {time.isAvailable ? (
+                          <Check className="h-3 w-3 sm:h-4 sm:w-4" />
+                        ) : (
+                          <XIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => removeTimeSlot(dayIndex, timeIndex)}
+                        className="text-red-600 border-red-600 hover:bg-red-50 py-1.5 sm:py-2"
+                      >
+                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -352,17 +348,17 @@ export const ListenerScheduleEditor = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4">
             <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setEditingTime(null)} />
-            <div className="relative bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg text-gray-900 mb-4">
+            <div className="relative bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
+              <h3 className="text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">
                 Select {editingTime.type === 'start' ? 'Start' : 'End'} Time
               </h3>
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Hour</label>
+                  <label className="block text-xs sm:text-sm text-gray-600 mb-1">Hour</label>
                   <select
                     value={timeSelection.hour}
                     onChange={(e) => setTimeSelection(prev => ({ ...prev, hour: parseInt(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-1.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     {HOURS.map(hour => (
                       <option key={hour} value={hour} className="text-gray-900">
@@ -372,11 +368,11 @@ export const ListenerScheduleEditor = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Minute</label>
+                  <label className="block text-xs sm:text-sm text-gray-600 mb-1">Minute</label>
                   <select
                     value={timeSelection.minute}
                     onChange={(e) => setTimeSelection(prev => ({ ...prev, minute: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-1.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     {MINUTES.map(minute => (
                       <option key={minute} value={minute} className="text-gray-900">
@@ -386,11 +382,11 @@ export const ListenerScheduleEditor = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">AM/PM</label>
+                  <label className="block text-xs sm:text-sm text-gray-600 mb-1">AM/PM</label>
                   <select
                     value={timeSelection.period}
                     onChange={(e) => setTimeSelection(prev => ({ ...prev, period: e.target.value as 'AM' | 'PM' }))}
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-1.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     {PERIODS.map(period => (
                       <option key={period} value={period} className="text-gray-900">
@@ -400,17 +396,17 @@ export const ListenerScheduleEditor = () => {
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-2 sm:gap-3">
                 <Button 
                   variant="outline" 
                   onClick={() => setEditingTime(null)} 
-                  className="text-gray-700 hover:bg-gray-50"
+                  className="text-gray-700 hover:bg-gray-50 text-xs sm:text-sm py-1.5 sm:py-2"
                 >
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleTimeSelect} 
-                  className="bg-purple-600 text-white hover:bg-purple-700"
+                  className="bg-purple-600 text-white hover:bg-purple-700 text-xs sm:text-sm py-1.5 sm:py-2"
                 >
                   Confirm
                 </Button>

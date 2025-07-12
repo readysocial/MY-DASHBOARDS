@@ -6,6 +6,12 @@ export const API_ENDPOINTS = {
     create: `${API_URL}/sessions`,
     update: (id: string) => `${API_URL}/sessions/${id}`,
     delete: (id: string) => `${API_URL}/sessions/${id}`,
+    topics: `${API_URL}/sessions/topics`,
+    getListenerSessions: (listenerId: string) => `${API_URL}/sessions/listener/${listenerId}/sessions`,
+    addMeetingLink: (sessionId: string) => `${API_URL}/sessions/${sessionId}/add-link`,
+    updateStatus: (sessionId: string) => `${API_URL}/sessions/${sessionId}/update-status`,
+    addComment: (sessionId: string) => `${API_URL}/sessions/${sessionId}/comment`,
+    recommendRepeat: (sessionId: string) => `${API_URL}/sessions/${sessionId}/recommend-repeat`,
   },
   listeners: {
     all: `${API_URL}/listeners`,
@@ -18,5 +24,8 @@ export const API_ENDPOINTS = {
     login: `${API_URL}/listeners/login`,
     profile: (id: string) => `${API_URL}/listeners/${id}`,
     updateProfile: (id: string) => `${API_URL}/listeners/${id}`,
+    updateTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
+    getListenerTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
+    deleteListenerTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
   }
 };

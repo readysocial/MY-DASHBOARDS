@@ -5,10 +5,14 @@ import {
   LayoutDashboard,
   Calendar,
   UserCircle,
-  BarChart3,
-  Settings,
   LogOut,
+  Tag,
+  X
 } from 'lucide-react';
+
+interface ListenerSidebarProps {
+  onCloseSidebar?: () => void;
+}
 
 const navigationItems = [
   {
@@ -22,23 +26,18 @@ const navigationItems = [
     icon: Calendar
   },
   {
+    name: 'Topics',
+    href: '/listener/topics',
+    icon: Tag
+  },
+  {
     name: 'Profile',
     href: '/listener/profile',
     icon: UserCircle
-  },
-  {
-    name: 'Analytics',
-    href: '/listener/analytics',
-    icon: BarChart3
-  },
-  {
-    name: 'Settings',
-    href: '/listener/settings',
-    icon: Settings
   }
 ];
 
-export const ListenerSidebar = () => {
+export const ListenerSidebar = ({ onCloseSidebar }: ListenerSidebarProps) => {
   const router = useRouter();
 
   const isActive = (path: string) => {
@@ -52,8 +51,8 @@ export const ListenerSidebar = () => {
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      {/* Logo */}
-      <div className="p-6">
+      {/* Logo and Close Button */}
+      <div className="p-6 flex items-center justify-between">
         <Link href="/listener/dashboard" className="flex items-center">
           <img
             src="/logo.jpg"
@@ -64,6 +63,14 @@ export const ListenerSidebar = () => {
             Listener Portal
           </span>
         </Link>
+        {onCloseSidebar && (
+          <button
+            onClick={onCloseSidebar}
+            className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -74,6 +81,7 @@ export const ListenerSidebar = () => {
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => onCloseSidebar?.()}
               className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg
                 transition-colors duration-150 hover:bg-purple-50
                 ${isActive(item.href)

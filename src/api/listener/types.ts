@@ -31,15 +31,9 @@ export interface ActivateDeactivateListenerRequest {
   }
 
   export interface InviteListenerRequest {
-    name: string;
     email: string;
   }
 
   export interface InviteListenerResponse {
     message: string;
-    invitationId: string;
-    listener: {
-      name: string;
-      email: string;
-    };
   }

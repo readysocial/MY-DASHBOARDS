@@ -88,7 +88,7 @@ const Listeners: React.FC = (): JSX.Element => {
   } | null>(null);
 
   // Add invite form state
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
+  const [inviteForm, setInviteForm] = useState({ email: '' });
 
   // Fetch Listeners
   const fetchListeners = async () => {
@@ -582,7 +582,7 @@ const addTimeSlot = (dayOfWeek: string) => {
       setIsSubmitting(true);
       await inviteListener(inviteForm);
       setShowInviteModal(false);
-      setInviteForm({ name: '', email: '' });
+      setInviteForm({ email: '' });
       alert('Invitation sent successfully!');
     } catch (error) {
       console.error('Error sending invitation:', error);
@@ -1316,27 +1316,6 @@ const addTimeSlot = (dayOfWeek: string) => {
               </div>
               
               <div className="space-y-6 mt-6">
-                {/* Name Input Group */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      value={inviteForm.name}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="block w-full pl-10 pr-4 py-3 bg-white border-2 border-gray-300 
-                        rounded-lg shadow-sm hover:border-purple-400 
-                        focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
-                        transition duration-150 ease-in-out text-gray-900
-                        placeholder:text-gray-400"
-                      placeholder="Enter listener's full name"
-                    />
-                  </div>
-                </div>
-                
                 {/* Email Input Group */}
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
@@ -1364,7 +1343,7 @@ const addTimeSlot = (dayOfWeek: string) => {
               <button
                 type="button"
                 onClick={handleInvite}
-                disabled={isSubmitting || !inviteForm.name || !inviteForm.email}
+                disabled={isSubmitting || !inviteForm.email}
                 className="w-full inline-flex justify-center items-center rounded-lg border border-transparent px-6 py-3 
                   bg-purple-600 text-base font-medium text-white shadow-sm hover:bg-purple-700 
                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 
@@ -1387,7 +1366,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                 type="button"
                 onClick={() => {
                   setShowInviteModal(false);
-                  setInviteForm({ name: '', email: '' });
+                  setInviteForm({ email: '' });
                 }}
                 className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 
                   px-6 py-3 bg-white text-base font-medium text-gray-700 shadow-sm 

@@ -48,20 +48,16 @@ export interface Session {
   reflectData: ReflectionData;
   repeats?: Repeats;
   repeatSessionId?: string;
-  meetingLink?: string;
   createdAt: string;
   updatedAt: string;
   __v: number;
 }
 
-export interface GetListenerSessionsResponse {
-  sessions: Session[];
+export interface RelatedSessionsResponse {
+  baseSession: Session;
+  relatedSessions: Session[];
 }
 
-export interface AddMeetingLinkResponse {
-  session: Session;
-}
-
-export interface AddMeetingLinkRequest {
-  meetingLink: string;
+export interface GetRelatedSessionsParams {
+  sessionId: string;
 } 

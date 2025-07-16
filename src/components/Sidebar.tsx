@@ -21,7 +21,7 @@ const Sidebar: React.FC = () => {
     { icon: Users, text: 'Users', path: '/users' },
     { icon: UserCheck, text: 'Listeners', path: '/listeners' },
     { icon: LogOut, text: 'Sessions', path: '/sessions' },
-    { icon: BarChart2, text: 'Analytics', path: '/analytics' },
+    // { icon: BarChart2, text: 'Analytics', path: '/analytics' },
     { icon: Settings, text: 'Settings', path: '/settings' },
   ];
 

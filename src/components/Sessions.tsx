@@ -9,23 +9,56 @@ import {
   Video,
   Clock,
   Headphones,
-  RefreshCw
+  RefreshCw,
+  Tag
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 
 interface User {
   _id: string;
-  firstName?: string;  // Add these fields based on your actual user model
+  firstName?: string;
   lastName?: string;
-  name?: string;
   email: string;
+  anonymousName: string;  // Added this
+  verified: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Listener {
   _id: string;
   name: string;
   description: string;
+  gender: string;
+  phoneNumber: string;
+  email: string;
+  active: boolean;
+}
+
+interface ReflectionQuestion {
+  question: string;
+  answer: string;
+  _id: string;
+}
+
+interface ReflectData {
+  userReflectionData: ReflectionQuestion[];
+  _id: string;
+}
+
+interface TopicRef {
+  _id: string;
+  topic: string;
+  count: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Repeats {
+  count: number;
+  pendingAcceptance: boolean;
+  _id: string;
 }
 
 interface Session {
@@ -33,12 +66,15 @@ interface Session {
   user: User;
   listener: Listener;
   topic: string;
+  topicRef?: TopicRef;  // Added topicRef
   time: string;
   meetingLink?: string;
   status: SessionStatus; 
+  reflectData?: ReflectData;
+  repeats?: Repeats;  // Added repeats
+  repeatSessionId?: string;  // Added repeatSessionId
   createdAt: string;
   updatedAt: string;
-  comment?: string; // Add comment property
 }
 
 type SessionProgress = 'scheduled' | 'ongoing' | 'completed';
@@ -149,6 +185,44 @@ const Sessions: React.FC = () => {
   const [sortBy, setSortBy] = useState('time'); // Default sorting field
   const [sortOrder, setSortOrder] = useState('desc'); // Changed default to descending
   const [selectedStatuses, setSelectedStatuses] = useState<Record<string, boolean>>({});
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [newTopic, setNewTopic] = useState('');
+  const [isCreatingTopic, setIsCreatingTopic] = useState(false);
+  const [topicError, setTopicError] = useState<string | null>(null);
+  const [existingTopics, setExistingTopics] = useState<TopicRef[]>([]);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+
+  // Add fetchTopics function
+  const fetchTopics = async () => {
+    if (!validateToken()) return;
+    
+    setIsLoadingTopics(true);
+    try {
+      const response = await fetch(`${API_URL}/sessions/topics`, {
+        headers: getAuthHeaders()
+      });
+
+      if (response.status === 401) {
+        return handleUnauthorized(response);
+      }
+
+      const data = await response.json();
+      if (data && Array.isArray(data.topics)) {
+        setExistingTopics(data.topics);
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+    } finally {
+      setIsLoadingTopics(false);
+    }
+  };
+
+  // Add useEffect to fetch topics when modal opens
+  useEffect(() => {
+    if (showTopicModal) {
+      fetchTopics();
+    }
+  }, [showTopicModal]);
 
   // Modify fetchSessions to handle all sessions
   const fetchSessions = async () => {
@@ -246,20 +320,18 @@ const Sessions: React.FC = () => {
       if (!session || !session.user || !session.listener) return false;
       
       const searchTermLower = searchTerm.toLowerCase();
-      const userName = session.user?.name || '';
-      const listenerName = session.listener?.name || '';
-      const sessionDate = session.time ? new Date(session.time).toLocaleDateString() : '';
+      const userAnonymousName = session.user.anonymousName || '';
+      const listenerName = session.listener.name || '';
+      const sessionTime = session.time ? new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
       return (
-        userName.toLowerCase().includes(searchTermLower) ||
+        userAnonymousName.toLowerCase().includes(searchTermLower) ||
         listenerName.toLowerCase().includes(searchTermLower) ||
-        sessionDate.includes(searchTerm)
+        sessionTime.includes(searchTerm)
       );
     });
 
     setTotalSessions(filtered.length);
-
-    // Apply pagination to filtered results
     const startIndex = (currentPage - 1) * sessionsPerPage;
     const endIndex = startIndex + sessionsPerPage;
     setFilteredSessions(filtered.slice(startIndex, endIndex));
@@ -473,20 +545,64 @@ const Sessions: React.FC = () => {
     }
   };
 
+  const handleCreateTopic = async () => {
+    if (!validateToken()) return;
+    if (!newTopic.trim()) {
+      setTopicError('Please enter a topic name');
+      return;
+    }
+
+    // Check if topic already exists (case insensitive)
+    const topicExists = existingTopics.some(
+      t => t.topic.toLowerCase() === newTopic.trim().toLowerCase()
+    );
+    if (topicExists) {
+      setTopicError('This topic already exists');
+      return;
+    }
+
+    setIsCreatingTopic(true);
+    setTopicError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/sessions/topics`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ topic: newTopic.trim().toLowerCase() })
+      });
+
+      if (response.status === 401) {
+        return handleUnauthorized(response);
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create topic');
+      }
+
+      // Success
+      setNewTopic('');
+      setShowTopicModal(false);
+      // Refresh topics list
+      fetchTopics();
+      // Show success toast
+      alert('Topic created successfully!');
+    } catch (error) {
+      console.error('Error creating topic:', error);
+      setTopicError(error instanceof Error ? error.message : 'Failed to create topic');
+    } finally {
+      setIsCreatingTopic(false);
+    }
+  };
+
   // Mobile card renderer
   const renderMobileCard = (session: Session) => (
     <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="font-medium text-gray-900">
-            {session.user?.name || 
-             `${session.user?.firstName || ''} ${session.user?.lastName || ''}` ||
-             session.user?.email ||
-             'Unknown User'}
+            {session.user.anonymousName}
           </h3>
-          <p className="text-sm text-gray-500">
-            {new Date(session.time).toLocaleDateString()}
-          </p>
         </div>
         <div className="flex flex-col gap-2">
           <ProgressBadge progress={getSessionProgress(session.time)} />
@@ -497,20 +613,29 @@ const Sessions: React.FC = () => {
       <div className="space-y-2 text-sm text-gray-600">
         <div className="flex items-center">
           <Headphones className="h-4 w-4 mr-2" />
+          <div className="flex flex-col">
           <span>{session.listener.name}</span>
+            <span className="text-xs text-gray-500">{session.listener.email}</span>
+          </div>
         </div>
         <div className="flex items-center">
           <Clock className="h-4 w-4 mr-2" />
-          <span>{new Date(session.time).toLocaleTimeString()}</span>
+          <span>{new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
         <div className="flex items-center">
-          <Calendar className="h-4 w-4 mr-2" />
-          <span>{session.topic}</span>
+          <Tag className="h-4 w-4 mr-2" />
+          <span>{session.topicRef?.topic || session.topic}</span>
         </div>
-        {session.comment && (
-          <div className="flex items-start">
-            <Edit2 className="h-4 w-4 mr-2 mt-1" />
-            <span className="text-gray-500 italic">{session.comment}</span>
+        
+        {session.reflectData && (
+          <div className="mt-4 border-t border-gray-100 pt-3">
+            <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
+            {session.reflectData.userReflectionData.map((reflection) => (
+              <div key={reflection._id} className="mb-2 last:mb-0 pl-2 border-l-2 border-gray-200">
+                <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
+                <p className="text-sm text-gray-900">{reflection.answer}</p>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -545,9 +670,7 @@ const Sessions: React.FC = () => {
         {/* Status Selection Section */}
         <div className="flex justify-between items-center pt-2 border-t border-gray-100">
           <span className="text-sm font-medium text-gray-500">Update Status:</span>
-          <StatusSelect 
-            session={session} 
-          />
+          <StatusSelect session={session} />
         </div>
       </div>
     </div>
@@ -566,54 +689,54 @@ const renderTable = () => (
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('topic')}>Topic</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reflection</th>
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200">
         {filteredSessions.map((session: Session) => (
           <tr key={session._id}>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              {/* Add fallback options for different name fields */}
-              {session.user?.name || 
-               `${session.user?.firstName || ''} ${session.user?.lastName || ''}` ||
-               session.user?.email ||
-               'Unknown User'}
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-900">
+                  {session.user.anonymousName}
+                </span>
+              </div>
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.listener.name}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              {new Date(session.time).toLocaleString()}
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-900">{session.listener.name}</span>
+                <span className="text-xs text-gray-500">{session.listener.email}</span>
+              </div>
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.topic}</td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-900">
+                  {new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {session.topicRef?.topic || session.topic}
+            </td>
             <td className="px-6 py-4 whitespace-nowrap">
               <ProgressBadge progress={getSessionProgress(session.time)} />
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
               <StatusBadge status={session.status} />
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <div className="flex space-x-2 items-center">
-                {session.meetingLink && (
-                  <a
-                    href={session.meetingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-900"
-                  >
-                    <Video className="h-5 w-5" />
-                  </a>
-                )}
-                <button
-                  onClick={() => {
-                    setSelectedSessionId(session._id);
-                    setMeetingLink(session.meetingLink || '');
-                    setShowLinkModal(true);
-                  }}
-                  className="text-yellow-600 hover:text-yellow-900"
-                >
-                  <Edit2 className="h-5 w-5" />
-                </button>
-                <StatusSelect session={session} />
+            <td className="px-6 py-4 whitespace-nowrap">
+              {session.reflectData ? (
+                <div className="max-w-xs">
+                  {session.reflectData.userReflectionData.map((reflection) => (
+                    <div key={reflection._id} className="mb-2 last:mb-0">
+                      <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
+                      <p className="text-sm text-gray-900">{reflection.answer}</p>
               </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-500">No reflection</span>
+              )}
             </td>
           </tr>
         ))}
@@ -695,6 +818,153 @@ const renderTable = () => (
     </div>
   );
 
+  const renderTopicModal = () => (
+    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div className="inline-block align-bottom bg-gray-900 rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-700">
+          {/* Header */}
+          <div className="bg-gray-800 px-6 py-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0 bg-red-500/10 p-2 rounded-lg">
+                  <Tag className="h-8 w-8 text-red-500" aria-hidden="true" />
+                </div>
+                <h3 className="text-2xl font-semibold text-white tracking-tight">
+                  Create New Topic
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTopicModal(false);
+                  setNewTopic('');
+                  setTopicError(null);
+                }}
+                className="text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="bg-gray-900 px-6 py-8">
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="topic-name" className="block text-lg font-medium text-gray-200 mb-3">
+                  Enter Topic Name
+                </label>
+                <div className="relative">
+                  <input
+                    id="topic-name"
+                    type="text"
+                    className="w-full px-5 py-4 text-xl bg-gray-800 border-2 border-gray-700 rounded-xl 
+                      text-white placeholder-gray-400 focus:border-red-500 focus:ring-2 focus:ring-red-500 
+                      focus:ring-opacity-50 transition-all duration-200 shadow-sm
+                      hover:border-gray-600"
+                    placeholder="e.g., Career Development, Mental Health, Personal Growth"
+                    value={newTopic}
+                    onChange={(e) => {
+                      setNewTopic(e.target.value);
+                      setTopicError(null);
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !isCreatingTopic) {
+                        handleCreateTopic();
+                      }
+                    }}
+                  />
+                  {newTopic && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <Tag className="h-6 w-6 text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {topicError && (
+                  <div className="mt-3 flex items-center space-x-2 text-red-500">
+                    <X className="h-5 w-5" />
+                    <p className="text-sm">{topicError}</p>
+                  </div>
+                )}
+                <p className="mt-3 text-sm text-gray-400">
+                  Choose a clear and specific name that describes the topic. This will help users find relevant sessions.
+                </p>
+              </div>
+
+              {/* Existing Topics Section */}
+              <div className="mt-8">
+                <h4 className="text-lg font-medium text-gray-200 mb-4">Existing Topics</h4>
+                {isLoadingTopics ? (
+                  <div className="flex justify-center py-4">
+                    <RefreshCw className="h-6 w-6 text-gray-400 animate-spin" />
+                  </div>
+                ) : existingTopics.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {existingTopics.map((topic) => (
+                      <div
+                        key={topic._id}
+                        className="flex items-center space-x-2 bg-gray-800 px-3 py-2 rounded-lg"
+                      >
+                        <Tag className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-300 truncate">{topic.topic}</span>
+                        {topic.count > 0 && (
+                          <span className="text-xs text-gray-500">({topic.count})</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No topics found. Create your first topic!</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="bg-gray-800 px-6 py-4 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700">
+            <button
+              type="button"
+              className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl
+                text-white text-lg font-medium bg-red-500 hover:bg-red-600 
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500
+                transition-colors duration-200 sm:ml-3"
+              onClick={handleCreateTopic}
+              disabled={isCreatingTopic || !newTopic.trim()}
+            >
+              {isCreatingTopic ? (
+                <>
+                  <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Topic
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              className="mt-3 sm:mt-0 w-full sm:w-auto flex items-center justify-center px-6 py-3 
+                rounded-xl text-lg font-medium text-gray-300 bg-gray-700 hover:bg-gray-600
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500
+                transition-colors duration-200"
+              onClick={() => {
+                setShowTopicModal(false);
+                setNewTopic('');
+                setTopicError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Add this helper function near the top of the file
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
     const pageNumbers = [];
@@ -739,6 +1009,16 @@ return (
       </div>
 
       <div className="mt-4 sm:mt-0 sm:flex items-center space-x-4">
+        {/* Add Create Topic Button */}
+        <button 
+          className="flex items-center justify-center bg-red-500 text-white 
+            px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+          onClick={() => setShowTopicModal(true)}
+        >
+          <Tag className="h-4 w-4 mr-2" />
+          <span>Create Topic</span>
+        </button>
+
         {/* Refresh Button */}
         <RefreshButton 
           onClick={() => {
@@ -828,6 +1108,7 @@ return (
             {filteredSessions.map(renderMobileCard)}
           </div>
           {showLinkModal && renderLinkModal()}
+          {showTopicModal && renderTopicModal()}
         </>
       )}
 

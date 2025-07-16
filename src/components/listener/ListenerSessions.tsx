@@ -7,16 +7,13 @@ import { SessionMeetingLink } from './SessionMeetingLink';
 import { SessionStatusUpdate } from './SessionStatusUpdate';
 import { SessionComment } from './SessionComment';
 import { SessionRepeatRecommendation } from './SessionRepeatRecommendation';
+import { SessionRelated } from './SessionRelated';
 import { Button } from '@/components/ui/button';
 import type { SessionStatus } from '@/api/listener/updatestatus/types';
 
-interface ListenerSessionsProps {
-  listenerId: string;
-}
-
 const ITEMS_PER_PAGE = 5;
 
-export const ListenerSessions = ({ listenerId }: ListenerSessionsProps) => {
+export const ListenerSessions = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +21,7 @@ export const ListenerSessions = ({ listenerId }: ListenerSessionsProps) => {
 
   const fetchSessions = async () => {
     try {
-      const response = await getListenerSessions(listenerId);
+      const response = await getListenerSessions();
       setSessions(response.sessions);
     } catch (error) {
       setError('Failed to fetch sessions');
@@ -36,7 +33,7 @@ export const ListenerSessions = ({ listenerId }: ListenerSessionsProps) => {
 
   useEffect(() => {
     fetchSessions();
-  }, [listenerId]);
+  }, []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -139,7 +136,7 @@ export const ListenerSessions = ({ listenerId }: ListenerSessionsProps) => {
   return (
     <div className="space-y-6">
       {currentSessions.map((session) => (
-        <Card key={session._id} className="p-6">
+        <Card key={session._id} id={`session-${session._id}`} className="p-6">
           <div className="flex items-start justify-between">
             <div className="space-y-4 flex-grow">
               {/* User Info */}
@@ -165,9 +162,24 @@ export const ListenerSessions = ({ listenerId }: ListenerSessionsProps) => {
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Tag className="h-4 w-4" />
-                  <span className="text-sm">Topic ID: {session.topic}</span>
+                  <span className="text-sm">{session.topic}</span>
                 </div>
               </div>
+
+              {/* Reflection Data */}
+              {session.reflectData && (
+                <div className="mt-4 space-y-3 bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-900">Session Reflection</h4>
+                  <div className="space-y-3">
+                    {session.reflectData.userReflectionData.map((reflection) => (
+                      <div key={reflection._id} className="bg-white p-3 rounded-md shadow-sm">
+                        <p className="text-sm font-medium text-gray-700">{reflection.question}</p>
+                        <p className="text-sm text-gray-600 mt-1">{reflection.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Meeting Link */}
               <SessionMeetingLink
@@ -197,6 +209,25 @@ export const ListenerSessions = ({ listenerId }: ListenerSessionsProps) => {
                 sessionId={session._id}
                 status={session.status as SessionStatus}
                 onRecommendationMade={fetchSessions}
+              />
+
+              {/* Related Sessions */}
+              <SessionRelated
+                sessionId={session._id}
+                isRepeatSession={!!session.repeatSessionId}
+                repeatSessionId={session.repeatSessionId}
+                onRelatedSessionClick={(relatedSession) => {
+                  // Find the session in the list and scroll to it
+                  const element = document.getElementById(`session-${relatedSession._id}`);
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                    // Add a highlight effect
+                    element.classList.add('ring-2', 'ring-blue-500');
+                    setTimeout(() => {
+                      element.classList.remove('ring-2', 'ring-blue-500');
+                    }, 2000);
+                  }
+                }}
               />
             </div>
 

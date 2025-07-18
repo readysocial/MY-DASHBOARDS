@@ -34,6 +34,7 @@ export interface DayAvailability {
 // Main registration request interface
 export interface ListenerRegistrationRequest {
   token: string;
+  name: string;
   password: string;
   description: string;
   gender: 'male' | 'female' | 'other';

@@ -240,13 +240,14 @@ export const ListenerSessions = () => {
         ))}
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
+        {totalPages >= 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
             <div className="flex flex-1 justify-between sm:hidden">
               <Button
                 variant="outline"
                 onClick={handlePreviousPage}
                 disabled={currentPage === 1}
+                className="font-bold text-black"
               >
                 Previous
               </Button>
@@ -254,18 +255,15 @@ export const ListenerSessions = () => {
                 variant="outline"
                 onClick={handleNextPage}
                 disabled={currentPage === totalPages}
+                className="font-bold text-black"
               >
                 Next
               </Button>
             </div>
             <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(endIndex, sessions.length)}
-                  </span>{' '}
-                  of <span className="font-medium">{sessions.length}</span> results
+                <p className="text-sm text-gray-900 font-bold">
+                  Showing {startIndex + 1} to {Math.min(endIndex, sessions.length)} of {sessions.length} results
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -274,13 +272,13 @@ export const ListenerSessions = () => {
                   size="sm"
                   onClick={handlePreviousPage}
                   disabled={currentPage === 1}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 font-bold text-black"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Previous
                 </Button>
                 <div className="flex items-center gap-1">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-bold text-black">
                     Page {currentPage} of {totalPages}
                   </span>
                 </div>
@@ -289,7 +287,7 @@ export const ListenerSessions = () => {
                   size="sm"
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 font-bold text-black"
                 >
                   Next
                   <ChevronRight className="h-4 w-4" />

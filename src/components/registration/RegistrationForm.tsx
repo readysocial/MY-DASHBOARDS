@@ -22,6 +22,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<ListenerRegistrationRequest>>({
     token: prefilledData.token,
+    name: prefilledData.name,
     password: '',
     description: '',
     gender: 'male',
@@ -37,6 +38,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
+
+    if (!formData.name) {
+      newErrors.name = 'Name is required';
+    }
 
     if (!formData.password) {
       newErrors.password = 'Password is required';
@@ -92,9 +97,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         <div className="space-y-3 sm:space-y-4">
           <div className="flex items-center space-x-3 sm:space-x-4">
             <User className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-500">Name</p>
-              <p className="text-sm sm:text-base font-medium text-gray-900">{prefilledData.name}</p>
+            <div className="w-full">
+              <label htmlFor="name" className="text-xs sm:text-sm font-medium text-gray-500">Name</label>
+              <input
+                id="name"
+                type="text"
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className={`w-full text-sm sm:text-base font-medium text-gray-900 bg-transparent border-b-2
+                  ${errors.name ? 'border-red-400' : 'border-purple-200'}
+                  focus:outline-none focus:border-purple-500 transition-colors`}
+              />
+              {errors.name && (
+                <p className="mt-1 text-xs sm:text-sm text-red-600 font-medium">{errors.name}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-3 sm:space-x-4">

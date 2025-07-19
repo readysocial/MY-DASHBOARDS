@@ -13,7 +13,11 @@ import type { SessionStatus } from '@/api/listener/updatestatus/types';
 
 const ITEMS_PER_PAGE = 5;
 
-export const ListenerSessions = () => {
+interface ListenerSessionsProps {
+  listenerId: string;
+}
+
+export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +25,7 @@ export const ListenerSessions = () => {
 
   const fetchSessions = async () => {
     try {
-      const response = await getListenerSessions();
+      const response = await getListenerSessions(listenerId);
       setSessions(response.sessions);
     } catch (error) {
       setError('Failed to fetch sessions');
@@ -32,8 +36,10 @@ export const ListenerSessions = () => {
   };
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    if (listenerId) {
+      fetchSessions();
+    }
+  }, [listenerId]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

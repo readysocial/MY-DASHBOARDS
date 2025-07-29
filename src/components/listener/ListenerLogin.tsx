@@ -3,6 +3,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Eye, EyeOff } from 'lucide-react';
 import { loginListener } from '@/api/listener/login/api';
+import Link from 'next/link';
 
 interface ListenerLoginProps {
   onSuccess: () => void;
@@ -129,9 +130,17 @@ export default function ListenerLogin({ onSuccess }: ListenerLoginProps) {
         </Button>
       </form>
 
-      <div className="text-xs sm:text-sm text-center text-gray-600">
+      <div className="text-xs sm:text-sm text-center text-gray-600 space-y-1">
+        <p>
+          <Link 
+            href="/listeners/forgot-password" 
+            className="text-purple-600 hover:text-purple-800 font-medium"
+          >
+            Forgot your password?
+          </Link>
+        </p>
         <p>Having trouble signing in? Contact your administrator</p>
       </div>
     </div>
   );
-} 
+}

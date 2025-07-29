@@ -29,5 +29,8 @@ export const API_ENDPOINTS = {
     updateTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
     getListenerTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
     deleteListenerTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
+    forgotPassword: `${API_URL}/listeners/forgot-password`,
+    validateResetToken: `${API_URL}/listeners/validate-reset-token`,
+    resetPassword: `${API_URL}/listeners/reset-password`,
   }
 };

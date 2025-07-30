@@ -133,7 +133,7 @@ export default function ListenerLogin({ onSuccess }: ListenerLoginProps) {
       <div className="text-xs sm:text-sm text-center text-gray-600 space-y-1">
         <p>
           <Link 
-            href="/listeners/forgot-password" 
+            href="/listeners/send-otp" 
             className="text-purple-600 hover:text-purple-800 font-medium"
           >
             Forgot your password?

@@ -4,7 +4,7 @@ import { ResetPasswordRequest, ResetPasswordResponse } from './types';
 export const resetPassword = async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
   try {
     const response = await fetch(API_ENDPOINTS.listeners.resetPassword, {
-      method: 'POST',
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },

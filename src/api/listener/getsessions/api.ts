@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from '@/config/api';
 import type { GetListenerSessionsResponse, AddMeetingLinkResponse, AddMeetingLinkRequest } from './types';
 
-export const getListenerSessions = async (listenerId: string): Promise<GetListenerSessionsResponse> => {
+export const getListenerSessions = async (): Promise<GetListenerSessionsResponse> => {
   const token = localStorage.getItem('listenerToken');
   
   if (!token) {
@@ -9,7 +9,7 @@ export const getListenerSessions = async (listenerId: string): Promise<GetListen
   }
 
   try {
-    const response = await fetch(API_ENDPOINTS.sessions.getListenerSessions(listenerId), {
+    const response = await fetch(API_ENDPOINTS.sessions.getListenerSessions, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

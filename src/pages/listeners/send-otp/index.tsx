@@ -4,13 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { forgotPassword } from '@/api/listener/forgotpassword/api';
+import { sendOtp } from '@/api/listener/sendotp/api';
 
-export default function ListenerForgotPassword() {
-  const router = useRouter();
+export default function SendOtpPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,15 +18,17 @@ export default function ListenerForgotPassword() {
     setMessage(null);
 
     try {
-      const response = await forgotPassword({ email });
+      const response = await sendOtp({ email });
       setMessage({
         type: 'success',
-        text: response.message || 'If an account exists for that email, a password reset link has been sent.'
+        text: response.message || 'OTP sent successfully! Please check your email.'
       });
+      // Redirect to a page where they can enter the OTP
+      router.push(`/listeners/confirm-otp?email=${email}`);
     } catch (error) {
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to send reset link'
+        text: error instanceof Error ? error.message : 'Failed to send OTP'
       });
     } finally {
       setLoading(false);
@@ -39,7 +41,7 @@ export default function ListenerForgotPassword() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>
           <p className="text-sm text-gray-600 mt-2">
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email to receive an OTP for password reset
           </p>
         </CardHeader>
         <CardContent>
@@ -74,7 +76,7 @@ export default function ListenerForgotPassword() {
               disabled={loading}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white"
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Sending OTP...' : 'Send OTP'}
             </Button>
           </form>
 
@@ -90,4 +92,4 @@ export default function ListenerForgotPassword() {
       </Card>
     </div>
   );
-}
+} 

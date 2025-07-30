@@ -25,7 +25,7 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
 
   const fetchSessions = async () => {
     try {
-      const response = await getListenerSessions(listenerId);
+      const response = await getListenerSessions();
       setSessions(response.sessions);
     } catch (error) {
       setError('Failed to fetch sessions');
@@ -36,10 +36,9 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
   };
 
   useEffect(() => {
-    if (listenerId) {
-      fetchSessions();
-    }
-  }, [listenerId]);
+    // No need to check listenerId anymore as it's not used in the API call
+    fetchSessions();
+  }, []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

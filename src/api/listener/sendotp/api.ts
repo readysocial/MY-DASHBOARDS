@@ -1,9 +1,9 @@
 import { API_ENDPOINTS } from '@/config/api';
-import { ForgotPasswordRequest, ForgotPasswordResponse } from './types';
+import { SendOtpRequest, SendOtpResponse } from './types';
 
-export const forgotPassword = async (data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> => {
+export const sendOtp = async (data: SendOtpRequest): Promise<SendOtpResponse> => {
   try {
-    const response = await fetch(API_ENDPOINTS.listeners.forgotPassword, {
+    const response = await fetch(API_ENDPOINTS.listeners.sendOtp, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -14,7 +14,7 @@ export const forgotPassword = async (data: ForgotPasswordRequest): Promise<Forgo
     const responseData = await response.json();
 
     if (!response.ok) {
-      throw new Error(responseData.message || 'Failed to send password reset email');
+      throw new Error(responseData.message || 'Failed to send OTP');
     }
 
     return responseData;

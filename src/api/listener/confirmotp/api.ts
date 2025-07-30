@@ -1,9 +1,9 @@
 import { API_ENDPOINTS } from '@/config/api';
-import { ValidateResetTokenRequest, ValidateResetTokenResponse } from './types';
+import { ConfirmOtpRequest, ConfirmOtpResponse } from './types';
 
-export const validateResetToken = async (data: ValidateResetTokenRequest): Promise<ValidateResetTokenResponse> => {
+export const confirmOtp = async (data: ConfirmOtpRequest): Promise<ConfirmOtpResponse> => {
   try {
-    const response = await fetch(API_ENDPOINTS.listeners.validateResetToken, {
+    const response = await fetch(API_ENDPOINTS.listeners.confirmOtp, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -14,7 +14,7 @@ export const validateResetToken = async (data: ValidateResetTokenRequest): Promi
     const responseData = await response.json();
 
     if (!response.ok) {
-      throw new Error(responseData.message || 'Failed to validate reset token');
+      throw new Error(responseData.message || 'Failed to confirm OTP');
     }
 
     return responseData;

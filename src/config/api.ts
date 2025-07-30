@@ -8,7 +8,7 @@ export const API_ENDPOINTS = {
     delete: (id: string) => `${API_URL}/sessions/${id}`,
     topics: `${API_URL}/sessions/topics`,
     listenerSessions: `${API_URL}/sessions/listener/sessions`,
-    getListenerSessions: (listenerId: string) => `${API_URL}/sessions/listener/${listenerId}/sessions`,
+    getListenerSessions: `${API_URL}/sessions/listener/sessions`,
     getRelatedSessions: (sessionId: string) => `${API_URL}/sessions/listener/sessions/${sessionId}/related`,
     addMeetingLink: (sessionId: string) => `${API_URL}/sessions/${sessionId}/add-link`,
     updateStatus: (sessionId: string) => `${API_URL}/sessions/${sessionId}/update-status`,
@@ -29,8 +29,8 @@ export const API_ENDPOINTS = {
     updateTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
     getListenerTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
     deleteListenerTopics: (id: string) => `${API_URL}/listeners/${id}/topics`,
-    forgotPassword: `${API_URL}/listeners/forgot-password`,
-    validateResetToken: `${API_URL}/listeners/validate-reset-token`,
-    resetPassword: `${API_URL}/listeners/reset-password`,
+    sendOtp: `${API_URL}/listeners/password-reset/send-otp`,
+    confirmOtp: `${API_URL}/listeners/password-reset/confirm-otp`,
+    resetPassword: `${API_URL}/listeners/password-reset`,
   }
 };

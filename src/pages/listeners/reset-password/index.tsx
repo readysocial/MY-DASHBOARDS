@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
-import { validateResetToken } from '@/api/listener/validateresettoken/api';
 import { resetPassword } from '@/api/listener/resetpassword/api';
 
 export default function ListenerResetPassword() {
@@ -23,32 +22,10 @@ export default function ListenerResetPassword() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    const validateToken = async () => {
-      if (token && typeof token === 'string') {
-        try {
-          const response = await validateResetToken({ token });
-          if (response.success) {
-            setTokenValid(true);
-          } else {
-            setMessage({
-              type: 'error',
-              text: 'Invalid or expired reset token'
-            });
-          }
-        } catch (error) {
-          setMessage({
-            type: 'error',
-            text: error instanceof Error ? error.message : 'Failed to validate reset token'
-          });
-        } finally {
-          setValidating(false);
-        }
-      } else {
-        setValidating(false);
-      }
-    };
-
-    validateToken();
+    if (token && typeof token === 'string') {
+      setTokenValid(true);
+    }
+    setValidating(false);
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,7 +107,7 @@ export default function ListenerResetPassword() {
               </p>
             )}
             <Link 
-              href="/listeners/forgot-password" 
+              href="/listeners/send-otp" 
               className="text-purple-600 hover:text-purple-800 font-medium"
             >
               Request a new reset link

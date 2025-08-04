@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { updateSessionStatus } from '@/api/listener/updatestatus/api';
-import type { SessionStatus } from '@/api/listener/updatestatus/types';
+import { updateSessionStatus } from '@/api/admin/sessions/api';
+import type { SessionStatus } from '@/api/listener/updatestatus/types'; // ✅ correct file
 import { AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react';
 
 interface SessionStatusUpdateProps {
@@ -33,6 +33,7 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
     }
   };
 
+  /* ---------- unchanged logic ---------- */
   const isSessionInPast = new Date(sessionTime) < new Date();
   const oneHourAfterSession = new Date(sessionTime);
   oneHourAfterSession.setHours(oneHourAfterSession.getHours() + 1);
@@ -40,23 +41,23 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
 
   if (currentStatus !== 'pending') {
     return (
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-2">
         {currentStatus === 'successful' && (
-          <div className="flex items-center gap-1 sm:gap-2 text-green-600">
-            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="text-xs sm:text-sm">Completed Successfully</span>
+          <div className="flex items-center gap-2 text-green-400">
+            <CheckCircle2 size={16} />
+            <span className="text-sm">Completed Successfully</span>
           </div>
         )}
         {currentStatus === 'unsuccessful' && (
-          <div className="flex items-center gap-1 sm:gap-2 text-red-600">
-            <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="text-xs sm:text-sm">Completed with Issues</span>
+          <div className="flex items-center gap-2 text-red-400">
+            <XCircle size={16} />
+            <span className="text-sm">Completed with Issues</span>
           </div>
         )}
         {currentStatus === 'cancelled' && (
-          <div className="flex items-center gap-1 sm:gap-2 text-gray-600">
-            <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="text-xs sm:text-sm">Cancelled</span>
+          <div className="flex items-center gap-2 text-slate-400">
+            <AlertCircle size={16} />
+            <span className="text-sm">Cancelled</span>
           </div>
         )}
       </div>
@@ -65,55 +66,53 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
 
   if (!isSessionInPast) {
     return (
-      <div className="flex items-center gap-1 sm:gap-2 text-gray-600">
-        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-        <span className="text-xs sm:text-sm">Session hasn't started yet</span>
+      <div className="flex items-center gap-2 text-slate-400">
+        <Clock size={16} />
+        <span className="text-sm">Session hasn’t started yet</span>
       </div>
     );
   }
 
   if (!canUpdateStatus) {
     return (
-      <div className="flex items-center gap-1 sm:gap-2 text-gray-600">
-        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-        <span className="text-xs sm:text-sm">Status can be updated 1 hour after session start</span>
+      <div className="flex items-center gap-2 text-slate-400">
+        <Clock size={16} />
+        <span className="text-sm">Available 1 hr after session start</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          onClick={() => handleStatusUpdate('successful')}
-          disabled={isLoading}
-          className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm py-1.5 sm:py-2"
-        >
-          <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          Successful
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => handleStatusUpdate('unsuccessful')}
-          disabled={isLoading}
-          className="bg-red-600 hover:bg-red-700 text-xs sm:text-sm py-1.5 sm:py-2"
-        >
-          <XCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          Unsuccessful
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleStatusUpdate('cancelled')}
-          disabled={isLoading}
-          className="text-xs sm:text-sm py-1.5 sm:py-2"
-        >
-          <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          Cancel
-        </Button>
-      </div>
-      {error && <p className="text-xs sm:text-sm text-red-600">{error}</p>}
+    <div className="flex flex-wrap gap-2">
+      <Button
+        size="sm"
+        onClick={() => handleStatusUpdate('successful')}
+        disabled={isLoading}
+        className="bg-green-600 hover:bg-green-700"
+      >
+        <CheckCircle2 size={14} className="mr-1" />
+        Successful
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => handleStatusUpdate('unsuccessful')}
+        disabled={isLoading}
+        className="bg-red-600 hover:bg-red-700"
+      >
+        <XCircle size={14} className="mr-1" />
+        Unsuccessful
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => handleStatusUpdate('cancelled')}
+        disabled={isLoading}
+        className="border-slate-600 text-slate-300 hover:bg-slate-800"
+      >
+        <AlertCircle size={14} className="mr-1" />
+        Cancel
+      </Button>
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
-}; 
+};

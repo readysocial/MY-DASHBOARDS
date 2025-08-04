@@ -10,11 +10,22 @@ export const API_ENDPOINTS = {
     listenerSessions: `${API_URL}/sessions/listener/sessions`,
     getListenerSessions: `${API_URL}/sessions/listener/sessions`,
     getRelatedSessions: (sessionId: string) => `${API_URL}/sessions/listener/sessions/${sessionId}/related`,
-    addMeetingLink: (sessionId: string) => `${API_URL}/sessions/${sessionId}/add-link`,
-    updateStatus: (sessionId: string) => `${API_URL}/sessions/${sessionId}/update-status`,
     addComment: (sessionId: string) => `${API_URL}/sessions/${sessionId}/comment`,
     recommendRepeat: (sessionId: string) => `${API_URL}/sessions/${sessionId}/recommend-repeat`,
   },
+
+
+
+  admin: {
+    sessions: {
+      updateStatus: (sessionId: string) =>
+        `${API_URL}/admin/sessions/${sessionId}/status`, // ✔ confirmed
+      addMeetingLink: (sessionId: string) =>
+        `${API_URL}/sessions/${sessionId}/add-link`, // ✅ fix here
+    },
+  },
+
+
   listeners: {
     all: `${API_URL}/listeners`,
     create: `${API_URL}/listeners`,

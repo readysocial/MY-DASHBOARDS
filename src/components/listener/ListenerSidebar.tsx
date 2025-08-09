@@ -25,11 +25,11 @@ const navigationItems = [
     href: '/listener/sessions',
     icon: Calendar
   },
-  {
-    name: 'Topics',
-    href: '/listener/topics',
-    icon: Tag
-  },
+ // {
+  //   name: 'Topics',
+  //   href: '/listener/topics',
+  //   icon: Tag
+  // },
   {
     name: 'Profile',
     href: '/listener/profile',

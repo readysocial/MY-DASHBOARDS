@@ -12,7 +12,13 @@ import {
   RefreshCw,
   Tag,
   Check,
-  Trash2
+  Trash2,
+  Copy,
+  Repeat,
+  CheckCircle,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
@@ -116,7 +122,6 @@ const rotateAnimation = `
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
-  }
 `;
 
 const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ onClick, isLoading }) => {
@@ -153,6 +158,38 @@ const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
   );
 };
 
+const RepeatBadge: React.FC<{ 
+  repeats?: Repeats; 
+  isParent?: boolean; 
+  isChild?: boolean;
+  pendingAcceptance?: boolean;
+}> = ({ repeats, isParent, isChild, pendingAcceptance }) => {
+  if (!repeats && !isParent && !isChild && pendingAcceptance === undefined) return null;
+  
+  let badgeText = '';
+  let badgeClass = '';
+  
+  if (isParent) {
+    badgeText = `Parent Session (${repeats?.count || 0} repeat${repeats?.count !== 1 ? 's' : ''})`;
+    badgeClass = 'bg-purple-100 text-purple-800';
+  } else if (isChild) {
+    if (pendingAcceptance) {
+      badgeText = 'Pending Acceptance';
+      badgeClass = 'bg-yellow-100 text-yellow-800';
+    } else {
+      badgeText = 'Repeat Session';
+      badgeClass = 'bg-indigo-100 text-indigo-800';
+    }
+  }
+  
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs ${badgeClass} flex items-center`}>
+      <Repeat className="h-3 w-3 mr-1" />
+      {badgeText}
+    </span>
+  );
+};
+
 const Sessions: React.FC = () => {
   useEffect(() => {
     validateToken();
@@ -176,6 +213,35 @@ const Sessions: React.FC = () => {
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editingTopicName, setEditingTopicName] = useState('');
+  const [expandedRepeatSessions, setExpandedRepeatSessions] = useState<Set<string>>(new Set());
+
+  // Group sessions by parent session
+  const groupSessionsByParent = (sessions: Session[]): { [key: string]: Session[] } => {
+    const groups: { [key: string]: Session[] } = {};
+    
+    // First, find all parent sessions (those with repeats.count > 0)
+    sessions.forEach(session => {
+      if (session.repeats && session.repeats.count > 0) {
+        groups[session._id] = [session];
+      }
+    });
+    
+    // Then, add child sessions to their parent groups
+    sessions.forEach(session => {
+      if (session.repeatSessionId && groups[session.repeatSessionId]) {
+        groups[session.repeatSessionId].push(session);
+      }
+    });
+    
+    // Add standalone sessions (not part of a repeat group)
+    sessions.forEach(session => {
+      if (!session.repeatSessionId && !(session.repeats && session.repeats.count > 0)) {
+        groups[session._id] = [session];
+      }
+    });
+    
+    return groups;
+  };
 
   const fetchTopics = async () => {
     if (!validateToken()) return;
@@ -248,6 +314,10 @@ const Sessions: React.FC = () => {
               compareA = a.status || '';
               compareB = b.status || '';
               break;
+            case 'repeats':
+              compareA = a.repeats?.count || 0;
+              compareB = b.repeats?.count || 0;
+              break;
             default:
               compareA = new Date(a.time).getTime();
               compareB = new Date(b.time).getTime();
@@ -283,10 +353,13 @@ const Sessions: React.FC = () => {
       const userAnonymousName = session.user.anonymousName || '';
       const listenerName = session.listener.name || '';
       const sessionTime = session.time ? new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const topicName = session.topicRef?.topic || session.topic || '';
+      
       return (
         userAnonymousName.toLowerCase().includes(searchTermLower) ||
         listenerName.toLowerCase().includes(searchTermLower) ||
-        sessionTime.includes(searchTerm)
+        sessionTime.includes(searchTerm) ||
+        topicName.toLowerCase().includes(searchTermLower)
       );
     });
     setTotalSessions(filtered.length);
@@ -308,6 +381,18 @@ const Sessions: React.FC = () => {
     setSortBy(column);
     setSortOrder(newSortOrder);
     setCurrentPage(1);
+  };
+
+  const toggleRepeatSession = (sessionId: string) => {
+    setExpandedRepeatSessions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId);
+      } else {
+        newSet.add(sessionId);
+      }
+      return newSet;
+    });
   };
 
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
@@ -383,7 +468,6 @@ const Sessions: React.FC = () => {
       setTopicError('This topic already exists');
       return;
     }
-
     setIsTopicOperationLoading(true);
     setTopicError(null);
     try {
@@ -467,166 +551,407 @@ const Sessions: React.FC = () => {
   };
 
   // ✅ Mobile Card Renderer
-  const renderMobileCard = (session: Session) => (
-    <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="font-medium text-gray-900">
-            {session.user.anonymousName}
-          </h3>
-        </div>
-        <div className="flex flex-col gap-2">
-          <ProgressBadge progress={getSessionProgress(session.time)} />
-          <StatusBadge status={session.status} />
-        </div>
-      </div>
-      <div className="space-y-2 text-sm text-gray-600">
-        <div className="flex items-center">
-          <Headphones className="h-4 w-4 mr-2" />
-          <div className="flex flex-col">
-            <span>{session.listener.name}</span>
-            <span className="text-xs text-gray-500">{session.listener.email}</span>
+  const renderMobileCard = (session: Session) => {
+    const isParent = session.repeats && session.repeats.count > 0;
+    const isChild = !!session.repeatSessionId;
+    const pendingAcceptance = isChild && session.repeats?.pendingAcceptance;
+    
+    return (
+      <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h3 className="font-medium text-gray-900">
+              {session.user.anonymousName}
+            </h3>
+          </div>
+          <div className="flex flex-col gap-2">
+            <ProgressBadge progress={getSessionProgress(session.time)} />
+            <StatusBadge status={session.status} />
+            <RepeatBadge 
+              repeats={session.repeats} 
+              isParent={isParent} 
+              isChild={isChild}
+              pendingAcceptance={pendingAcceptance}
+            />
           </div>
         </div>
-        <div className="flex items-center">
-          <Clock className="h-4 w-4 mr-2" />
-          <span>{new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-        </div>
-        <div className="flex items-center">
-          <Tag className="h-4 w-4 mr-2" />
-          <span>{session.topicRef?.topic || session.topic}</span>
-        </div>
-        {session.reflectData && (
-          <div className="mt-4 border-t border-gray-100 pt-3">
-            <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
-            {session.reflectData.userReflectionData.map((reflection) => (
-              <div key={reflection._id} className="mb-2 last:mb-0 pl-2 border-l-2 border-gray-200">
-                <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                <p className="text-sm text-gray-900">{reflection.answer}</p>
-              </div>
-            ))}
+        
+        {isParent && expandedRepeatSessions.has(session._id) && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-medium text-gray-700">Repeat Sessions ({session.repeats?.count})</span>
+              <button 
+                onClick={() => toggleRepeatSession(session._id)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+            </div>
+            {sessions
+              .filter(s => s.repeatSessionId === session._id)
+              .map(repeatSession => {
+                const repeatPending = repeatSession.repeats?.pendingAcceptance;
+                return (
+                  <div 
+                    key={repeatSession._id} 
+                    className="mt-2 p-2 bg-white border border-gray-200 rounded-lg"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-1 text-gray-500" />
+                          <span className="text-sm">
+                            {new Date(repeatSession.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div className="flex items-center mt-1">
+                          <Tag className="h-4 w-4 mr-1 text-gray-500" />
+                          <span className="text-sm">
+                            {repeatSession.topicRef?.topic || repeatSession.topic}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <StatusBadge status={repeatSession.status} />
+                        {repeatPending ? (
+                          <span className="text-xs text-yellow-600 mt-1 flex items-center">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="text-xs text-green-600 mt-1 flex items-center">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Accepted
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         )}
-      </div>
-      <div className="mt-4 space-y-3">
-        {/* Meeting Link */}
-        <div className="flex justify-between items-center">
-          <SessionMeetingLink
-            sessionId={session._id}
-            initialMeetingLink={session.meetingLink}
-            onLinkAdded={(newLink) => {
-              setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
-            }}
-            isEditable={true}
-          />
+
+        <div className="space-y-2 text-sm text-gray-600">
+          <div className="flex items-center">
+            <Headphones className="h-4 w-4 mr-2" />
+            <div className="flex flex-col">
+              <span>{session.listener.name}</span>
+              <span className="text-xs text-gray-500">{session.listener.email}</span>
+            </div>
+          </div>
+          <div className="flex items-center">
+            <Clock className="h-4 w-4 mr-2" />
+            <span>{new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <div className="flex items-center">
+            <Tag className="h-4 w-4 mr-2" />
+            <span>{session.topicRef?.topic || session.topic}</span>
+          </div>
+          
+          {isParent && (
+            <div className="flex items-center mt-2">
+              <Repeat className="h-4 w-4 mr-2 text-purple-500" />
+              <div className="flex items-center">
+                <span className="text-sm text-purple-700">
+                  Parent Session • {session.repeats?.count} repeat{session.repeats?.count !== 1 ? 's' : ''}
+                </span>
+                <button 
+                  onClick={() => toggleRepeatSession(session._id)}
+                  className="ml-2 text-purple-500 hover:text-purple-700"
+                >
+                  {expandedRepeatSessions.has(session._id) ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {isChild && (
+            <div className="flex items-center mt-2">
+              <Repeat className="h-4 w-4 mr-2 text-indigo-500" />
+              <div className="flex flex-col">
+                <span className="text-sm text-indigo-700">
+                  Repeat Session
+                </span>
+                {pendingAcceptance && (
+                  <span className="text-xs text-yellow-600 mt-1 flex items-center">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Awaiting listener acceptance
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {session.reflectData && (
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
+              {session.reflectData.userReflectionData.map((reflection) => (
+                <div key={reflection._id} className="mb-2 last:mb-0 pl-2 border-l-2 border-gray-200">
+                  <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
+                  <p className="text-sm text-gray-900">{reflection.answer}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {/* ✅ New Status Update Component */}
-        <div className="pt-2 border-t border-gray-100">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Update Status</h4>
-          <SessionStatusUpdate
-            sessionId={session._id}
-            currentStatus={session.status}
-            sessionTime={session.time}
-            onStatusUpdated={(newStatus) => {
-              setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
-            }}
-          />
+        <div className="mt-4 space-y-3">
+          {/* Meeting Link */}
+          <div className="flex justify-between items-center">
+            <SessionMeetingLink
+              sessionId={session._id}
+              initialMeetingLink={session.meetingLink}
+              onLinkAdded={(newLink) => {
+                setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
+              }}
+              isEditable={true}
+            />
+          </div>
+          {/* ✅ New Status Update Component */}
+          <div className="pt-2 border-t border-gray-100">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Update Status</h4>
+            <SessionStatusUpdate
+              sessionId={session._id}
+              currentStatus={session.status}
+              sessionTime={session.time}
+              onStatusUpdated={(newStatus) => {
+                setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ✅ Table Renderer
-  const renderTable = () => (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('user')}>User</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('listener')}>Listener</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('time')}>Time</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('topic')}>Topic</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Link</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reflection</th>
-            {/* ✅ New Column for Status Update */}
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Update Status</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {filteredSessions.map((session: Session) => (
-            <tr key={session._id}>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-900">
-                    {session.user.anonymousName}
-                  </span>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-900">{session.listener.name}</span>
-                  <span className="text-xs text-gray-500">{session.listener.email}</span>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-900">
-                    {new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {session.topicRef?.topic || session.topic}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <SessionMeetingLink
-                  sessionId={session._id}
-                  initialMeetingLink={session.meetingLink}
-                  onLinkAdded={(newLink) => {
-                    setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
-                  }}
-                  isEditable={true}
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <ProgressBadge progress={getSessionProgress(session.time)} />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <StatusBadge status={session.status} />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {session.reflectData ? (
-                  <div className="max-w-xs">
-                    {session.reflectData.userReflectionData.map((reflection) => (
-                      <div key={reflection._id} className="mb-2 last:mb-0">
-                        <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                        <p className="text-sm text-gray-900">{reflection.answer}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-gray-500">No reflection</span>
-                )}
-              </td>
-              {/* ✅ New Column: Status Update */}
-              <td className="px-6 py-4 whitespace-nowrap">
-                <SessionStatusUpdate
-                  sessionId={session._id}
-                  currentStatus={session.status}
-                  sessionTime={session.time}
-                  onStatusUpdated={(newStatus) => {
-                    setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
-                  }}
-                />
-              </td>
+  const renderTable = () => {
+    const sessionGroups = groupSessionsByParent(filteredSessions);
+    const groupedSessionIds = Object.keys(sessionGroups);
+    
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('user')}>User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('listener')}>Listener</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('time')}>Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('topic')}>Topic</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Link</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('repeats')}>Repeats</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reflection</th>
+              {/* ✅ New Column for Status Update */}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Update Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {groupedSessionIds.map(groupId => {
+              const group = sessionGroups[groupId];
+              const parentSession = group[0];
+              const isParent = parentSession.repeats && parentSession.repeats.count > 0;
+              const hasChildren = group.length > 1;
+              
+              return (
+                <React.Fragment key={groupId}>
+                  <tr className="bg-gray-50">
+                    <td colSpan={10} className="px-6 py-2">
+                      <div className="flex items-center">
+                        {isParent && (
+                          <button 
+                            onClick={() => toggleRepeatSession(parentSession._id)}
+                            className="mr-2 text-gray-500 hover:text-gray-700"
+                          >
+                            {expandedRepeatSessions.has(parentSession._id) ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                        <span className="font-medium text-gray-700">
+                          {isParent ? `Parent Session (${parentSession.repeats?.count} repeat${parentSession.repeats?.count !== 1 ? 's' : ''})` : 'Session'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">
+                          {parentSession.user.anonymousName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-900">{parentSession.listener.name}</span>
+                        <span className="text-xs text-gray-500">{parentSession.listener.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-900">
+                          {new Date(parentSession.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {parentSession.topicRef?.topic || parentSession.topic}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <SessionMeetingLink
+                        sessionId={parentSession._id}
+                        initialMeetingLink={parentSession.meetingLink}
+                        onLinkAdded={(newLink) => {
+                          setSessions(prev => prev.map(s => s._id === parentSession._id ? { ...s, meetingLink: newLink } : s));
+                        }}
+                        isEditable={true}
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <ProgressBadge progress={getSessionProgress(parentSession.time)} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={parentSession.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {isParent ? (
+                        <div className="flex items-center">
+                          <Repeat className="h-4 w-4 mr-1 text-purple-500" />
+                          <span className="text-sm text-purple-700">
+                            {parentSession.repeats?.count} repeat{parentSession.repeats?.count !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {parentSession.reflectData ? (
+                        <div className="max-w-xs">
+                          {parentSession.reflectData.userReflectionData.map((reflection) => (
+                            <div key={reflection._id} className="mb-2 last:mb-0">
+                              <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
+                              <p className="text-sm text-gray-900">{reflection.answer}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">No reflection</span>
+                      )}
+                    </td>
+                    {/* ✅ New Column: Status Update */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <SessionStatusUpdate
+                        sessionId={parentSession._id}
+                        currentStatus={parentSession.status}
+                        sessionTime={parentSession.time}
+                        onStatusUpdated={(newStatus) => {
+                          setSessions(prev => prev.map(s => s._id === parentSession._id ? { ...s, status: newStatus } : s));
+                        }}
+                      />
+                    </td>
+                  </tr>
+                  
+                  {isParent && expandedRepeatSessions.has(parentSession._id) && hasChildren && (
+                    group.slice(1).map((childSession) => {
+                      const pendingAcceptance = childSession.repeats?.pendingAcceptance;
+                      return (
+                        <tr key={childSession._id} className="bg-gray-50">
+                          <td className="pl-12 py-3 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <Repeat className="h-4 w-4 mr-2 text-indigo-500" />
+                              <span className="text-sm font-medium text-gray-900">
+                                Repeat Session
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-900">{childSession.listener.name}</span>
+                              <span className="text-xs text-gray-500">{childSession.listener.email}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-900">
+                                {new Date(childSession.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {childSession.topicRef?.topic || childSession.topic}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <SessionMeetingLink
+                              sessionId={childSession._id}
+                              initialMeetingLink={childSession.meetingLink}
+                              onLinkAdded={(newLink) => {
+                                setSessions(prev => prev.map(s => s._id === childSession._id ? { ...s, meetingLink: newLink } : s));
+                              }}
+                              isEditable={true}
+                            />
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <ProgressBadge progress={getSessionProgress(childSession.time)} />
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <StatusBadge status={childSession.status} />
+                              {pendingAcceptance && (
+                                <span className="ml-2 text-xs text-yellow-600 flex items-center">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <span className="text-xs text-gray-500">Child session</span>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            {childSession.reflectData ? (
+                              <div className="max-w-xs">
+                                {childSession.reflectData.userReflectionData.map((reflection) => (
+                                  <div key={reflection._id} className="mb-1">
+                                    <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
+                                    <p className="text-xs text-gray-900">{reflection.answer}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">No reflection</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <SessionStatusUpdate
+                              sessionId={childSession._id}
+                              currentStatus={childSession.status}
+                              sessionTime={childSession.time}
+                              onStatusUpdated={(newStatus) => {
+                                setSessions(prev => prev.map(s => s._id === childSession._id ? { ...s, status: newStatus } : s));
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   const renderTopicModal = () => (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -903,6 +1228,7 @@ const Sessions: React.FC = () => {
             <option value="listener">Listener</option>
             <option value="time">Time</option>
             <option value="topic">Topic</option>
+            <option value="repeats">Repeats</option>
           </select>
           <select
             value={sortOrder}
@@ -937,7 +1263,7 @@ const Sessions: React.FC = () => {
         ) : (
           <>
             <div className="hidden sm:block">{renderTable()}</div>
-            <div className="sm:hidden space-y-4">{filteredSessions.map(renderMobileCard)}</div>
+            <div className="sm:hidden space-y-4">{sessions.map(renderMobileCard)}</div>
             {showTopicModal && renderTopicModal()}
           </>
         )}

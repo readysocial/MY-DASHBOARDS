@@ -19,7 +19,7 @@ export const API_ENDPOINTS = {
   admin: {
     sessions: {
       updateStatus: (sessionId: string) =>
-        `${API_URL}/admin/sessions/${sessionId}/status`, // ✔ confirmed
+        `${API_URL}/sessions/${sessionId}/update-status`, // ✔ confirmed
       addMeetingLink: (sessionId: string) =>
         `${API_URL}/sessions/${sessionId}/add-link`, // ✅ fix here
     },

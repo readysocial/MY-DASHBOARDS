@@ -10,7 +10,9 @@ import {
   Clock,
   Headphones,
   RefreshCw,
-  Tag
+  Tag,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
@@ -168,10 +170,12 @@ const Sessions: React.FC = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [newTopic, setNewTopic] = useState('');
-  const [isCreatingTopic, setIsCreatingTopic] = useState(false);
+  const [isTopicOperationLoading, setIsTopicOperationLoading] = useState(false);
   const [topicError, setTopicError] = useState<string | null>(null);
   const [existingTopics, setExistingTopics] = useState<TopicRef[]>([]);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
+  const [editingTopicName, setEditingTopicName] = useState('');
 
   const fetchTopics = async () => {
     if (!validateToken()) return;
@@ -326,145 +330,112 @@ const Sessions: React.FC = () => {
     return pageNumbers;
   };
 
-  const renderTopicModal = () => (
-    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div className="inline-block align-bottom bg-gray-900 rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-700">
-          <div className="bg-gray-800 px-6 py-4 border-b border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0 bg-red-500/10 p-2 rounded-lg">
-                  <Tag className="h-8 w-8 text-red-500" aria-hidden="true" />
-                </div>
-                <h3 className="text-2xl font-semibold text-white tracking-tight">
-                  Create New Topic
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setShowTopicModal(false);
-                  setNewTopic('');
-                  setTopicError(null);
-                }}
-                className="text-gray-400 hover:text-gray-300 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-          <div className="bg-gray-900 px-6 py-8">
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="topic-name" className="block text-lg font-medium text-gray-200 mb-3">
-                  Enter Topic Name
-                </label>
-                <div className="relative">
-                  <input
-                    id="topic-name"
-                    type="text"
-                    className="w-full px-5 py-4 text-xl bg-gray-800 border-2 border-gray-700 rounded-xl 
-                      text-white placeholder-gray-400 focus:border-red-500 focus:ring-2 focus:ring-red-500 
-                      focus:ring-opacity-50 transition-all duration-200 shadow-sm
-                      hover:border-gray-600"
-                    placeholder="e.g., Career Development, Mental Health, Personal Growth"
-                    value={newTopic}
-                    onChange={(e) => {
-                      setNewTopic(e.target.value);
-                      setTopicError(null);
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !isCreatingTopic) {
-                        handleCreateTopic();
-                      }
-                    }}
-                  />
-                  {newTopic && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <Tag className="h-6 w-6 text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {topicError && (
-                  <div className="mt-3 flex items-center space-x-2 text-red-500">
-                    <X className="h-5 w-5" />
-                    <p className="text-sm">{topicError}</p>
-                  </div>
-                )}
-                <p className="mt-3 text-sm text-gray-400">
-                  Choose a clear and specific name that describes the topic. This will help users find relevant sessions.
-                </p>
-              </div>
-              <div className="mt-8">
-                <h4 className="text-lg font-medium text-gray-200 mb-4">Existing Topics</h4>
-                {isLoadingTopics ? (
-                  <div className="flex justify-center py-4">
-                    <RefreshCw className="h-6 w-6 text-gray-400 animate-spin" />
-                  </div>
-                ) : existingTopics.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {existingTopics.map((topic) => (
-                      <div
-                        key={topic._id}
-                        className="flex items-center space-x-2 bg-gray-800 px-3 py-2 rounded-lg"
-                      >
-                        <Tag className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-300 truncate">{topic.topic}</span>
-                        {topic.count > 0 && (
-                          <span className="text-xs text-gray-500">({topic.count})</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400 text-sm">No topics found. Create your first topic!</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-800 px-6 py-4 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700">
-            <button
-              type="button"
-              className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl
-                text-white text-lg font-medium bg-red-500 hover:bg-red-600 
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500
-                transition-colors duration-200 sm:ml-3"
-              onClick={handleCreateTopic}
-              disabled={isCreatingTopic || !newTopic.trim()}
-            >
-              {isCreatingTopic ? (
-                <>
-                  <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create Topic
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              className="mt-3 sm:mt-0 w-full sm:w-auto flex items-center justify-center px-6 py-3 
-                rounded-xl text-lg font-medium text-gray-300 bg-gray-700 hover:bg-gray-600
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500
-                transition-colors duration-200"
-              onClick={() => {
-                setShowTopicModal(false);
-                setNewTopic('');
-                setTopicError(null);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // ✅ Create Topic Handler
+  const handleCreateTopic = async () => {
+    if (!validateToken()) return;
+    if (!newTopic.trim()) {
+      setTopicError('Please enter a topic name');
+      return;
+    }
+    const topicExists = existingTopics.some(
+      t => t.topic.toLowerCase() === newTopic.trim().toLowerCase()
+    );
+    if (topicExists) {
+      setTopicError('This topic already exists');
+      return;
+    }
+    setIsTopicOperationLoading(true);
+    setTopicError(null);
+    try {
+      const response = await fetch(`${API_URL}/sessions/topics`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ topic: newTopic.trim().toLowerCase() })
+      });
+      if (response.status === 401) {
+        return handleUnauthorized(response);
+      }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create topic');
+      }
+      setNewTopic('');
+      fetchTopics();
+      alert('Topic created successfully!');
+    } catch (error) {
+      console.error('Error creating topic:', error);
+      setTopicError(error instanceof Error ? error.message : 'Failed to create topic');
+    } finally {
+      setIsTopicOperationLoading(false);
+    }
+  };
+
+  // ✅ Edit Topic Handler
+  const handleEditTopic = async (topicId: string, newTopicName: string) => {
+    if (!newTopicName.trim()) {
+      setTopicError('Topic name cannot be empty');
+      return;
+    }
+    const topicExists = existingTopics.some(
+      t => t._id !== topicId && t.topic.toLowerCase() === newTopicName.trim().toLowerCase()
+    );
+    if (topicExists) {
+      setTopicError('This topic already exists');
+      return;
+    }
+
+    setIsTopicOperationLoading(true);
+    setTopicError(null);
+    try {
+      const response = await fetch(`${API_URL}/sessions/topics/${topicId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ topic: newTopicName.trim().toLowerCase() })
+      });
+      if (response.status === 401) {
+        return handleUnauthorized(response);
+      }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update topic');
+      }
+      setEditingTopicId(null);
+      setEditingTopicName('');
+      fetchTopics();
+    } catch (error) {
+      console.error('Error updating topic:', error);
+      setTopicError(error instanceof Error ? error.message : 'Failed to update topic');
+    } finally {
+      setIsTopicOperationLoading(false);
+    }
+  };
+
+  // ✅ Delete Topic Handler
+  const handleDeleteTopic = async (topicId: string) => {
+    if (!window.confirm('Are you sure you want to delete this topic? This action cannot be undone.')) {
+      return;
+    }
+    setIsTopicOperationLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/sessions/topics/${topicId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (response.status === 401) {
+        return handleUnauthorized(response);
+      }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete topic');
+      }
+      fetchTopics();
+    } catch (error) {
+      console.error('Error deleting topic:', error);
+      setTopicError(error instanceof Error ? error.message : 'Failed to delete topic');
+    } finally {
+      setIsTopicOperationLoading(false);
+    }
+  };
 
   // ✅ Export Sessions function
   const exportSessions = async () => {
@@ -492,47 +463,6 @@ const Sessions: React.FC = () => {
     } catch (error) {
       console.error('Error exporting sessions:', error);
       alert('Failed to export sessions. Please try again.');
-    }
-  };
-
-  // ✅ Create Topic Handler
-  const handleCreateTopic = async () => {
-    if (!validateToken()) return;
-    if (!newTopic.trim()) {
-      setTopicError('Please enter a topic name');
-      return;
-    }
-    const topicExists = existingTopics.some(
-      t => t.topic.toLowerCase() === newTopic.trim().toLowerCase()
-    );
-    if (topicExists) {
-      setTopicError('This topic already exists');
-      return;
-    }
-    setIsCreatingTopic(true);
-    setTopicError(null);
-    try {
-      const response = await fetch(`${API_URL}/sessions/topics`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ topic: newTopic.trim().toLowerCase() })
-      });
-      if (response.status === 401) {
-        return handleUnauthorized(response);
-      }
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create topic');
-      }
-      setNewTopic('');
-      setShowTopicModal(false);
-      fetchTopics();
-      alert('Topic created successfully!');
-    } catch (error) {
-      console.error('Error creating topic:', error);
-      setTopicError(error instanceof Error ? error.message : 'Failed to create topic');
-    } finally {
-      setIsCreatingTopic(false);
     }
   };
 
@@ -698,6 +628,221 @@ const Sessions: React.FC = () => {
     </div>
   );
 
+  const renderTopicModal = () => (
+    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div className="inline-block align-bottom bg-gray-900 rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-700">
+          <div className="bg-gray-800 px-6 py-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0 bg-red-500/10 p-2 rounded-lg">
+                  <Tag className="h-8 w-8 text-red-500" aria-hidden="true" />
+                </div>
+                <h3 className="text-2xl font-semibold text-white tracking-tight">
+                  Manage Topics
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTopicModal(false);
+                  setNewTopic('');
+                  setTopicError(null);
+                  setEditingTopicId(null);
+                }}
+                className="text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+          <div className="bg-gray-900 px-6 py-8">
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="topic-name" className="block text-lg font-medium text-gray-200 mb-3">
+                  {editingTopicId ? 'Edit Topic Name' : 'Create New Topic'}
+                </label>
+                <div className="relative">
+                  <input
+                    id="topic-name"
+                    type="text"
+                    className="w-full px-5 py-4 text-xl bg-gray-800 border-2 border-gray-700 rounded-xl 
+                      text-white placeholder-gray-400 focus:border-red-500 focus:ring-2 focus:ring-red-500 
+                      focus:ring-opacity-50 transition-all duration-200 shadow-sm
+                      hover:border-gray-600"
+                    placeholder={editingTopicId ? "Enter updated topic name" : "e.g., Career Development, Mental Health"}
+                    value={editingTopicId ? editingTopicName : newTopic}
+                    onChange={(e) => {
+                      if (editingTopicId) {
+                        setEditingTopicName(e.target.value);
+                      } else {
+                        setNewTopic(e.target.value);
+                      }
+                      setTopicError(null);
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !isTopicOperationLoading) {
+                        if (editingTopicId) {
+                          handleEditTopic(editingTopicId, editingTopicName);
+                        } else {
+                          handleCreateTopic();
+                        }
+                      }
+                    }}
+                  />
+                  {(!editingTopicId && newTopic) || (editingTopicId && editingTopicName) && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <Tag className="h-6 w-6 text-red-500" />
+                    </div>
+                  )}
+                </div>
+                {topicError && (
+                  <div className="mt-3 flex items-center space-x-2 text-red-500">
+                    <X className="h-5 w-5" />
+                    <p className="text-sm">{topicError}</p>
+                  </div>
+                )}
+                <p className="mt-3 text-sm text-gray-400">
+                  {editingTopicId 
+                    ? "Update the topic name. This will affect all sessions using this topic." 
+                    : "Choose a clear and specific name that describes the topic. This will help users find relevant sessions."}
+                </p>
+              </div>
+              
+              <div className="mt-8">
+                <h4 className="text-lg font-medium text-gray-200 mb-4 flex items-center">
+                  <Tag className="h-5 w-5 mr-2 text-red-500" />
+                  Existing Topics
+                </h4>
+                {isLoadingTopics ? (
+                  <div className="flex justify-center py-4">
+                    <RefreshCw className="h-6 w-6 text-gray-400 animate-spin" />
+                  </div>
+                ) : existingTopics.length > 0 ? (
+                  <div className="space-y-3">
+                    {existingTopics.map((topic) => (
+                      editingTopicId === topic._id ? (
+                        // Editing state
+                        <div key={topic._id} className="flex items-center space-x-3 bg-gray-800 px-4 py-3 rounded-xl w-full">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={editingTopicName}
+                              onChange={(e) => setEditingTopicName(e.target.value)}
+                              className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg 
+                                border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                              placeholder="Enter updated topic name"
+                            />
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditTopic(topic._id, editingTopicName)}
+                              className="p-2 text-green-500 hover:text-green-400 transition-colors"
+                              disabled={isTopicOperationLoading}
+                            >
+                              <Check className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingTopicId(null);
+                                setEditingTopicName('');
+                              }}
+                              className="p-2 text-gray-400 hover:text-gray-300 transition-colors"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        // Normal state
+                        <div key={topic._id} className="flex items-center justify-between bg-gray-800 px-4 py-3 rounded-xl w-full">
+                          <div className="flex items-center space-x-3">
+                            <Tag className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <span className="text-base text-gray-300">{topic.topic}</span>
+                              {topic.count > 0 && (
+                                <span className="text-sm text-gray-500 ml-2">({topic.count} session{topic.count !== 1 ? 's' : ''})</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={() => {
+                                setEditingTopicId(topic._id);
+                                setEditingTopicName(topic.topic);
+                              }}
+                              className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
+                              disabled={isTopicOperationLoading}
+                            >
+                              <Edit2 className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTopic(topic._id)}
+                              className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                              disabled={isTopicOperationLoading}
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm text-center py-4 bg-gray-800 rounded-xl">
+                    No topics found. Create your first topic!
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-800 px-6 py-4 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700">
+            {editingTopicId ? null : (
+              <button
+                type="button"
+                className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl
+                  text-white text-lg font-medium bg-red-500 hover:bg-red-600 
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500
+                  transition-colors duration-200 sm:ml-3"
+                onClick={handleCreateTopic}
+                disabled={isTopicOperationLoading || !newTopic.trim()}
+              >
+                {isTopicOperationLoading ? (
+                  <>
+                    <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-5 w-5 mr-2" />
+                    Create Topic
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              className="mt-3 sm:mt-0 w-full sm:w-auto flex items-center justify-center px-6 py-3 
+                rounded-xl text-lg font-medium text-gray-300 bg-gray-700 hover:bg-gray-600
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500
+                transition-colors duration-200"
+              onClick={() => {
+                setShowTopicModal(false);
+                setNewTopic('');
+                setTopicError(null);
+                setEditingTopicId(null);
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="sm:flex sm:items-center justify-between mb-6">
@@ -708,10 +853,13 @@ const Sessions: React.FC = () => {
           <button 
             className="flex items-center justify-center bg-red-500 text-white 
               px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-            onClick={() => setShowTopicModal(true)}
+            onClick={() => {
+              setEditingTopicId(null);
+              setShowTopicModal(true);
+            }}
           >
             <Tag className="h-4 w-4 mr-2" />
-            <span>Create Topic</span>
+            <span>Manage Topics</span>
           </button>
           <RefreshButton 
             onClick={() => {

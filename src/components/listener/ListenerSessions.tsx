@@ -12,13 +12,13 @@ import {
   CheckCircle,
   AlertTriangle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowRight
 } from 'lucide-react';
 import { getListenerSessions } from '@/api/listener/getsessions/api';
 import type { Session } from '@/api/listener/getsessions/types';
 import { SessionComment } from './SessionComment';
 import { SessionRepeatRecommendation } from './SessionRepeatRecommendation';
-import { SessionRelated } from './SessionRelated';
 import { Button } from '@/components/ui/button';
 import { getRepeatStatus, isRepeatSession, isParentSession } from '@/api/listener/getsessions/api';
 
@@ -34,10 +34,11 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRepeatSessions, setExpandedRepeatSessions] = useState<Set<string>>(new Set());
-
+  
   const fetchSessions = async () => {
     try {
-      const response = await getListenerSessions();
+      setIsLoading(true);
+      const response = await getListenerSessions(); // Fixed: No parameter needed
       setSessions(response.sessions);
     } catch (error) {
       setError('Failed to fetch sessions');
@@ -49,7 +50,7 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [listenerId]);
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', {
@@ -68,47 +69,44 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
   const getStatusColor = (status: Session['status']) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'successful':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'unsuccessful':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border border-red-200';
       case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
 
   const getRepeatBadge = (session: Session) => {
     if (isParentSession(session)) {
       return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 font-medium border border-purple-200">
           <Repeat className="h-3 w-3 mr-1" />
           Parent Session ({session.repeats?.count} repeat{session.repeats?.count !== 1 ? 's' : ''})
         </span>
       );
     }
-    
     if (isRepeatSession(session)) {
       const repeatStatus = getRepeatStatus(session);
       if (repeatStatus === 'pending') {
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 font-medium border border-yellow-200">
             <AlertTriangle className="h-3 w-3 mr-1" />
             Pending Acceptance
           </span>
         );
       }
-      
       return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800 font-medium border border-indigo-200">
           <Repeat className="h-3 w-3 mr-1" />
           Repeat Session
         </span>
       );
     }
-    
     return null;
   };
 
@@ -130,20 +128,234 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+  
+  // Group sessions by parent session
+  const groupSessionsByParent = (sessions: Session[]): { [key: string]: Session[] } => {
+    const groups: { [key: string]: Session[] } = {};
+    
+    // First, find all parent sessions (those with repeats.count > 0)
+    sessions.forEach(session => {
+      if (isParentSession(session)) {
+        groups[session._id] = [session];
+      }
+    });
+    
+    // Then, add child sessions to their parent groups
+    sessions.forEach(session => {
+      if (isRepeatSession(session) && session.repeatSessionId && groups[session.repeatSessionId]) {
+        groups[session.repeatSessionId].push(session);
+      }
+    });
+    
+    // Add standalone sessions (not part of a repeat group)
+    sessions.forEach(session => {
+      if (!isRepeatSession(session) && !isParentSession(session)) {
+        groups[session._id] = [session];
+      }
+    });
+    
+    return groups;
+  };
+  
+  const renderTable = () => {
+    const sessionGroups = groupSessionsByParent(currentSessions);
+    const groupedSessionIds = Object.keys(sessionGroups);
+    
+    return (
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">User</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">Date & Time</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">Topic</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">Notes</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">Repeat</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {groupedSessionIds.map(groupId => {
+              const group = sessionGroups[groupId];
+              const parentSession = group[0];
+              
+              return (
+                <React.Fragment key={groupId}>
+                  {/* Parent Session Row */}
+                  <tr className="bg-gray-50">
+                    <td colSpan={7} className="px-6 py-2 border-t border-gray-200">
+                      <div className="flex items-center">
+                        {isParentSession(parentSession) && (
+                          <button 
+                            onClick={() => toggleRepeatSessions(parentSession._id)}
+                            className="mr-2 text-gray-500 hover:text-gray-700 transition-colors"
+                            aria-expanded={expandedRepeatSessions.has(parentSession._id)}
+                            aria-label={expandedRepeatSessions.has(parentSession._id) ? "Collapse repeat sessions" : "Expand repeat sessions"}
+                          >
+                            {expandedRepeatSessions.has(parentSession._id) ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                        <span className="font-semibold text-gray-800">
+                          {isParentSession(parentSession) ? `Parent Session (${parentSession.repeats?.count} repeat${parentSession.repeats?.count !== 1 ? 's' : ''})` : 'Session'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  
+                  <tr className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center mr-3 border border-purple-200">
+                          <User className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{parentSession.user.anonymousName}</div>
+                          <div className="text-xs text-gray-500">Anonymous User</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">{formatDate(parentSession.time)}</div>
+                      <div className="text-gray-700">{formatTime(parentSession.time)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm bg-gray-100 text-gray-800 font-medium border border-gray-200">
+                        <Tag className="h-4 w-4 mr-1.5 text-gray-500" />
+                        {parentSession.topicRef?.topic || parentSession.topic}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2.5 py-1 rounded-full text-sm font-medium ${getStatusColor(parentSession.status)}`}>
+                        {parentSession.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="w-full">
+                        <SessionComment
+                          sessionId={parentSession._id}
+                          existingComment={parentSession.comment}
+                          canEdit={parentSession.status !== 'pending'}
+                          onCommentAdded={fetchSessions}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getRepeatBadge(parentSession)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-2">
+                        {parentSession.meetingLink && (
+                          <a 
+                            href={parentSession.meetingLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center transition-colors"
+                          >
+                            View Meeting <ArrowRight className="h-4 w-4 ml-1.5" />
+                          </a>
+                        )}
+                        <SessionRepeatRecommendation
+                          sessionId={parentSession._id}
+                          status={parentSession.status}
+                          onRecommendationMade={fetchSessions}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  
+                  {/* Child Repeat Sessions */}
+                  {isParentSession(parentSession) && expandedRepeatSessions.has(parentSession._id) && group.length > 1 && (
+                    group.slice(1).map((childSession) => (
+                      <tr key={childSession._id} className="bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <td className="pl-12 py-4 whitespace-nowrap border-l border-gray-200">
+                          <div className="flex items-center">
+                            <Repeat className="h-5 w-5 mr-3 text-indigo-500" />
+                            <div>
+                              <div className="font-medium text-gray-900">Repeat Session</div>
+                              <div className="text-xs text-gray-500">Follow-up session</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">{formatDate(childSession.time)}</div>
+                          <div className="text-gray-700">{formatTime(childSession.time)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm bg-gray-100 text-gray-800 font-medium border border-gray-200">
+                            <Tag className="h-4 w-4 mr-1.5 text-gray-500" />
+                            {childSession.topicRef?.topic || childSession.topic}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className={`px-2.5 py-1 rounded-full text-sm font-medium ${getStatusColor(childSession.status)}`}>
+                              {childSession.status}
+                            </span>
+                            {getRepeatStatus(childSession) === 'pending' && (
+                              <span className="mt-1.5 inline-flex items-center px-2.5 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800 font-medium border border-yellow-200">
+                                <AlertTriangle className="h-4 w-4 mr-1.5" />
+                                Pending Acceptance
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="w-full">
+                            <SessionComment
+                              sessionId={childSession._id}
+                              existingComment={childSession.comment}
+                              canEdit={childSession.status !== 'pending'}
+                              onCommentAdded={fetchSessions}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getRepeatBadge(childSession)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-2">
+                            {childSession.meetingLink && (
+                              <a 
+                                href={childSession.meetingLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center transition-colors"
+                              >
+                                View Meeting <ArrowRight className="h-4 w-4 ml-1.5" />
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   if (isLoading)
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading sessions...</div>
+        <div className="text-gray-700 font-medium">Loading sessions...</div>
       </div>
     );
 
   if (error)
     return (
       <Card className="p-6">
-        <div className="flex items-center gap-2 text-red-600">
+        <div className="flex items-center gap-2 text-red-700">
           <AlertCircle className="h-5 w-5" />
-          <span>{error}</span>
+          <span className="font-medium">{error}</span>
         </div>
       </Card>
     );
@@ -153,217 +365,42 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
       <Card className="p-6">
         <div className="text-center py-8">
           <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No Sessions Found</h3>
-          <p className="text-gray-500 mt-2">You don't have any sessions scheduled yet.</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Sessions Found</h3>
+          <p className="text-gray-600">You don't have any sessions scheduled yet.</p>
         </div>
       </Card>
     );
 
   return (
     <div className="space-y-6">
-      {currentSessions.map((session) => {
-        const isParent = isParentSession(session);
-        const isRepeat = isRepeatSession(session);
-        const repeatStatus = getRepeatStatus(session);
-        
-        return (
-          <div key={session._id}>
-            <Card id={`session-${session._id}`} className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-4 flex-grow">
-                  {/* User */}
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{session.user.anonymousName}</h3>
-                      <p className="text-sm text-gray-500">Anonymous User</p>
-                    </div>
-                  </div>
-
-                  {/* Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatDate(session.time)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>{formatTime(session.time)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4" />
-                      <span>{session.topicRef?.topic || session.topic}</span>
-                    </div>
-                  </div>
-
-                  {/* Repeat Session Indicator */}
-                  {(isParent || isRepeat) && (
-                    <div className="flex items-center gap-2">
-                      {getRepeatBadge(session)}
-                      {isParent && (
-                        <button
-                          onClick={() => toggleRepeatSessions(session._id)}
-                          className="ml-2 text-gray-500 hover:text-gray-700"
-                        >
-                          {expandedRepeatSessions.has(session._id) ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Reflection */}
-                  {session.reflectData && session.reflectData.userReflectionData.length > 0 && (
-                    <div className="mt-4 space-y-3 bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900">Session Reflection</h4>
-                      {session.reflectData.userReflectionData.map((r) => (
-                        <div key={r._id} className="bg-white p-3 rounded-md shadow-sm">
-                          <p className="text-sm font-medium text-gray-700">{r.question}</p>
-                          <p className="text-sm text-gray-600 mt-1">{r.answer}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Comment */}
-                  <SessionComment
-                sessionId={session._id}
-                existingComment={session.comment}  // Pass the comment from API
-                canEdit={session.status !== 'pending'}  // Renamed prop
-                onCommentAdded={fetchSessions}
-                  />
-
-                  {/* Repeat Recommendation */}
-                  <SessionRepeatRecommendation
-                    sessionId={session._id}
-                    status={session.status}
-                    onRecommendationMade={fetchSessions}
-                  />
-
-                  {/* Related Sessions */}
-                  <SessionRelated
-                    sessionId={session._id}
-                    isRepeatSession={isRepeat}
-                    repeatSessionId={session.repeatSessionId}
-                    onRelatedSessionClick={(relatedSession) => {
-                      const el = document.getElementById(`session-${relatedSession._id}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth' });
-                        el.classList.add('ring-2', 'ring-blue-500');
-                        setTimeout(() => el.classList.remove('ring-2', 'ring-blue-500'), 2000);
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Status Badge */}
-                <div className="flex flex-col items-end space-y-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                      session.status
-                    )}`}
-                  >
-                    {session.status}
-                  </span>
-                  {session.meetingLink && (
-                    <a 
-                      href={session.meetingLink} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      View Meeting
-                    </a>
-                  )}
-                </div>
-              </div>
-            </Card>
-
-            {/* Child Repeat Sessions */}
-            {isParent && expandedRepeatSessions.has(session._id) && (
-              <div className="ml-8 mt-4 space-y-4">
-                {sessions
-                  .filter(s => s.repeatSessionId === session._id)
-                  .map(repeatSession => (
-                    <Card key={repeatSession._id} className="p-4 border-l-4 border-indigo-500">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2 flex-grow">
-                          <div className="flex items-center gap-2">
-                            <Repeat className="h-4 w-4 text-indigo-500" />
-                            <span className="font-medium">Repeat Session</span>
-                            {getRepeatStatus(repeatSession) === 'pending' && (
-                              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>{formatDate(repeatSession.time)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              <span>{formatTime(repeatSession.time)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4" />
-                              <span>{repeatSession.topicRef?.topic || repeatSession.topic}</span>
-                            </div>
-                          </div>
-                          
-                          {repeatSession.meetingLink && (
-                            <a 
-                              href={repeatSession.meetingLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              View Meeting
-                            </a>
-                          )}
-                        </div>
-                        
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            repeatSession.status
-                          )}`}
-                        >
-                          {repeatSession.status}
-                        </span>
-                      </div>
-                    </Card>
-                  ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Your Sessions</h2>
+          <p className="text-gray-600 mt-1">View and manage your sessions</p>
+        </div>
+      </div>
+      
+      {renderTable()}
+      
       {/* Pagination */}
-      {totalPages >= 1 && (
-        <div className="flex items-center justify-between border-t pt-4">
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 pt-6 gap-4">
           <Button
             onClick={handlePrev}
             disabled={currentPage === 1}
-            className="flex items-center gap-1 font-bold text-black"
+            variant="outline"
+            className="flex items-center gap-2 font-medium text-gray-700 min-h-[40px] px-4 py-2 w-full sm:w-auto"
           >
             <ChevronLeft className="h-4 w-4" /> Previous
           </Button>
-          <span className="text-sm font-bold">
+          <span className="text-sm font-medium text-gray-700 py-2 px-4 bg-gray-50 rounded-lg">
             Page {currentPage} of {totalPages}
           </span>
           <Button
             onClick={handleNext}
             disabled={currentPage === totalPages}
-            className="flex items-center gap-1 font-bold text-black"
+            variant="outline"
+            className="flex items-center gap-2 font-medium text-gray-700 min-h-[40px] px-4 py-2 w-full sm:w-auto"
           >
             Next <ChevronRight className="h-4 w-4" />
           </Button>

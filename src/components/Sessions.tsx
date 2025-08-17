@@ -36,7 +36,6 @@ interface User {
   createdAt: string;
   updatedAt: string;
 }
-
 interface Listener {
   _id: string;
   name: string;
@@ -46,18 +45,15 @@ interface Listener {
   email: string;
   active: boolean;
 }
-
 interface ReflectionQuestion {
   question: string;
   answer: string;
   _id: string;
 }
-
 interface ReflectData {
   userReflectionData: ReflectionQuestion[];
   _id: string;
 }
-
 interface TopicRef {
   _id: string;
   topic: string;
@@ -65,13 +61,11 @@ interface TopicRef {
   createdAt: string;
   updatedAt: string;
 }
-
 interface Repeats {
   count: number;
   pendingAcceptance: boolean;
   _id: string;
 }
-
 interface Session {
   _id: string;
   user: User;
@@ -87,10 +81,8 @@ interface Session {
   createdAt: string;
   updatedAt: string;
 }
-
 type SessionProgress = 'scheduled' | 'ongoing' | 'completed';
 type SessionStatus = 'successful' | 'unsuccessful' | 'cancelled' | 'pending';
-
 const getSessionProgress = (sessionTime: string): SessionProgress => {
   const sessionDate = new Date(sessionTime);
   const now = new Date();
@@ -104,7 +96,6 @@ const getSessionProgress = (sessionTime: string): SessionProgress => {
     return 'completed';
   }
 };
-
 const ProgressBadge: React.FC<{ progress: SessionProgress }> = ({ progress }) => {
   const progressClasses = {
     'scheduled': 'bg-blue-100 text-blue-800',
@@ -117,13 +108,11 @@ const ProgressBadge: React.FC<{ progress: SessionProgress }> = ({ progress }) =>
     </span>
   );
 };
-
 const rotateAnimation = `
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 `;
-
 const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ onClick, isLoading }) => {
   return (
     <>
@@ -143,7 +132,6 @@ const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ 
     </>
   );
 };
-
 const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
   const statusClasses = {
     'successful': 'bg-green-100 text-green-800',
@@ -157,7 +145,6 @@ const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
     </span>
   );
 };
-
 const RepeatBadge: React.FC<{ 
   repeats?: Repeats; 
   isParent?: boolean; 
@@ -165,10 +152,8 @@ const RepeatBadge: React.FC<{
   pendingAcceptance?: boolean;
 }> = ({ repeats, isParent, isChild, pendingAcceptance }) => {
   if (!repeats && !isParent && !isChild && pendingAcceptance === undefined) return null;
-  
   let badgeText = '';
   let badgeClass = '';
-  
   if (isParent) {
     badgeText = `Parent Session (${repeats?.count || 0} repeat${repeats?.count !== 1 ? 's' : ''})`;
     badgeClass = 'bg-purple-100 text-purple-800';
@@ -181,7 +166,6 @@ const RepeatBadge: React.FC<{
       badgeClass = 'bg-indigo-100 text-indigo-800';
     }
   }
-  
   return (
     <span className={`px-2 py-1 rounded-full text-xs ${badgeClass} flex items-center`}>
       <Repeat className="h-3 w-3 mr-1" />
@@ -189,12 +173,10 @@ const RepeatBadge: React.FC<{
     </span>
   );
 };
-
 const Sessions: React.FC = () => {
   useEffect(() => {
     validateToken();
   }, []);
-
   const [sessions, setSessions] = useState<Session[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
@@ -214,35 +196,29 @@ const Sessions: React.FC = () => {
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editingTopicName, setEditingTopicName] = useState('');
   const [expandedRepeatSessions, setExpandedRepeatSessions] = useState<Set<string>>(new Set());
-
   // Group sessions by parent session
   const groupSessionsByParent = (sessions: Session[]): { [key: string]: Session[] } => {
     const groups: { [key: string]: Session[] } = {};
-    
     // First, find all parent sessions (those with repeats.count > 0)
     sessions.forEach(session => {
       if (session.repeats && session.repeats.count > 0) {
         groups[session._id] = [session];
       }
     });
-    
     // Then, add child sessions to their parent groups
     sessions.forEach(session => {
       if (session.repeatSessionId && groups[session.repeatSessionId]) {
         groups[session.repeatSessionId].push(session);
       }
     });
-    
     // Add standalone sessions (not part of a repeat group)
     sessions.forEach(session => {
       if (!session.repeatSessionId && !(session.repeats && session.repeats.count > 0)) {
         groups[session._id] = [session];
       }
     });
-    
     return groups;
   };
-
   const fetchTopics = async () => {
     if (!validateToken()) return;
     setIsLoadingTopics(true);
@@ -263,13 +239,11 @@ const Sessions: React.FC = () => {
       setIsLoadingTopics(false);
     }
   };
-
   useEffect(() => {
     if (showTopicModal) {
       fetchTopics();
     }
   }, [showTopicModal]);
-
   const fetchSessions = async () => {
     if (!validateToken()) return;
     try {
@@ -288,15 +262,18 @@ const Sessions: React.FC = () => {
         throw new Error(data.message || 'Failed to fetch sessions');
       }
       if (data && Array.isArray(data.sessions)) {
+        // Filter out invalid sessions, including those with missing user or anonymousName
         const validSessions = data.sessions.filter((session: Session) => 
-          session && session._id && session.status
+          session && session._id && session.status && session.user
         );
+        
         const sortedSessions = [...validSessions].sort((a, b) => {
           let compareA, compareB;
           switch (sortBy) {
             case 'user':
-              compareA = a.user?.firstName || a.user?.name || '';
-              compareB = b.user?.firstName || b.user?.name || '';
+              // Safely handle anonymousName being null
+              compareA = a.user?.anonymousName ?? '';
+              compareB = b.user?.anonymousName ?? '';
               break;
             case 'listener':
               compareA = a.listener?.name || '';
@@ -344,13 +321,18 @@ const Sessions: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     if (!Array.isArray(sessions)) return;
     const filtered = sessions.filter((session: Session) => {
+      // Skip sessions with missing user data
       if (!session || !session.user || !session.listener) return false;
+      
       const searchTermLower = searchTerm.toLowerCase();
-      const userAnonymousName = session.user.anonymousName || '';
+      
+      // Safely handle anonymousName being null or undefined
+      const userAnonymousName = session.user.anonymousName != null ? 
+        String(session.user.anonymousName) : '';
+        
       const listenerName = session.listener.name || '';
       const sessionTime = session.time ? new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
       const topicName = session.topicRef?.topic || session.topic || '';
@@ -367,22 +349,18 @@ const Sessions: React.FC = () => {
     const endIndex = startIndex + sessionsPerPage;
     setFilteredSessions(filtered.slice(startIndex, endIndex));
   }, [searchTerm, sessions, currentPage, sessionsPerPage]);
-
   useEffect(() => {
     fetchSessions();
   }, [sortBy, sortOrder]);
-
   const paginate = (pageNumber: number) => {
     setCurrentPage(pageNumber);
   };
-
   const handleSort = (column: string) => {
     const newSortOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc';
     setSortBy(column);
     setSortOrder(newSortOrder);
     setCurrentPage(1);
   };
-
   const toggleRepeatSession = (sessionId: string) => {
     setExpandedRepeatSessions(prev => {
       const newSet = new Set(prev);
@@ -394,7 +372,6 @@ const Sessions: React.FC = () => {
       return newSet;
     });
   };
-
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
     const pageNumbers = [];
     pageNumbers.push(1);
@@ -414,7 +391,6 @@ const Sessions: React.FC = () => {
     }
     return pageNumbers;
   };
-
   // ✅ Create Topic Handler
   const handleCreateTopic = async () => {
     if (!validateToken()) return;
@@ -454,7 +430,6 @@ const Sessions: React.FC = () => {
       setIsTopicOperationLoading(false);
     }
   };
-
   // ✅ Edit Topic Handler
   const handleEditTopic = async (topicId: string, newTopicName: string) => {
     if (!newTopicName.trim()) {
@@ -493,7 +468,6 @@ const Sessions: React.FC = () => {
       setIsTopicOperationLoading(false);
     }
   };
-
   // ✅ Delete Topic Handler
   const handleDeleteTopic = async (topicId: string) => {
     if (!window.confirm('Are you sure you want to delete this topic? This action cannot be undone.')) {
@@ -520,7 +494,6 @@ const Sessions: React.FC = () => {
       setIsTopicOperationLoading(false);
     }
   };
-
   // ✅ Export Sessions function
   const exportSessions = async () => {
     if (!validateToken()) return;
@@ -549,19 +522,23 @@ const Sessions: React.FC = () => {
       alert('Failed to export sessions. Please try again.');
     }
   };
-
   // ✅ Mobile Card Renderer
   const renderMobileCard = (session: Session) => {
+    // Skip rendering if session has no user
+    if (!session.user) {
+      return null;
+    }
+    
     const isParent = session.repeats && session.repeats.count > 0;
     const isChild = !!session.repeatSessionId;
     const pendingAcceptance = isChild && session.repeats?.pendingAcceptance;
-    
     return (
       <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="font-medium text-gray-900">
-              {session.user.anonymousName}
+              {/* Handle null/undefined anonymousName */}
+              {session.user.anonymousName ?? 'Anonymous User'}
             </h3>
           </div>
           <div className="flex flex-col gap-2">
@@ -575,7 +552,6 @@ const Sessions: React.FC = () => {
             />
           </div>
         </div>
-        
         {isParent && expandedRepeatSessions.has(session._id) && (
           <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex justify-between items-center mb-2">
@@ -631,7 +607,6 @@ const Sessions: React.FC = () => {
               })}
           </div>
         )}
-
         <div className="space-y-2 text-sm text-gray-600">
           <div className="flex items-center">
             <Headphones className="h-4 w-4 mr-2" />
@@ -648,7 +623,6 @@ const Sessions: React.FC = () => {
             <Tag className="h-4 w-4 mr-2" />
             <span>{session.topicRef?.topic || session.topic}</span>
           </div>
-          
           {isParent && (
             <div className="flex items-center mt-2">
               <Repeat className="h-4 w-4 mr-2 text-purple-500" />
@@ -669,7 +643,6 @@ const Sessions: React.FC = () => {
               </div>
             </div>
           )}
-          
           {isChild && (
             <div className="flex items-center mt-2">
               <Repeat className="h-4 w-4 mr-2 text-indigo-500" />
@@ -686,7 +659,6 @@ const Sessions: React.FC = () => {
               </div>
             </div>
           )}
-
           {session.reflectData && (
             <div className="mt-4 border-t border-gray-100 pt-3">
               <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
@@ -727,12 +699,10 @@ const Sessions: React.FC = () => {
       </div>
     );
   };
-
   // ✅ Table Renderer
   const renderTable = () => {
     const sessionGroups = groupSessionsByParent(filteredSessions);
     const groupedSessionIds = Object.keys(sessionGroups);
-    
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -755,9 +725,13 @@ const Sessions: React.FC = () => {
             {groupedSessionIds.map(groupId => {
               const group = sessionGroups[groupId];
               const parentSession = group[0];
+              // Skip if parent session has no user
+              if (!parentSession.user) {
+                return null;
+              }
+              
               const isParent = parentSession.repeats && parentSession.repeats.count > 0;
               const hasChildren = group.length > 1;
-              
               return (
                 <React.Fragment key={groupId}>
                   <tr className="bg-gray-50">
@@ -785,7 +759,8 @@ const Sessions: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-sm font-medium text-gray-900">
-                          {parentSession.user.anonymousName}
+                          {/* Handle null/undefined anonymousName */}
+                          {parentSession.user.anonymousName ?? 'Anonymous User'}
                         </span>
                       </div>
                     </td>
@@ -859,9 +834,13 @@ const Sessions: React.FC = () => {
                       />
                     </td>
                   </tr>
-                  
                   {isParent && expandedRepeatSessions.has(parentSession._id) && hasChildren && (
                     group.slice(1).map((childSession) => {
+                      // Skip if child session has no user
+                      if (!childSession.user) {
+                        return null;
+                      }
+                      
                       const pendingAcceptance = childSession.repeats?.pendingAcceptance;
                       return (
                         <tr key={childSession._id} className="bg-gray-50">
@@ -952,7 +931,6 @@ const Sessions: React.FC = () => {
       </div>
     );
   };
-
   const renderTopicModal = () => (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -1034,7 +1012,6 @@ const Sessions: React.FC = () => {
                     : "Choose a clear and specific name that describes the topic. This will help users find relevant sessions."}
                 </p>
               </div>
-              
               <div className="mt-8">
                 <h4 className="text-lg font-medium text-gray-200 mb-4 flex items-center">
                   <Tag className="h-5 w-5 mr-2 text-red-500" />
@@ -1167,7 +1144,6 @@ const Sessions: React.FC = () => {
       </div>
     </div>
   );
-
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="sm:flex sm:items-center justify-between mb-6">
@@ -1216,7 +1192,6 @@ const Sessions: React.FC = () => {
           </button>
         </div>
       </div>
-
       <div className="mt-4 flex justify-between items-center">
         <div className="flex space-x-2">
           <select
@@ -1249,7 +1224,6 @@ const Sessions: React.FC = () => {
           </button>
         </div>
       </div>
-
       <div className="mt-8">
         {isLoading ? (
           <div className="flex justify-center items-center min-h-[400px]">
@@ -1267,7 +1241,6 @@ const Sessions: React.FC = () => {
             {showTopicModal && renderTopicModal()}
           </>
         )}
-
         <div className="mt-6 flex flex-wrap justify-center items-center gap-2">
           <button
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -1312,5 +1285,4 @@ const Sessions: React.FC = () => {
     </div>
   );
 };
-
 export default Sessions;

@@ -9,22 +9,22 @@ export const API_ENDPOINTS = {
     topics: `${API_URL}/sessions/topics`,
     listenerSessions: `${API_URL}/sessions/listener/sessions`,
     getListenerSessions: `${API_URL}/sessions/listener/sessions`,
-    getRelatedSessions: (sessionId: string) => `${API_URL}/sessions/listener/sessions/${sessionId}/related`,
+    getRelatedSessions: (sessionId: string) =>
+      `${API_URL}/sessions/listener/sessions/${sessionId}/related`,
     addComment: (sessionId: string) => `${API_URL}/sessions/${sessionId}/comment`,
-    recommendRepeat: (sessionId: string) => `${API_URL}/sessions/${sessionId}/recommend-repeat`,
+    recommendRepeat: (sessionId: string) =>
+      `${API_URL}/sessions/${sessionId}/recommend-repeat`,
+    fullTree: (sessionId: string) => `${API_URL}/sessions/${sessionId}/full-tree`, // 👈 new
   },
-
-
 
   admin: {
     sessions: {
       updateStatus: (sessionId: string) =>
-        `${API_URL}/sessions/${sessionId}/update-status`, // ✔ confirmed
+        `${API_URL}/sessions/${sessionId}/update-status`,
       addMeetingLink: (sessionId: string) =>
-        `${API_URL}/sessions/${sessionId}/add-link`, // ✅ fix here
+        `${API_URL}/sessions/${sessionId}/add-link`,
     },
   },
-
 
   listeners: {
     all: `${API_URL}/listeners`,
@@ -43,5 +43,5 @@ export const API_ENDPOINTS = {
     sendOtp: `${API_URL}/listeners/password-reset/send-otp`,
     confirmOtp: `${API_URL}/listeners/password-reset/confirm-otp`,
     resetPassword: `${API_URL}/listeners/password-reset`,
-  }
+  },
 };

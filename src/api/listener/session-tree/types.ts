@@ -31,7 +31,10 @@ export interface SessionTreeNode {
     active: boolean;
   };
   reflectData: {
-    userReflectionData: string[]; // assuming it's an array of strings
+    userReflectionData: Array<{
+      question: string;
+      answer: string;
+    }>;
   };
   repeats?: {
     count: number;
@@ -39,6 +42,5 @@ export interface SessionTreeNode {
     _id: string;
   };
   repeatSessionId?: string;
-  meetingLink?: string;   // ✅ ADDED
-  comment?: string;       // ✅ ADDED
+  meetingLink?: string;    comment?: string;     
 }

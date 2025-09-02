@@ -30,6 +30,8 @@ interface Listener {
   email: string;
   active: boolean;
   __v: number;
+  passwordResetExpires?: string;
+  passwordResetToken?: string;
 }
 
 interface Repeats {
@@ -48,6 +50,7 @@ export interface Session {
   reflectData: ReflectionData;
   repeats?: Repeats;
   repeatSessionId?: string;
+  comment?: string;
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -60,4 +63,4 @@ export interface RelatedSessionsResponse {
 
 export interface GetRelatedSessionsParams {
   sessionId: string;
-} 
+}

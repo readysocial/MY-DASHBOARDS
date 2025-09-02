@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Calendar, Clock, User, Tag, AlertCircle, ArrowRight, RefreshCw, Link2, CheckCircle2, XCircle, Clock3, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, User, Tag, AlertCircle, ArrowRight, RefreshCw, Link2, CheckCircle2, XCircle, Clock3, ArrowLeft, MessageCircle } from 'lucide-react';
 import { getRelatedSessions } from '@/api/listener/repeatsession/api';
 import type { RelatedSessionsResponse, Session } from '@/api/listener/repeatsession/types';
 
@@ -122,18 +122,28 @@ export const SessionRelated = ({
     return null;
   }
 
+  // Filter sessions that have comments
+  const sessionsWithComments = relatedData.relatedSessions.filter(
+    session => session.comment && session.comment.trim() !== ''
+  );
+
+  // If no sessions have comments, don't show anything
+  if (sessionsWithComments.length === 0) {
+    return null;
+  }
+
   return (
     <div className="mt-6 border-t border-gray-100 pt-6">
       <div className="flex items-center gap-2 mb-4">
-        <Link2 className="h-5 w-5 text-purple-500" />
-        <h3 className="text-lg font-medium text-gray-900">Follow-up Sessions</h3>
+        <MessageCircle className="h-5 w-5 text-purple-500" />
+        <h3 className="text-lg font-medium text-gray-900">Session Comments</h3>
         <span className="text-sm text-gray-500">
-          ({relatedData.relatedSessions.length})
+          ({sessionsWithComments.length})
         </span>
       </div>
 
       <div className="space-y-4">
-        {relatedData.relatedSessions.map((session) => (
+        {sessionsWithComments.map((session) => (
           <Card 
             key={session._id}
             className="p-4 border-blue-100 hover:border-blue-200 hover:shadow-md cursor-pointer transition-all"
@@ -149,23 +159,18 @@ export const SessionRelated = ({
                     <span className="text-sm font-medium text-gray-900">
                       {session.user.anonymousName}
                     </span>
-                    <span className="text-xs text-gray-500">Follow-up Session</span>
+                    <span className="text-xs text-gray-500">
+                      {formatDate(session.time)} at {formatTime(session.time)}
+                    </span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>{formatDate(session.time)}</span>
+                
+                {/* Comment Display */}
+                {session.comment && session.comment.trim() !== '' && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-700">{session.comment}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatTime(session.time)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Tag className="h-4 w-4" />
-                  <span>{session.topic}</span>
-                </div>
+                )}
               </div>
               <div className="flex flex-col items-end gap-2">
                 {getStatusIcon(session.status)}
@@ -177,4 +182,4 @@ export const SessionRelated = ({
       </div>
     </div>
   );
-}; 
+};

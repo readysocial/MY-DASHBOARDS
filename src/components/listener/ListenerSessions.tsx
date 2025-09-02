@@ -76,17 +76,33 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
   /* ---------- grouping ---------- */
   const groupByParent = (list: Session[]) => {
     const map: Record<string, Session[]> = {};
+    
+    // First, create entries for all parent sessions
     list.forEach(s => {
-      if (isParentSession(s)) map[s._id] = [s];
-    });
-    list.forEach(s => {
-      if (isRepeatSession(s) && s.repeatSessionId && map[s.repeatSessionId]) {
-        map[s.repeatSessionId].push(s);
+      if (isParentSession(s)) {
+        map[s._id] = [s];
       }
     });
+    
+    // Then, associate child sessions with their parents
     list.forEach(s => {
-      if (!isRepeatSession(s) && !isParentSession(s)) map[s._id] = [s];
+      if (isRepeatSession(s) && s.repeatSessionId) {
+        if (map[s.repeatSessionId]) {
+          map[s.repeatSessionId].push(s);
+        } else {
+          // If parent doesn't exist in current view, create a group for the child
+          map[s._id] = [s];
+        }
+      }
     });
+    
+    // Finally, handle standalone sessions (neither parent nor child)
+    list.forEach(s => {
+      if (!isRepeatSession(s) && !isParentSession(s)) {
+        map[s._id] = [s];
+      }
+    });
+    
     return map;
   };
 
@@ -110,42 +126,57 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {ids.map(groupId => {
-              const [parent] = groups[groupId];
-              if (isRepeatSession(parent)) return null;
-
-              return (
-                <tr key={parent._id} className="hover:bg-gray-50 transition-colors">
+              const sessionsInGroup = groups[groupId];
+              
+              return sessionsInGroup.map((session, index) => (
+                <tr key={`${session._id}-${index}`} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
-                      <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center mr-3 border border-purple-200">
-                        <User className="h-4 w-4 text-purple-600" />
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center mr-3 border ${
+                        isParentSession(session) 
+                          ? 'bg-purple-100 border-purple-200' 
+                          : isRepeatSession(session)
+                            ? 'bg-blue-100 border-blue-200'
+                            : 'bg-gray-100 border-gray-200'
+                      }`}>
+                        <User className={`h-4 w-4 ${
+                          isParentSession(session) 
+                            ? 'text-purple-600' 
+                            : isRepeatSession(session)
+                              ? 'text-blue-600'
+                              : 'text-gray-600'
+                        }`} />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{parent.user.anonymousName}</div>
-                        <div className="text-xs text-gray-500">Anonymous User</div>
+                        <div className="font-medium text-gray-900">{session.user.anonymousName}</div>
+                        <div className="text-xs text-gray-500">
+                          {isRepeatSession(session) ? 'Repeat Session' : ''}
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{fmtDate(parent.time)}</div>
-                    <div className="text-sm text-gray-700">{fmtTime(parent.time)}</div>
+                    <div className="font-medium text-gray-900">{fmtDate(session.time)}</div>
+                    <div className="text-sm text-gray-700">{fmtTime(session.time)}</div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm bg-gray-100 text-gray-800 font-medium border border-gray-200">
                       <Tag className="h-4 w-4 mr-1.5 text-gray-500" />
-                      {parent.topic}
+                      {session.topic}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-sm font-medium ${statusColor(parent.status)}`}>
-                      {parent.status}
+                    <span className={`px-2.5 py-1 rounded-full text-sm font-medium ${statusColor(session.status)}`}>
+                      {session.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">
-                    {parent.repeats?.count ?? 0}
+                    {isParentSession(session) 
+                      ? session.repeats?.count ?? 0
+                      : 0}
                   </td>
                   <td className="px-6 py-4 space-y-2">
-                    <Link href={`/listener/sessions/${parent._id}/details`} passHref>
+                    <Link href={`/listener/sessions/${session._id}/details`} passHref>
                       <Button
                         variant="outline"
                         size="sm"
@@ -156,9 +187,9 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
                       </Button>
                     </Link>
 
-                    {parent.meetingLink && (
+                    {session.meetingLink && (
                       <a
-                        href={parent.meetingLink}
+                        href={session.meetingLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block text-sm text-blue-600 hover:text-blue-800 hover:underline mt-1 flex items-center gap-1"
@@ -168,14 +199,15 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
                       </a>
                     )}
 
+                    {/* Allow all sessions to be repeated, including child sessions */}
                     <SessionRepeatRecommendation
-                      sessionId={parent._id}
-                      status={parent.status}
+                      sessionId={session._id}
+                      status={session.status}
                       onRecommendationMade={fetchSessions}
                     />
                   </td>
                 </tr>
-              );
+              ));
             })}
           </tbody>
         </table>

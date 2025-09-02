@@ -3,7 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { getFullSessionTree } from '@/api/listener/session-tree/api';
 import { addSessionComment } from '@/api/listener/comment/api';
+import { getRelatedSessions } from '@/api/listener/repeatsession/api';
 import type { FullSessionTreeResponse, SessionTreeNode } from '@/api/listener/session-tree/types';
+import type { RelatedSessionsResponse } from '@/api/listener/repeatsession/types';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -14,23 +16,27 @@ import {
   Clock,
   User,
   Tag,
-  Repeat,
   ChevronDown,
   ChevronUp,
   MessageSquare,
   Link2,
   AlertTriangle,
+  MessageCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+
+const THREAD_ITEMS_PER_PAGE = 10;
 
 export const SessionDetails: React.FC = () => {
   const router = useRouter();
   const { sessionId } = router.query;
 
   const [data, setData] = useState<FullSessionTreeResponse | null>(null);
+  const [relatedData, setRelatedData] = useState<RelatedSessionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showChildren, setShowChildren] = useState(true);
+  const [showComments, setShowComments] = useState(true);
+  const [visibleThreadCount, setVisibleThreadCount] = useState(THREAD_ITEMS_PER_PAGE);
 
   const fetchTree = async () => {
     if (!sessionId || typeof sessionId !== 'string') return;
@@ -46,13 +52,45 @@ export const SessionDetails: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchTree(); }, [sessionId]);
+  const fetchRelatedSessions = async () => {
+    if (!sessionId || typeof sessionId !== 'string') return;
+    try {
+      const res = await getRelatedSessions({ sessionId });
+      setRelatedData(res);
+    } catch (e: any) {
+      console.error('Failed to load related sessions:', e);
+    }
+  };
+
+  useEffect(() => { 
+    fetchTree(); 
+    fetchRelatedSessions();
+  }, [sessionId]);
+
+  const handleLoadMore = () => {
+    setVisibleThreadCount(prev => prev + THREAD_ITEMS_PER_PAGE);
+  };
 
   if (loading) return <SkeletonLoader />;
   if (error) return <ErrorState message={error} />;
   if (!data) return null;
 
   const { parent, children } = data;
+
+  // Show all related sessions for threaded view (not just those with comments)
+  const allRelatedSessions = relatedData?.relatedSessions || [];
+  
+  // Sort related sessions chronologically
+  const sortedRelatedSessions = [...allRelatedSessions].sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  );
+  
+  // Combine parent and related sessions for threading
+  const allThreadSessions = [parent, ...sortedRelatedSessions];
+  
+  // Determine which sessions to show based on visible count
+  const visibleSessions = allThreadSessions.slice(0, visibleThreadCount);
+  const hasMoreSessions = visibleThreadCount < allThreadSessions.length;
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8">
@@ -68,22 +106,86 @@ export const SessionDetails: React.FC = () => {
 
       <SessionCardWithNotes session={parent} title="Parent Session" onSave={fetchTree} />
 
-      {children.length > 0 && (
+      {/* Related Sessions Threaded View Section */}
+      {allRelatedSessions.length > 0 && (
         <section className="mt-10">
           <Button
             variant="ghost"
-            onClick={() => setShowChildren(!showChildren)}
             className="flex items-center gap-2 text-lg font-semibold mb-4"
+            onClick={() => setShowComments(!showComments)}
           >
-            <Repeat className="h-5 w-5" /> Repeat Sessions ({children.length})
-            {showChildren ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            <MessageCircle className="h-5 w-5" /> Session Thread ({allRelatedSessions.length + 1})
+            {showComments ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
           </Button>
 
-          {showChildren && (
-            <div className="space-y-6">
-              {children.map((child) => (
-                <SessionCardWithNotes key={child._id} session={child} title="Repeat Session" onSave={fetchTree} />
+          {showComments && (
+            <div className="space-y-4">
+              {/* Show sessions in chronological order */}
+              {visibleSessions.map((session, index) => (
+                <div 
+                  key={session._id} 
+                  className={`border rounded-lg p-4 bg-white shadow-sm ${
+                    index === 0 
+                      ? 'border-blue-200'  // Parent session
+                      : 'border-purple-200'  // Related sessions
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                        index === 0 
+                          ? 'bg-blue-100 border border-blue-200' 
+                          : 'bg-purple-100 border border-purple-200'
+                      }`}>
+                        <User className={`h-4 w-4 ${
+                          index === 0 ? 'text-blue-600' : 'text-purple-600'
+                        }`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {session.user.anonymousName}
+                          {index === 0 && ' (You)'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(session.time).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })} at {new Date(session.time).toLocaleTimeString(undefined, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge 
+                      className={`${
+                        session.status === 'successful' 
+                          ? 'bg-green-100 text-green-800' 
+                          : session.status === 'unsuccessful' 
+                            ? 'bg-red-100 text-red-800' 
+                            : session.status === 'cancelled' 
+                              ? 'bg-gray-100 text-gray-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                      } capitalize px-2 py-1 text-xs`}
+                    >
+                      {session.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-3 ml-2">
+                    <p className="text-gray-700">{session.comment || 'No comment'}</p>
+                  </div>
+                </div>
               ))}
+
+              {hasMoreSessions && (
+                <div className="flex justify-center mt-4">
+                  <Button onClick={handleLoadMore} variant="outline">
+                    Load More
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -276,10 +378,10 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 
 const SkeletonLoader = () => (
   <div className="p-6 max-w-5xl mx-auto space-y-6">
-    <Skeleton className="h-10 w-40" />
-    <Skeleton className="h-40 w-full rounded-xl" />
-    <Skeleton className="h-10 w-48" />
-    <Skeleton className="h-40 w-full rounded-xl" />
+    <div className="h-10 w-40 bg-gray-200 rounded"></div>
+    <div className="h-40 w-full rounded-xl bg-gray-200"></div>
+    <div className="h-10 w-48 bg-gray-200 rounded"></div>
+    <div className="h-40 w-full rounded-xl bg-gray-200"></div>
   </div>
 );
 

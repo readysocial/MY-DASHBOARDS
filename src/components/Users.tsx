@@ -4,30 +4,35 @@ import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api'
 import { API_URL } from '@/config/api';
 
 interface User {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  id: string;
+  anonymousName?: string;
   verified: boolean;
-  bio?: string;
-  contact?: string;
-  dateOfBirth?: string;
-  gender?: 'male' | 'female';
-  occupation?: 'employed' | 'self-employed' | 'unemployed' | 'student';
-  picture?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Session {
   _id: string;
-  listenerId: string;
-  userId: string;
-  time: string;
+  user: {
+    _id: string;
+    anonymousName: string;
+  };
+  listener: {
+    _id: string;
+    name: string;
+    description: string;
+    gender: string;
+    active: boolean;
+  };
   topic: string;
+  time: string;
   status: string;
   createdAt: string;
   updatedAt: string;
+  meetingLink?: string;
+  reflectData: {
+    userReflectionData: any[];
+  };
 }
 
 interface PaginatedResponse {
@@ -161,51 +166,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
           </div>
 
           <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <img
-                src={user.picture || 'https://via.placeholder.com/150'}
-                alt={`${user.firstName} ${user.lastName}`}
-                className="w-32 h-32 rounded-full mx-auto"
-              />
-            </div>
-
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Name</label>
-                  <p className="text-black font-medium text-base">{`${user.firstName} ${user.lastName}`}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Email</label>
-                  <p className="text-black font-medium text-base">{user.email}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Contact</label>
-                  <p className="text-black font-medium text-base">{user.contact || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Gender</label>
-                  <p className="text-black font-medium text-base">{user.gender || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Occupation</label>
-                  <p className="text-black font-medium text-base">{user.occupation || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Date of Birth</label>
-                  <p className="text-black font-medium text-base">
-                    {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm font-semibold text-gray-700">Bio</label>
-                  <p className="text-black font-medium text-base">{user.bio || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Joined</label>
-                  <p className="text-black font-medium text-base">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </p>
+                  <p className="text-black font-medium text-base">{user.anonymousName || 'Anonymous User'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Status</label>
@@ -217,6 +182,22 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                     {user.verified ? 'Verified' : 'Unverified'}
                   </span>
                 </div>
+                {user.createdAt && (
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700">Joined</label>
+                    <p className="text-black font-medium text-base">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+                {user.updatedAt && (
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700">Last Updated</label>
+                    <p className="text-black font-medium text-base">
+                      {new Date(user.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4">
@@ -227,8 +208,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                       <li key={session._id} className="border p-4 rounded-lg bg-gray-50 shadow-sm">
                         <div className="space-y-2">
                           <div className="flex items-center">
-                            <span className="text-gray-700 font-semibold w-20">Topic:</span>
-                            <span className="text-black font-medium">{session.topic}</span>
+                            <span className="text-gray-700 font-semibold w-20">Listener:</span>
+                            <span className="text-black font-medium">{session.listener.name}</span>
                           </div>
                           <div className="flex items-center">
                             <span className="text-gray-700 font-semibold w-20">Status:</span>
@@ -237,7 +218,9 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                                 ? 'bg-green-100 text-green-800' 
                                 : session.status === 'pending'
                                 ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
+                                : session.status === 'cancelled'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-800'
                             }`}>
                               {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
                             </span>
@@ -248,6 +231,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                               {new Date(session.time).toLocaleString()}
                             </span>
                           </div>
+                          {session.meetingLink && (
+                            <div className="flex items-center">
+                              <span className="text-gray-700 font-semibold w-20">Meeting:</span>
+                              <a 
+                                href={session.meetingLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Join Meeting
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </li>
                     ))}
@@ -282,7 +278,7 @@ const Users: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState('firstName');
+  const [sortBy, setSortBy] = useState('anonymousName');
   const [sortOrder, setSortOrder] = useState('asc');
 
   // Notification state
@@ -382,8 +378,7 @@ const Users: React.FC = () => {
   useEffect(() => {
     setFilteredUsers(
       users.filter(user => 
-        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (user.anonymousName || 'Anonymous User').toLowerCase().includes(searchTerm.toLowerCase())
       )
     );
   }, [searchTerm, users]);
@@ -429,11 +424,10 @@ const Users: React.FC = () => {
   };
 
   const renderUserCard = (user: User) => (
-    <div key={user._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+    <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="font-medium text-gray-900">{`${user.firstName} ${user.lastName}`}</h3>
-          <p className="text-sm text-gray-500">{user.email}</p>
+          <h3 className="font-medium text-gray-900">{user.anonymousName || 'Anonymous User'}</h3>
         </div>
         <span className={`px-2 py-1 rounded-full text-xs ${
           user.verified 
@@ -445,25 +439,29 @@ const Users: React.FC = () => {
       </div>
       
       <div className="space-y-2 text-sm text-gray-600">
+        {user.createdAt && (
         <div>
           <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
         </div>
+        )}
+        {user.updatedAt && (
         <div>
           <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
         </div>
+        )}
       </div>
 
       <div className="mt-4 flex justify-end space-x-2">
         <button 
           className="text-red-500 hover:text-red-700"
-          onClick={() => handleViewUser(user._id)}
+          onClick={() => handleViewUser(user.id)}
         >
           <Eye className="h-5 w-5" />
         </button>
         <button 
           className="text-purple-500 hover:text-purple-700"
           onClick={() => {
-            setSelectedUserId(user._id);
+            setSelectedUserId(user.id);
             setShowNotificationModal(true);
           }}
         >
@@ -490,9 +488,7 @@ const Users: React.FC = () => {
             onChange={(e) => setSortBy(e.target.value)}
             className="border rounded-lg p-2 bg-white text-gray-800"
           >
-            <option value="firstName">First Name</option>
-            <option value="lastName">Last Name</option>
-            <option value="email">Email</option>
+            <option value="anonymousName">Name</option>
             <option value="createdAt">Registration Date</option>
             <option value="verified">Status</option>
           </select>
@@ -551,7 +547,6 @@ const Users: React.FC = () => {
               <thead>
                 <tr className="bg-gray-50">
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration</th>
                   <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -560,14 +555,13 @@ const Users: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers.map(user => (
-                  <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{`${user.firstName} ${user.lastName}`}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{user.email}</td>
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">{user.anonymousName || 'Anonymous User'}</td>
                     <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
-                      {new Date(user.updatedAt).toLocaleDateString()}
+                      {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs ${
@@ -582,14 +576,14 @@ const Users: React.FC = () => {
                       <div className="flex space-x-2">
                         <button 
                           className="text-red-500 hover:text-red-700"
-                          onClick={() => handleViewUser(user._id)}
+                          onClick={() => handleViewUser(user.id)}
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
                           className="text-purple-500 hover:text-purple-700"
                           onClick={() => {
-                            setSelectedUserId(user._id);
+                            setSelectedUserId(user.id);
                             setShowNotificationModal(true);
                           }}
                         >

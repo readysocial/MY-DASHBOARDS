@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Eye, Edit2, XCircle, X, RefreshCw, MessageCircle, CheckCircle, PowerOff, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, XCircle, X, RefreshCw, MessageCircle, CheckCircle, PowerOff, Trash2, Mail, User, ArrowRight } from 'lucide-react';
 import { Listener, FormErrors, Message, TimeSlot } from '../types/listener';
 import { DAYS_OF_WEEK, DEFAULT_TIME_SLOTS, GENDERS } from '../constants/listener';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
@@ -11,7 +11,9 @@ import {
   getListener, 
   updateListener, 
   createListener, 
-  deleteListener 
+  deleteListener,
+  inviteListener,
+  updateListenerAvailability
 } from '../api/listener/api';
 
 const Listeners: React.FC = (): JSX.Element => {
@@ -34,7 +36,7 @@ const Listeners: React.FC = (): JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
   const [listenersPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +87,9 @@ const Listeners: React.FC = (): JSX.Element => {
     endTime: string;
   } | null>(null);
 
+  // Add invite form state
+  const [inviteForm, setInviteForm] = useState({ email: '' });
+
   // Fetch Listeners
   const fetchListeners = async () => {
     if (!validateToken()) return;
@@ -128,7 +133,7 @@ const Listeners: React.FC = (): JSX.Element => {
       setIsLoading(true);
       const listener = await getListener(listenerId);
       setSelectedListener(listener);
-      setShowDetailsModal(true);
+      // setShowDetailsModal(true); // Removed as per edit hint
     } catch (error) {
       console.error('Error fetching listener details:', error);
       alert('Failed to fetch listener details. Please try again.');
@@ -261,37 +266,6 @@ const Listeners: React.FC = (): JSX.Element => {
     const errors: FormErrors = {};
     let isValid = true;
 
-    if (!newListener.name?.trim()) {
-      errors.name = 'Name is required';
-      isValid = false;
-    }
-
-    if (!newListener.description?.trim()) {
-      errors.description = 'Description is required';
-      isValid = false;
-    }
-
-    if (!newListener.gender) {
-      errors.gender = 'Gender is required';
-      isValid = false;
-    }
-
-    if (!newListener.email?.trim()) {
-      errors.email = 'Email is required';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(newListener.email)) {
-      errors.email = 'Email is invalid';
-      isValid = false;
-    }
-
-    if (!newListener.phoneNumber?.trim()) {
-      errors.phoneNumber = 'Phone number is required';
-      isValid = false;
-    } else if (!/^\d{10}$/.test(newListener.phoneNumber)) {
-      errors.phoneNumber = 'Phone number must be 10 digits';
-      isValid = false;
-    }
-
     const hasInvalidTimes = newListener.availability.some(day => 
       day.times.some(time => !time.startTime || !time.endTime)
     );
@@ -307,41 +281,20 @@ const Listeners: React.FC = (): JSX.Element => {
 
   // Handle form submission
   const handleSubmitListener = async () => {
-    if (!validateForm()) {
+    if (!validateForm() || !selectedListener?._id) {
       return;
     }
   
     setIsSubmitting(true);
     try {
-      const listenerData: Partial<Listener> = {
-        name: newListener.name,
-        description: newListener.description,
-        gender: newListener.gender,
-        email: newListener.email,
-        phoneNumber: newListener.phoneNumber,
-        availability: newListener.availability.map(day => ({
-          dayOfWeek: day.dayOfWeek,
-          times: day.times.map(time => ({
-            startTime: time.startTime,
-            endTime: time.endTime,
-            isAvailable: time.isAvailable
-          }))
-        }))
-      };
-  
-      if (selectedListener?._id) {
-        await updateListener(selectedListener._id, listenerData);
-      } else {
-        await createListener(listenerData as Omit<Listener, '_id'>);
-      }
-  
+      await updateListenerAvailability(selectedListener._id, newListener.availability);
       await fetchListeners();
       setShowModal(false);
       resetForm();
-      alert(`Listener ${selectedListener ? 'updated' : 'created'} successfully!`);
+      alert('Availability updated successfully!');
     } catch (error) {
-      console.error('Error submitting listener:', error);
-      alert(`Failed to ${selectedListener ? 'update' : 'create'} listener. Please try again.`);
+      console.error('Error updating availability:', error);
+      alert('Failed to update availability. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -349,17 +302,13 @@ const Listeners: React.FC = (): JSX.Element => {
 
   // Reset form
   const resetForm = () => {
-    setNewListener({
-      name: '',
-      description: '',
-      gender: 'male',
-      email: '',
-      phoneNumber: '',
+    setNewListener(prev => ({
+      ...prev,
       availability: DAYS_OF_WEEK.map(day => ({
         dayOfWeek: day,
         times: []  // Start with empty times for each day
       }))
-    });
+    }));
     setAvailableDays(new Set(DAYS_OF_WEEK));
     setFormErrors({});
     setSelectedListener(null);
@@ -403,15 +352,16 @@ const Listeners: React.FC = (): JSX.Element => {
   };
 
   // Update the handleTimeSlotChange function
-  const handleTimeSlotChange = (
+  const handleTimeSlotChange = async (
     dayOfWeek: string, 
     index: number, 
     field: keyof TimeSlot, 
     value: string
   ) => {
-    setNewListener(prev => ({
-      ...prev,
-      availability: prev.availability.map(day => {
+    if (!selectedListener?._id) return;
+
+    try {
+      const updatedAvailability = newListener.availability.map(day => {
         if (day.dayOfWeek === dayOfWeek) {
           const newTimes = [...day.times];
           // Check if the time slot is unavailable
@@ -432,8 +382,20 @@ const Listeners: React.FC = (): JSX.Element => {
           return { ...day, times: newTimes };
         }
         return day;
-      })
-    }));
+      });
+
+      // Update local state
+      setNewListener(prev => ({
+        ...prev,
+        availability: updatedAvailability
+      }));
+
+      // Call the API to update availability
+      await updateListenerAvailability(selectedListener._id, updatedAvailability);
+    } catch (error) {
+      console.error('Error updating availability:', error);
+      alert('Failed to update availability. Please try again.');
+    }
   };
 
   // Update the removeTimeSlot function
@@ -569,6 +531,24 @@ const addTimeSlot = (dayOfWeek: string) => {
     }
   };
 
+  // Add invite handler
+  const handleInvite = async () => {
+    if (!validateToken()) return;
+
+    try {
+      setIsSubmitting(true);
+      await inviteListener(inviteForm);
+      setShowInviteModal(false);
+      setInviteForm({ email: '' });
+      alert('Invitation sent successfully!');
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      alert('Failed to send invitation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-2 sm:p-4 md:p-6">
       {/* Header Section */}
@@ -585,6 +565,14 @@ const addTimeSlot = (dayOfWeek: string) => {
             <span>Refresh</span>
           </button>
           <button 
+            className="flex items-center justify-center bg-purple-600 text-white px-4 py-2 rounded-lg 
+            hover:bg-purple-700 transition-colors"
+            onClick={() => setShowInviteModal(true)}
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            <span>Invite Listener</span>
+          </button>
+          <button 
             className="flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg 
             hover:bg-blue-700 transition-colors"
             onClick={exportListeners}
@@ -592,17 +580,7 @@ const addTimeSlot = (dayOfWeek: string) => {
             <Plus className="h-4 w-4 mr-2" />
             <span>Export Listeners</span>
           </button>
-          <button 
-            className="flex items-center justify-center bg-green-600 text-white px-4 py-2 rounded-lg 
-            hover:bg-green-700 transition-colors"
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span>Add New Listener</span>
-          </button>
+
         </div>
       </div>
   
@@ -669,6 +647,9 @@ const addTimeSlot = (dayOfWeek: string) => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Email
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -682,6 +663,9 @@ const addTimeSlot = (dayOfWeek: string) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{listener.name}</div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {listener.email}
+                        </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-500">{listener.description}</div>
                     </td>
@@ -699,19 +683,6 @@ const addTimeSlot = (dayOfWeek: string) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex space-x-2">
-                        {/* View Details Button */}
-                        <button 
-                          className="text-blue-600 hover:text-blue-800 transition-colors"
-                          onClick={() => {
-                            if (listener._id) {
-                              fetchListenerDetails(listener._id);
-                              fetchMessagesForListener(listener._id);
-                            }
-                          }}
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
                         {/* Edit Button */}
                         <button 
                           className="text-green-600 hover:text-green-800 transition-colors"
@@ -736,14 +707,6 @@ const addTimeSlot = (dayOfWeek: string) => {
                           ) : (
                             <CheckCircle className="h-4 w-4" />
                           )}
-                        </button>
-                        {/* Delete Button */}
-                        <button 
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          onClick={() => handleDeleteListener(listener._id!)}
-                          title="Delete Listener"
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                         {/* Message Button */}
                         <button 
@@ -795,101 +758,6 @@ const addTimeSlot = (dayOfWeek: string) => {
     )}
 
 
-        {/* Details Modal */}
-        {selectedListener && showDetailsModal && (
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
-          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <h3 className="text-xl font-extrabold text-gray-900 mb-6">Listener Details</h3>
-              
-              <div className="space-y-4">
-                {/* Basic Info */}
-                <div>
-                  <label className="text-base font-extrabold text-gray-800">Name:</label>
-                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.name}</p>
-                </div>
-                
-                <div>
-                  <label className="text-base font-extrabold text-gray-800">Description:</label>
-                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.description}</p>
-                </div>
-                
-                <div>
-                  <label className="text-base font-extrabold text-gray-800">Gender:</label>
-                  <p className="text-lg font-bold text-gray-900 mt-1 capitalize">{selectedListener.gender}</p>
-                </div>
-                
-                <div>
-                  <label className="text-base font-extrabold text-gray-800">Email:</label>
-                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.email}</p>
-                </div>
-                
-                <div>
-                  <label className="text-base font-extrabold text-gray-800">Phone:</label>
-                  <p className="text-lg font-bold text-gray-900 mt-1">{selectedListener.phoneNumber}</p>
-                </div>
-
-                {/* Availability Section */}
-                <div>
-                  <label className="text-base font-extrabold text-gray-800">Availability:</label>
-                  <div className="mt-2 space-y-2">
-                    {selectedListener.availability.map((day) => (
-                      <div key={day.dayOfWeek} className="border rounded p-2 bg-gray-50">
-                        <p className="text-lg font-extrabold capitalize text-gray-900 mb-2">{day.dayOfWeek}</p>
-                        <div className="space-y-1 mt-1">
-                          {day.times.map((time, index) => (
-                            <div key={index} className="flex items-center space-x-2">
-                              <div className="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-md">
-                                <span className="text-lg font-bold text-gray-900">{time.startTime}</span>
-                                <span className="text-lg font-bold text-gray-500">to</span>
-                                <span className="text-lg font-bold text-gray-900">{time.endTime}</span>
-                                {!time.isAvailable && (
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-bold text-orange-600 ml-2">
-                                      (Booked)
-                                    </span>
-                                    <div className="relative group">
-                                      <span className="text-gray-400 cursor-help">ⓘ</span>
-                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                        This time slot is booked and cannot be modified
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedListener(null);
-                  setShowDetailsModal(false);
-                }}
-                className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 
-                  bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 
-                  focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-
         {/* Add/Edit Modal */}
         {showModal && (
       <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -899,90 +767,9 @@ const addTimeSlot = (dayOfWeek: string) => {
           <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="space-y-6">
-                {/* Name Input */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">Name*</label>
-                  <input
-                    type="text"
-                    value={newListener.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
-                      ${formErrors.name ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                  />
-                  {formErrors.name && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
-                  )}
-                </div>
-
-                {/* Description Textarea */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">Description*</label>
-                  <textarea
-                    value={newListener.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={3}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
-                      ${formErrors.description ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                  />
-                  {formErrors.description && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
-                  )}
-                </div>
-
-                {/* Gender Select */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">Gender*</label>
-                  <select
-                    value={newListener.gender}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-bold
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {GENDERS.map((gender) => (
-                      <option key={gender} value={gender} className="font-bold">
-                        {gender.charAt(0).toUpperCase() + gender.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Email Input */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">Email*</label>
-                  <input
-                    type="email"
-                    value={newListener.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
-                      ${formErrors.email ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                  />
-                  {formErrors.email && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.email}</p>
-                  )}
-                </div>
-
-                {/* Phone Number Input */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700">Phone Number*</label>
-                  <input
-                    type="text"
-                    value={newListener.phoneNumber}
-                    onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                    className={`mt-1 block w-full rounded-md shadow-sm px-3 py-2 text-gray-900 font-bold
-                      ${formErrors.phoneNumber ? 'border-red-300' : 'border-gray-300'}
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                  />
-                  {formErrors.phoneNumber && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.phoneNumber}</p>
-                  )}
-                </div>
-
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Update Availability</h3>
                 {/* Availability Section */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Availability*</label>
                   <div className="space-y-4">
                     {newListener.availability.map((day) => (
                       <div key={day.dayOfWeek} className="border rounded-lg p-4">
@@ -1068,9 +855,6 @@ const addTimeSlot = (dayOfWeek: string) => {
                       </div>
                     ))}
                   </div>
-                  {formErrors.availability && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.availability}</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -1087,7 +871,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                   isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                {isSubmitting ? 'Processing...' : (selectedListener ? 'Update Listener' : 'Create Listener')}
+            {isSubmitting ? 'Processing...' : 'Update Availability'}
               </button>
               <button
                 type="button"
@@ -1113,68 +897,79 @@ const addTimeSlot = (dayOfWeek: string) => {
         <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
 
-          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+      <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
+        <div className="bg-white px-6 pt-6 pb-6">
               <div className="space-y-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
+            {/* Header */}
+            <div className="border-b pb-4">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                <MessageCircle className="h-6 w-6 mr-2 text-purple-600" />
                   Send Message to {selectedListener.name}
                 </h3>
+            </div>
 
                 {/* Subject Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Subject</label>
+            <div className="space-y-2">
+              <label className="block text-lg font-semibold text-gray-800">Subject</label>
                   <input
                     type="text"
                     value={messageSubject}
                     onChange={(e) => setMessageSubject(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium 
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter message subject"
+                className="mt-1 block w-full rounded-lg border-2 border-gray-300 shadow-sm px-4 py-3 text-gray-900 text-lg
+                  focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
+                  hover:border-purple-400 transition duration-150 ease-in-out"
                   />
                 </div>
 
                 {/* Message Content */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Message</label>
+            <div className="space-y-2">
+              <label className="block text-lg font-semibold text-gray-800">Message</label>
                   <textarea
                     value={messageContent}
                     onChange={(e) => setMessageContent(e.target.value)}
-                    rows={4}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium 
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Type your message here..."
+                rows={6}
+                className="mt-1 block w-full rounded-lg border-2 border-gray-300 shadow-sm px-4 py-3 text-gray-900 text-lg
+                  focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
+                  hover:border-purple-400 transition duration-150 ease-in-out"
                   />
                 </div>
 
                 {/* Priority Select */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Priority</label>
+            <div className="space-y-2">
+              <label className="block text-lg font-semibold text-gray-800">Priority</label>
                   <select
                     value={messagePriority}
                     onChange={(e) => setMessagePriority(e.target.value as 'normal' | 'urgent')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 text-gray-900 font-medium 
-                      focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full rounded-lg border-2 border-gray-300 shadow-sm px-4 py-3 text-gray-900 text-lg
+                  focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
+                  hover:border-purple-400 transition duration-150 ease-in-out"
                   >
-                    <option value="normal">Normal</option>
-                    <option value="urgent">Urgent</option>
+                <option value="normal" className="text-lg">Normal</option>
+                <option value="urgent" className="text-lg">Urgent</option>
                   </select>
                 </div>
 
-                {/* Messages List */}
+            {/* Previous Messages Section */}
                 {messages.length > 0 && (
-                  <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-2">Previous Messages</h4>
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="mt-8 space-y-4">
+                <h4 className="text-xl font-semibold text-gray-800 border-b pb-2">Previous Messages</h4>
+                <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
                       {messages.map((message: Message) => (
-                        <div key={message._id} className="border rounded p-3">
-                          <div className="flex justify-between items-start">
-                            <h5 className="font-medium">{message.subject}</h5>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              message.priority === 'urgent' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                    <div key={message._id} className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <h5 className="text-lg font-semibold text-gray-900">{message.subject}</h5>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          message.priority === 'urgent' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-green-100 text-green-800'
                             }`}>
                               {message.priority}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">{message.content}</p>
-                          <div className="text-xs text-gray-500 mt-2">
+                      <p className="text-base text-gray-700 whitespace-pre-wrap">{message.content}</p>
+                      <div className="text-sm text-gray-500 mt-2">
                             {new Date(message.createdAt).toLocaleString()}
                           </div>
                         </div>
@@ -1186,14 +981,18 @@ const addTimeSlot = (dayOfWeek: string) => {
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <div className="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse gap-3">
               <button
                 type="button"
                 onClick={sendMessageToListener}
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 
-                  bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 
-                  focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-              >
+            disabled={!messageSubject.trim() || !messageContent.trim()}
+            className="w-full inline-flex justify-center items-center rounded-lg border border-transparent px-6 py-3 
+              bg-purple-600 text-lg font-medium text-white shadow-sm hover:bg-purple-700 
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 
+              sm:ml-3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed
+              transition-all duration-150 ease-in-out transform hover:scale-[1.02]"
+          >
+            <MessageCircle className="h-5 w-5 mr-2" />
                 Send Message
               </button>
               <button
@@ -1205,9 +1004,11 @@ const addTimeSlot = (dayOfWeek: string) => {
                   setMessageContent('');
                   setMessagePriority('normal');
                 }}
-                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 
-                  bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 
-                  focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 
+              px-6 py-3 bg-white text-lg font-medium text-gray-700 shadow-sm 
+              hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 
+              focus:ring-purple-500 sm:mt-0 sm:w-auto
+              transition-all duration-150 ease-in-out"
               >
                 Cancel
               </button>
@@ -1254,6 +1055,96 @@ const addTimeSlot = (dayOfWeek: string) => {
                   focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Invite Modal */}
+    {showInviteModal && (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              {/* Header with Icon */}
+              <div className="sm:flex sm:items-start mb-6">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <MessageCircle className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 className="text-lg leading-6 font-semibold text-gray-900">
+                    Invite New Listener
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Send an invitation to join as a listener. They'll receive an email with instructions to complete their registration.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-6 mt-6">
+                {/* Email Input Group */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                  <div className="relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      value={inviteForm.email}
+                      onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="block w-full pl-10 pr-4 py-3 bg-white border-2 border-gray-300 
+                        rounded-lg shadow-sm hover:border-purple-400 
+                        focus:ring-2 focus:ring-purple-500 focus:border-purple-500 
+                        transition duration-150 ease-in-out text-gray-900
+                        placeholder:text-gray-400"
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-4 py-4 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+              <button
+                type="button"
+                onClick={handleInvite}
+                disabled={isSubmitting || !inviteForm.email}
+                className="w-full inline-flex justify-center items-center rounded-lg border border-transparent px-6 py-3 
+                  bg-purple-600 text-base font-medium text-white shadow-sm hover:bg-purple-700 
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 
+                  sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all duration-150 ease-in-out transform hover:scale-[1.02]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    Send Invitation
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setInviteForm({ email: '' });
+                }}
+                className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 
+                  px-6 py-3 bg-white text-base font-medium text-gray-700 shadow-sm 
+                  hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 
+                  focus:ring-purple-500 sm:mt-0 sm:w-auto sm:text-sm
+                  transition-all duration-150 ease-in-out"
+              >
+                Cancel
               </button>
             </div>
           </div>

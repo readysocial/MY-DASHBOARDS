@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Eye,
   AlertCircle,
+  Video,
 } from 'lucide-react';
 import { getListenerSessions } from '@/api/listener/getsessions/api';
 import type { Session } from '@/api/listener/getsessions/types';
@@ -187,15 +188,22 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
                       </Button>
                     </Link>
 
-                    {session.meetingLink && (
+                    {session.meetingLink && session.meetingLink.trim() && (
                       <a
-                        href={session.meetingLink}
+                        href={session.meetingLink.trim()}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-sm text-blue-600 hover:text-blue-800 hover:underline mt-1 flex items-center gap-1"
+                        className="block w-full"
                       >
-                        <ExternalLink className="h-4 w-4" />
-                        Join Meeting
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-full flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Video className="h-4 w-4" />
+                          Join Meeting
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
                       </a>
                     )}
 
@@ -213,6 +221,51 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
         </table>
       </div>
     );
+  };
+
+  // Generate page numbers for pagination
+  const generatePageNumbers = () => {
+    const delta = 2; // Number of pages to show around current page
+    const range: (number | string)[] = [];
+    const rangeWithDots: (number | string)[] = [];
+    
+    // Always include first page
+    range.push(1);
+    
+    // Add dots if there's a gap between first page and current range
+    if (currentPage - delta > 2) {
+      rangeWithDots.push('...');
+    }
+    
+    // Add pages around current page
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+    
+    // Add dots if there's a gap between current range and last page
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push('...');
+    }
+    
+    // Always include last page if there's more than one page
+    if (totalPages > 1) {
+      range.push(totalPages);
+    }
+    
+    // Combine ranges with dots
+    range.forEach((page, index) => {
+      // Check if we need to add dots before this page
+      if (index > 0) {
+        const prevItem = range[index - 1];
+        // Only check for gap if both current and previous items are numbers
+        if (typeof page === 'number' && typeof prevItem === 'number' && prevItem !== page - 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(page);
+    });
+    
+    return rangeWithDots;
   };
 
   /* ---------- loading / empty / error ---------- */
@@ -252,49 +305,71 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
       {/* Improved pagination */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 pt-6 gap-4">
-          <Button
-            onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-            variant="outline"
-            className="flex items-center gap-2 font-medium min-h-[40px] px-4 py-2 w-full sm:w-auto"
-          >
-            <ChevronFirst className="h-4 w-4" />
-            First
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              variant="outline"
+              className="flex items-center gap-2 font-medium min-h-[40px] px-3 py-2"
+            >
+              <ChevronFirst className="h-4 w-4" />
+            </Button>
 
-          <Button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            variant="outline"
-            className="flex items-center gap-2 font-medium min-h-[40px] px-4 py-2 w-full sm:w-auto"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Prev
-          </Button>
+            <Button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              variant="outline"
+              className="flex items-center gap-2 font-medium min-h-[40px] px-3 py-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
 
-          <span className="text-sm font-medium text-gray-700 py-2 px-4 bg-gray-50 rounded-lg">
-            Page {currentPage} of {totalPages}
-          </span>
+          <div className="flex items-center gap-1">
+            {generatePageNumbers().map((page, index) => (
+              typeof page === 'number' ? (
+                <Button
+                  key={index}
+                  onClick={() => setCurrentPage(page)}
+                  variant={currentPage === page ? "default" : "outline"}
+                  className={`min-h-[40px] px-4 py-2 font-medium ${
+                    currentPage === page 
+                      ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {page}
+                </Button>
+              ) : (
+                <span 
+                  key={index} 
+                  className="min-h-[40px] px-4 py-2 font-medium text-gray-500"
+                >
+                  {page}
+                </span>
+              )
+            ))}
+          </div>
 
-          <Button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            variant="outline"
-            className="flex items-center gap-2 font-medium min-h-[40px] px-4 py-2 w-full sm:w-auto"
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              className="flex items-center gap-2 font-medium min-h-[40px] px-3 py-2"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
 
-          <Button
-            onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
-            variant="outline"
-            className="flex items-center gap-2 font-medium min-h-[40px] px-4 py-2 w-full sm:w-auto"
-          >
-            Last
-            <ChevronLast className="h-4 w-4" />
-          </Button>
+            <Button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              className="flex items-center gap-2 font-medium min-h-[40px] px-3 py-2"
+            >
+              <ChevronLast className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>

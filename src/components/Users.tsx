@@ -312,7 +312,6 @@ const Users: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
@@ -321,6 +320,7 @@ const Users: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('anonymousName');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [isSearching, setIsSearching] = useState(false);
 
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
@@ -378,12 +378,88 @@ const Users: React.FC = () => {
       console.log("[Users] Users mapped:", mappedUsers);
       setUsers(mappedUsers);
       setTotalUsers(data.total);
-      setFilteredUsers(mappedUsers); // Initially, filtered list is the full list
     } catch (err) {
       console.error('[Users] Error fetching users:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch users');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const searchUsers = async (term: string) => {
+    console.log(`[Users] Searching users for term: ${term}`);
+    if (!validateToken()) {
+        console.log("[Users] Token validation failed for searching users.");
+        return;
+    }
+
+    if (!term.trim()) {
+      // Reset to regular fetch if search term is empty
+      setIsSearching(false);
+      setCurrentPage(1);
+      fetchUsers();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setIsSearching(true);
+      setError(null);
+      
+      const response = await fetch(
+        `${API_URL}/users/search/anonymous-name?anonymousName=${encodeURIComponent(term)}`,
+        {
+          headers: getAuthHeaders()
+        }
+      );
+
+      console.log(`[Users] Search users response status: ${response.status}`);
+
+      if (response.status === 401) {
+         console.log("[Users] Handling 401 Unauthorized for searching users");
+         return handleUnauthorized(response);
+      }
+
+      if (response.status === 404) {
+        // No user found - this is not an error, just empty results
+        console.log("[Users] No user found for search term");
+        setUsers([]);
+        setTotalUsers(0);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+         const errorText = await response.text();
+         console.error(`[Users] Failed to search users. Status: ${response.status}, Body:`, errorText);
+        throw new Error(`Failed to search users: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("[Users] Search results:", data);
+
+      // Handle both single user and array responses
+      const userData = data.user ? (Array.isArray(data.user) ? data.user : [data.user]) : [];
+      
+      // Map the search results to match User interface
+      const mappedUsers: User[] = userData.map((user: any) => ({
+        id: user._id || user.id,
+        anonymousName: user.anonymousName,
+        verified: user.verified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        contact: user.contact,
+      }));
+
+      console.log("[Users] Search results mapped:", mappedUsers);
+      setUsers(mappedUsers);
+      setTotalUsers(mappedUsers.length);
+    } catch (err) {
+      console.error('[Users] Error searching users:', err);
+      setError(err instanceof Error ? err.message : 'Failed to search users');
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
     }
   };
 
@@ -446,16 +522,16 @@ const Users: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [currentPage, usersPerPage, sortBy, sortOrder]);
+    if (!isSearching) {
+      fetchUsers();
+    }
+  }, [currentPage, usersPerPage, sortBy, sortOrder]); // Removed isSearching from dependencies
 
-  useEffect(() => {
-    setFilteredUsers(
-      users.filter(user =>
-        (user.anonymousName || 'Anonymous User').toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [searchTerm, users]);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    searchUsers(searchTerm);
+  };
 
   const handleViewUser = (userId: string) => {
     console.log(`[Users] View user clicked for ID: ${userId}`);
@@ -635,17 +711,23 @@ const Users: React.FC = () => {
       </div>
 
       <div className="mb-6">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search by anonymous name..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg text-gray-900 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             aria-label="Search users"
           />
-        </div>
+          <button
+            type="submit"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600"
+          >
+            Search
+          </button>
+        </form>
       </div>
 
       {isLoading ? (
@@ -662,7 +744,17 @@ const Users: React.FC = () => {
       ) : (
         <>
           <div className="sm:hidden space-y-4">
-            {filteredUsers.map(renderUserCard)}
+            {users.length > 0 ? (
+              users.map(renderUserCard)
+            ) : isSearching ? (
+              <div className="text-center py-8 text-gray-500">
+                No users found matching "{searchTerm}"
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No users available
+              </div>
+            )}
           </div>
 
           <div className="hidden sm:block overflow-x-auto">
@@ -678,81 +770,95 @@ const Users: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {/* --- FIX: Ensure key is present and unique for table rows --- */}
-                {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{user.anonymousName || 'Anonymous User'}</td>
-                    <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
-                      {user.contact || 'N/A'}
-                    </td>
-                    <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
-                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
-                      {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        user.verified
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {user.verified ? 'Verified' : 'Unverified'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex space-x-2">
-                        <button
-                          className="text-red-500 hover:text-red-700"
-                          onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewUser(user.id); // Now uses the mapped `id`
-                          }}
-                          aria-label={`View details for ${user.anonymousName || 'Anonymous User'}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          className="text-purple-500 hover:text-purple-700"
-                          onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenNotificationModal(user.id); // Now uses the mapped `id`
-                          }}
-                          aria-label={`Send notification to ${user.anonymousName || 'Anonymous User'}`}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </button>
-                      </div>
+                {users.length > 0 ? (
+                  users.map(user => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">{user.anonymousName || 'Anonymous User'}</td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
+                        {user.contact || 'N/A'}
+                      </td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
+                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          user.verified
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.verified ? 'Verified' : 'Unverified'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex space-x-2">
+                          <button
+                            className="text-red-500 hover:text-red-700"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewUser(user.id);
+                            }}
+                            aria-label={`View details for ${user.anonymousName || 'Anonymous User'}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            className="text-purple-500 hover:text-purple-700"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenNotificationModal(user.id);
+                            }}
+                            aria-label={`Send notification to ${user.anonymousName || 'Anonymous User'}`}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : isSearching ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      No users found matching "{searchTerm}"
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      No users available
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {Array.from(
-              { length: Math.ceil(totalUsers / usersPerPage) },
-              (_, index: number) => (
-                // --- FIX: Key is correctly applied to pagination buttons ---
-                <button
-                  key={index} 
-                  onClick={() => {
-                      console.log(`[Users] Pagination clicked - Page ${index + 1}`);
-                      setCurrentPage(index + 1);
-                  }}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    currentPage === index + 1
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                  aria-label={`Go to page ${index + 1}`}
-                >
-                  {index + 1}
-                </button>
-              )
-            )}
-          </div>
+          {!isSearching && totalUsers > 0 && (
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {Array.from(
+                { length: Math.ceil(totalUsers / usersPerPage) },
+                (_, index: number) => (
+                  <button
+                    key={index} 
+                    onClick={() => {
+                        console.log(`[Users] Pagination clicked - Page ${index + 1}`);
+                        setCurrentPage(index + 1);
+                    }}
+                    className={`px-3 py-1 rounded-md text-sm ${
+                      currentPage === index + 1
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    aria-label={`Go to page ${index + 1}`}
+                  >
+                    {index + 1}
+                  </button>
+                )
+              )}
+            </div>
+          )}
         </>
       )}
 

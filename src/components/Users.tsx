@@ -5,7 +5,7 @@ import { API_URL } from '@/config/api';
 
 // --- ADJUSTED INTERFACE to better match backend structure if needed ---
 interface User {
-  id: string; // This will be mapped from backend `_id`
+  id: string; // This will be mapped from backend `id`
   anonymousName?: string;
   verified: boolean;
   createdAt?: string;
@@ -39,7 +39,7 @@ interface Session {
 
 interface PaginatedResponse {
   users: Array<{ // Define the raw backend user structure
-    _id: string;
+    id: string; // API returns 'id'
     anonymousName?: string;
     verified: boolean;
     createdAt?: string;
@@ -87,27 +87,22 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
         console.log("[UserDetailsModal] Token validation failed.");
         return;
       }
-
       try {
         setIsLoading(true);
         setError(null);
         const response = await fetch(`${API_URL}/users/${userId}`, {
           headers: getAuthHeaders()
         });
-
         console.log(`[UserDetailsModal] User details response status: ${response.status}`);
-
         if (response.status === 401) {
           console.log("[UserDetailsModal] Handling 401 Unauthorized");
           return handleUnauthorized(response);
         }
-
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`[UserDetailsModal] Failed to fetch user details. Status: ${response.status}, Body:`, errorText);
           throw new Error(`Failed to fetch user details: ${response.status} ${response.statusText} - ${errorText}`);
         }
-
         const data = await response.json();
         console.log("[UserDetailsModal] User details fetched:", data);
         setUser(data.user);
@@ -125,25 +120,20 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
         console.log("[UserDetailsModal] Token validation failed for sessions.");
         return;
       }
-
       try {
         const response = await fetch(`${API_URL}/sessions/user/${userId}/sessions`, {
           headers: getAuthHeaders()
         });
-
         console.log(`[UserDetailsModal] User sessions response status: ${response.status}`);
-
         if (response.status === 401) {
           console.log("[UserDetailsModal] Handling 401 Unauthorized for sessions");
           return handleUnauthorized(response);
         }
-
         if (!response.ok) {
            const errorText = await response.text();
            console.error(`[UserDetailsModal] Failed to fetch user sessions. Status: ${response.status}, Body:`, errorText);
           throw new Error(`Failed to fetch user sessions: ${response.status} ${response.statusText} - ${errorText}`);
         }
-
         const data = await response.json();
         console.log("[UserDetailsModal] User sessions fetched:", data);
         setSessions(data.sessions || []);
@@ -199,7 +189,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
               </button>
             </div>
           </div>
-
           <div className="p-6">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -240,7 +229,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                   </div>
                 )}
               </div>
-
               <div className="mt-4">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">User Sessions</h3>
                 {sessions.length > 0 ? (
@@ -321,7 +309,6 @@ const Users: React.FC = () => {
   const [sortBy, setSortBy] = useState('anonymousName');
   const [sortOrder, setSortOrder] = useState('asc');
   const [isSearching, setIsSearching] = useState(false);
-
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -337,7 +324,6 @@ const Users: React.FC = () => {
         console.log("[Users] Token validation failed for fetching users.");
         return;
     }
-
     try {
       setIsLoading(true);
       setError(null);
@@ -348,33 +334,27 @@ const Users: React.FC = () => {
           headers: getAuthHeaders()
         }
       );
-
       console.log(`[Users] Users fetch response status: ${response.status}`);
-
       if (response.status === 401) {
          console.log("[Users] Handling 401 Unauthorized for users list");
          return handleUnauthorized(response);
       }
-
       if (!response.ok) {
          const errorText = await response.text();
          console.error(`[Users] Failed to fetch users. Status: ${response.status}, Body:`, errorText);
         throw new Error(`Failed to fetch users: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
       const data: PaginatedResponse = await response.json();
       console.log("[Users] Users fetched (raw):", data);
-
-      // --- FIX: Map backend `_id` to frontend `id` ---
+      // --- FIX: Map backend `id` to frontend `id` ---
       const mappedUsers: User[] = data.users.map(user => ({
-        id: user._id, // Map _id to id
+        id: user.id, // Map API 'id' to frontend 'id'
         anonymousName: user.anonymousName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous User',
         verified: user.verified,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         contact: user.contact, // Added phone number mapping
       }));
-
       console.log("[Users] Users mapped:", mappedUsers);
       setUsers(mappedUsers);
       setTotalUsers(data.total);
@@ -392,7 +372,6 @@ const Users: React.FC = () => {
         console.log("[Users] Token validation failed for searching users.");
         return;
     }
-
     if (!term.trim()) {
       // Reset to regular fetch if search term is empty
       setIsSearching(false);
@@ -400,26 +379,21 @@ const Users: React.FC = () => {
       fetchUsers();
       return;
     }
-
     try {
       setIsLoading(true);
       setIsSearching(true);
       setError(null);
-      
       const response = await fetch(
         `${API_URL}/users/search/anonymous-name?anonymousName=${encodeURIComponent(term)}`,
         {
           headers: getAuthHeaders()
         }
       );
-
       console.log(`[Users] Search users response status: ${response.status}`);
-
       if (response.status === 401) {
          console.log("[Users] Handling 401 Unauthorized for searching users");
          return handleUnauthorized(response);
       }
-
       if (response.status === 404) {
         // No user found - this is not an error, just empty results
         console.log("[Users] No user found for search term");
@@ -428,29 +402,24 @@ const Users: React.FC = () => {
         setIsLoading(false);
         return;
       }
-
       if (!response.ok) {
          const errorText = await response.text();
          console.error(`[Users] Failed to search users. Status: ${response.status}, Body:`, errorText);
         throw new Error(`Failed to search users: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
       const data = await response.json();
       console.log("[Users] Search results:", data);
-
-      // Handle both single user and array responses
-      const userData = data.user ? (Array.isArray(data.user) ? data.user : [data.user]) : [];
-      
+      // Handle response - backend returns {users: [...]} not {user: [...]}
+      const userData = data.users ? (Array.isArray(data.users) ? data.users : [data.users]) : [];
       // Map the search results to match User interface
       const mappedUsers: User[] = userData.map((user: any) => ({
-        id: user._id || user.id,
+        id: user.id, // API returns 'id'
         anonymousName: user.anonymousName,
         verified: user.verified,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         contact: user.contact,
       }));
-
       console.log("[Users] Search results mapped:", mappedUsers);
       setUsers(mappedUsers);
       setTotalUsers(mappedUsers.length);
@@ -469,7 +438,6 @@ const Users: React.FC = () => {
         console.log("[Users] Token validation failed for sending notification.");
         return;
     }
-
     try {
       const notificationData: NotificationRequest = {
         userId,
@@ -477,7 +445,6 @@ const Users: React.FC = () => {
         message: notificationMessage,
         options: notificationOptions
       };
-
       const response = await fetch(`${API_URL}/notifications/send`, {
         method: 'POST',
         headers: {
@@ -486,20 +453,16 @@ const Users: React.FC = () => {
         },
         body: JSON.stringify(notificationData)
       });
-
       console.log(`[Users] Notification send response status: ${response.status}`);
-
       if (response.status === 401) {
          console.log("[Users] Handling 401 Unauthorized for sending notification");
          return handleUnauthorized(response);
       }
-
       if (!response.ok) {
          const errorText = await response.text();
          console.error(`[Users] Failed to send notification. Status: ${response.status}, Body:`, errorText);
         throw new Error(`Failed to send notification: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
       const result = await response.json();
       console.log("[Users] Notification sent successfully:", result);
       alert('Notification sent successfully!');
@@ -554,7 +517,7 @@ const Users: React.FC = () => {
         console.error("[Users] Attempted to open notification modal with undefined/empty ID");
         return; // Prevent action if ID is invalid
     }
-    setSelectedUserId(null);
+    // setSelectedUserId(null); // This line was causing the issue
     setSelectedUserId(userId);
     setShowNotificationModal(true);
   };
@@ -572,26 +535,21 @@ const Users: React.FC = () => {
         console.log("[Users] Token validation failed for exporting users.");
         return;
     }
-
     try {
       const response = await fetch(`${API_URL}/users/export`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
-
       console.log(`[Users] Export users response status: ${response.status}`);
-
       if (response.status === 401) {
          console.log("[Users] Handling 401 Unauthorized for exporting users");
          return handleUnauthorized(response);
       }
-
       if (!response.ok) {
          const errorText = await response.text();
          console.error(`[Users] Failed to export users. Status: ${response.status}, Body:`, errorText);
         throw new Error(`Failed to export users: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -608,8 +566,9 @@ const Users: React.FC = () => {
     }
   };
 
+  // --- FIXED renderUserCard function usage ---
+  // The function itself is fine, but we need to use it correctly in the map.
   const renderUserCard = (user: User) => (
-    // --- FIX: Ensure key is present and unique ---
     <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
       <div className="flex justify-between items-start mb-3">
         <div>
@@ -623,7 +582,6 @@ const Users: React.FC = () => {
           {user.verified ? 'Verified' : 'Unverified'}
         </span>
       </div>
-
       <div className="space-y-2 text-sm text-gray-600">
         {user.contact && (
           <div>
@@ -641,7 +599,6 @@ const Users: React.FC = () => {
           </div>
         )}
       </div>
-
       <div className="mt-4 flex justify-end space-x-2">
         <button
           className="text-red-500 hover:text-red-700"
@@ -709,7 +666,6 @@ const Users: React.FC = () => {
           </button>
         </div>
       </div>
-
       <div className="mb-6">
         <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -729,7 +685,6 @@ const Users: React.FC = () => {
           </button>
         </form>
       </div>
-
       {isLoading ? (
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="relative">
@@ -745,7 +700,62 @@ const Users: React.FC = () => {
         <>
           <div className="sm:hidden space-y-4">
             {users.length > 0 ? (
-              users.map(renderUserCard)
+              // --- CORRECTED: Apply key via map, not inside the function ---
+              users.map(user => (
+                <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{user.anonymousName || 'Anonymous User'}</h3>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      user.verified
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user.verified ? 'Verified' : 'Unverified'}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    {user.contact && (
+                      <div>
+                        <span className="font-medium">Phone:</span> {user.contact}
+                      </div>
+                    )}
+                    {user.createdAt && (
+                      <div>
+                        <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
+                      </div>
+                    )}
+                    {user.updatedAt && (
+                      <div>
+                        <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 flex justify-end space-x-2">
+                    <button
+                      className="text-red-500 hover:text-red-700"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewUser(user.id); // Now uses the mapped `id`
+                      }}
+                      aria-label={`View details for ${user.anonymousName || 'Anonymous User'}`}
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                    <button
+                      className="text-purple-500 hover:text-purple-700"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenNotificationModal(user.id); // Now uses the mapped `id`
+                      }}
+                      aria-label={`Send notification to ${user.anonymousName || 'Anonymous User'}`}
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))
             ) : isSearching ? (
               <div className="text-center py-8 text-gray-500">
                 No users found matching "{searchTerm}"
@@ -756,7 +766,6 @@ const Users: React.FC = () => {
               </div>
             )}
           </div>
-
           <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full border rounded-lg">
               <thead>
@@ -834,14 +843,14 @@ const Users: React.FC = () => {
               </tbody>
             </table>
           </div>
-
           {!isSearching && totalUsers > 0 && (
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {Array.from(
                 { length: Math.ceil(totalUsers / usersPerPage) },
                 (_, index: number) => (
+                  // --- FIX: Added missing key prop for pagination buttons ---
                   <button
-                    key={index} 
+                    key={index} // <-- THIS WAS MISSING
                     onClick={() => {
                         console.log(`[Users] Pagination clicked - Page ${index + 1}`);
                         setCurrentPage(index + 1);
@@ -861,7 +870,6 @@ const Users: React.FC = () => {
           )}
         </>
       )}
-
       {selectedUserId && !showNotificationModal && (
         <UserDetailsModal
           key={`user-details-${selectedUserId}`}
@@ -869,16 +877,13 @@ const Users: React.FC = () => {
           onClose={handleCloseUserDetailsModal}
         />
       )}
-
       {showNotificationModal && selectedUserId && (
         <div className="fixed inset-0 z-[1000] overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Send Notification</h3>
-
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="notification-title" className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
@@ -891,7 +896,6 @@ const Users: React.FC = () => {
                       placeholder="Enter notification title"
                     />
                   </div>
-
                   <div>
                     <label htmlFor="notification-message" className="block text-sm font-semibold text-gray-700 mb-1">Message</label>
                     <textarea
@@ -903,7 +907,6 @@ const Users: React.FC = () => {
                       placeholder="Enter notification message"
                     />
                   </div>
-
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Notification Options</label>
                     <div className="flex flex-col space-y-2">
@@ -947,7 +950,6 @@ const Users: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"

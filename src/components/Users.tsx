@@ -3,14 +3,14 @@ import { Search, Plus, Eye, MessageCircle } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 
-// --- ADJUSTED INTERFACE to better match backend structure if needed ---
+// --- ADJUSTED INTERFACE: Removed firstName, lastName as they are not part of the User object used for display ---
 interface User {
   id: string; // This will be mapped from backend `id`
-  anonymousName?: string;
+  anonymousName?: string | null; // Allow null
   verified: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-  contact?: string; // Added phone number field
+  createdAt?: string | null; // Allow null
+  updatedAt?: string | null; // Allow null
+  contact?: string | null; // Allow null
 }
 
 interface Session {
@@ -37,17 +37,16 @@ interface Session {
   };
 }
 
+// --- ADJUSTED INTERFACE: Removed firstName, lastName from the raw API user structure as well ---
 interface PaginatedResponse {
-  users: Array<{ // Define the raw backend user structure
+  users: Array<{
     id: string; // API returns 'id'
-    anonymousName?: string;
+    anonymousName?: string | null; // Allow null
     verified: boolean;
-    createdAt?: string;
-    updatedAt?: string;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    contact?: string; // Added phone number field
+    createdAt?: string | null; // Allow null
+    updatedAt?: string | null; // Allow null
+    email?: string | null; // Allow null
+    contact?: string | null; // Allow null
     // Add other fields returned by your backend API
   }>;
   total: number;
@@ -194,7 +193,10 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Name</label>
-                  <p className="text-black font-medium text-base">{user.anonymousName || 'Anonymous User'}</p>
+                  {/* --- HANDLE EDGE CASE: anonymousName null/undefined --- */}
+                  <p className="text-black font-medium text-base">
+                    {user.anonymousName || 'Anonymous User'}
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Status</label>
@@ -206,12 +208,14 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                     {user.verified ? 'Verified' : 'Unverified'}
                   </span>
                 </div>
+                {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
                 {user.contact && (
                   <div>
                     <label className="text-sm font-semibold text-gray-700">Phone</label>
                     <p className="text-black font-medium text-base">{user.contact}</p>
                   </div>
                 )}
+                {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
                 {user.createdAt && (
                   <div>
                     <label className="text-sm font-semibold text-gray-700">Joined</label>
@@ -220,6 +224,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                     </p>
                   </div>
                 )}
+                {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
                 {user.updatedAt && (
                   <div>
                     <label className="text-sm font-semibold text-gray-700">Last Updated</label>
@@ -347,13 +352,14 @@ const Users: React.FC = () => {
       const data: PaginatedResponse = await response.json();
       console.log("[Users] Users fetched (raw):", data);
       // --- FIX: Map backend `id` to frontend `id` ---
+      // --- CHANGED: Simplified fallback logic, no firstName/lastName ---
       const mappedUsers: User[] = data.users.map(user => ({
         id: user.id, // Map API 'id' to frontend 'id'
-        anonymousName: user.anonymousName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous User',
+        anonymousName: user.anonymousName || 'Anonymous User', // Direct fallback
         verified: user.verified,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-        contact: user.contact, // Added phone number mapping
+        contact: user.contact,
       }));
       console.log("[Users] Users mapped:", mappedUsers);
       setUsers(mappedUsers);
@@ -412,9 +418,10 @@ const Users: React.FC = () => {
       // Handle response - backend returns {users: [...]} not {user: [...]}
       const userData = data.users ? (Array.isArray(data.users) ? data.users : [data.users]) : [];
       // Map the search results to match User interface
+      // --- CHANGED: Simplified fallback logic in search results mapping ---
       const mappedUsers: User[] = userData.map((user: any) => ({
         id: user.id, // API returns 'id'
-        anonymousName: user.anonymousName,
+        anonymousName: user.anonymousName || 'Anonymous User', // Direct fallback
         verified: user.verified,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -568,6 +575,7 @@ const Users: React.FC = () => {
 
   // --- FIXED renderUserCard function usage ---
   // The function itself is fine, but we need to use it correctly in the map.
+  // Note: This function is not used in the final render, but kept for reference.
   const renderUserCard = (user: User) => (
     <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
       <div className="flex justify-between items-start mb-3">
@@ -583,16 +591,19 @@ const Users: React.FC = () => {
         </span>
       </div>
       <div className="space-y-2 text-sm text-gray-600">
+        {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
         {user.contact && (
           <div>
             <span className="font-medium">Phone:</span> {user.contact}
           </div>
         )}
+        {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
         {user.createdAt && (
           <div>
             <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
           </div>
         )}
+        {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
         {user.updatedAt && (
           <div>
             <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
@@ -705,6 +716,7 @@ const Users: React.FC = () => {
                 <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
                   <div className="flex justify-between items-start mb-3">
                     <div>
+                      {/* --- HANDLE EDGE CASE: anonymousName null/undefined --- */}
                       <h3 className="font-medium text-gray-900">{user.anonymousName || 'Anonymous User'}</h3>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs ${
@@ -716,16 +728,19 @@ const Users: React.FC = () => {
                     </span>
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
+                     {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
                     {user.contact && (
                       <div>
                         <span className="font-medium">Phone:</span> {user.contact}
                       </div>
                     )}
+                    {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
                     {user.createdAt && (
                       <div>
                         <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
                       </div>
                     )}
+                    {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
                     {user.updatedAt && (
                       <div>
                         <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
@@ -782,14 +797,18 @@ const Users: React.FC = () => {
                 {users.length > 0 ? (
                   users.map(user => (
                     <tr key={user.id} className="hover:bg-gray-50">
+                      {/* --- HANDLE EDGE CASE: anonymousName null/undefined --- */}
                       <td className="px-4 py-3 text-sm text-gray-900">{user.anonymousName || 'Anonymous User'}</td>
                       <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
+                        {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
                         {user.contact || 'N/A'}
                       </td>
                       <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
+                        {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
+                        {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
                         {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm">

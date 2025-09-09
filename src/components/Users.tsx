@@ -3,12 +3,14 @@ import { Search, Plus, Eye, MessageCircle } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 
+// --- ADJUSTED INTERFACE to better match backend structure if needed ---
 interface User {
-  id: string;
+  id: string; // This will be mapped from backend `id`
   anonymousName?: string;
   verified: boolean;
   createdAt?: string;
   updatedAt?: string;
+  contact?: string; // Added phone number field
 }
 
 interface Session {
@@ -36,7 +38,18 @@ interface Session {
 }
 
 interface PaginatedResponse {
-  users: User[];
+  users: Array<{ // Define the raw backend user structure
+    id: string; // API returns 'id'
+    anonymousName?: string;
+    verified: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    contact?: string; // Added phone number field
+    // Add other fields returned by your backend API
+  }>;
   total: number;
   skip: number;
   limit: number;
@@ -69,26 +82,32 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
 
   useEffect(() => {
     const fetchUserDetails = async () => {
-      if (!validateToken()) return;
-
+      console.log(`[UserDetailsModal] Fetching details for user ID: ${userId}`);
+      if (!validateToken()) {
+        console.log("[UserDetailsModal] Token validation failed.");
+        return;
+      }
       try {
         setIsLoading(true);
+        setError(null);
         const response = await fetch(`${API_URL}/users/${userId}`, {
           headers: getAuthHeaders()
         });
-        
+        console.log(`[UserDetailsModal] User details response status: ${response.status}`);
         if (response.status === 401) {
+          console.log("[UserDetailsModal] Handling 401 Unauthorized");
           return handleUnauthorized(response);
         }
-        
         if (!response.ok) {
-          throw new Error('Failed to fetch user details');
+          const errorText = await response.text();
+          console.error(`[UserDetailsModal] Failed to fetch user details. Status: ${response.status}, Body:`, errorText);
+          throw new Error(`Failed to fetch user details: ${response.status} ${response.statusText} - ${errorText}`);
         }
-
         const data = await response.json();
+        console.log("[UserDetailsModal] User details fetched:", data);
         setUser(data.user);
       } catch (err) {
-        console.error('Error fetching user details:', err);
+        console.error('[UserDetailsModal] Error fetching user details:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch user details');
       } finally {
         setIsLoading(false);
@@ -96,26 +115,31 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
     };
 
     const fetchUserSessions = async () => {
-      if (!validateToken()) return;
-
+      console.log(`[UserDetailsModal] Fetching sessions for user ID: ${userId}`);
+      if (!validateToken()) {
+        console.log("[UserDetailsModal] Token validation failed for sessions.");
+        return;
+      }
       try {
         const response = await fetch(`${API_URL}/sessions/user/${userId}/sessions`, {
           headers: getAuthHeaders()
         });
-        
+        console.log(`[UserDetailsModal] User sessions response status: ${response.status}`);
         if (response.status === 401) {
+          console.log("[UserDetailsModal] Handling 401 Unauthorized for sessions");
           return handleUnauthorized(response);
         }
-        
         if (!response.ok) {
-          throw new Error('Failed to fetch user sessions');
+           const errorText = await response.text();
+           console.error(`[UserDetailsModal] Failed to fetch user sessions. Status: ${response.status}, Body:`, errorText);
+          throw new Error(`Failed to fetch user sessions: ${response.status} ${response.statusText} - ${errorText}`);
         }
-
         const data = await response.json();
-        setSessions(data.sessions);
+        console.log("[UserDetailsModal] User sessions fetched:", data);
+        setSessions(data.sessions || []);
       } catch (err) {
-        console.error('Error fetching user sessions:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch user sessions');
+        console.error('[UserDetailsModal] Error fetching user sessions:', err);
+        setError(prevError => prevError ? `${prevError}; Failed to fetch user sessions` : 'Failed to fetch user sessions');
       }
     };
 
@@ -125,7 +149,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
         <div className="bg-white p-6 rounded-lg w-full max-w-lg">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto" />
         </div>
@@ -135,7 +159,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
 
   if (error || !user) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
         <div className="bg-white p-6 rounded-lg w-full max-w-lg">
           <p className="text-red-500 text-center">{error || 'User not found'}</p>
           <button
@@ -150,7 +174,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto z-[1000]">
       <div className="bg-white rounded-lg w-full max-w-lg my-8">
         <div className="max-h-[80vh] overflow-y-auto">
           <div className="sticky top-0 bg-white z-10 p-6 border-b">
@@ -159,12 +183,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-500"
+                aria-label="Close"
               >
                 <span className="h-6 w-6">✖</span>
               </button>
             </div>
           </div>
-
           <div className="p-6">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -175,13 +199,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Status</label>
                   <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
-                    user.verified 
-                      ? 'bg-green-100 text-green-800' 
+                    user.verified
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
                     {user.verified ? 'Verified' : 'Unverified'}
                   </span>
                 </div>
+                {user.contact && (
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700">Phone</label>
+                    <p className="text-black font-medium text-base">{user.contact}</p>
+                  </div>
+                )}
                 {user.createdAt && (
                   <div>
                     <label className="text-sm font-semibold text-gray-700">Joined</label>
@@ -199,7 +229,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                   </div>
                 )}
               </div>
-
               <div className="mt-4">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">User Sessions</h3>
                 {sessions.length > 0 ? (
@@ -214,13 +243,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                           <div className="flex items-center">
                             <span className="text-gray-700 font-semibold w-20">Status:</span>
                             <span className={`font-medium px-2 py-1 rounded-full text-sm ${
-                              session.status === 'completed' 
-                                ? 'bg-green-100 text-green-800' 
+                              session.status === 'completed'
+                                ? 'bg-green-100 text-green-800'
                                 : session.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : session.status === 'cancelled'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : session.status === 'cancelled'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-gray-100 text-gray-800'
                             }`}>
                               {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
                             </span>
@@ -234,9 +263,9 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                           {session.meetingLink && (
                             <div className="flex items-center">
                               <span className="text-gray-700 font-semibold w-20">Meeting:</span>
-                              <a 
-                                href={session.meetingLink} 
-                                target="_blank" 
+                              <a
+                                href={session.meetingLink}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:text-blue-800 underline"
                               >
@@ -271,7 +300,6 @@ const Users: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
@@ -280,8 +308,7 @@ const Users: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('anonymousName');
   const [sortOrder, setSortOrder] = useState('asc');
-
-  // Notification state
+  const [isSearching, setIsSearching] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -292,10 +319,14 @@ const Users: React.FC = () => {
   });
 
   const fetchUsers = async () => {
-    if (!validateToken()) return;
-
+    console.log(`[Users] Fetching users - Page: ${currentPage}, Sort: ${sortBy} ${sortOrder}`);
+    if (!validateToken()) {
+        console.log("[Users] Token validation failed for fetching users.");
+        return;
+    }
     try {
       setIsLoading(true);
+      setError(null);
       const skip = (currentPage - 1) * usersPerPage;
       const response = await fetch(
         `${API_URL}/users?skip=${skip}&limit=${usersPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
@@ -303,30 +334,110 @@ const Users: React.FC = () => {
           headers: getAuthHeaders()
         }
       );
-
+      console.log(`[Users] Users fetch response status: ${response.status}`);
       if (response.status === 401) {
-        return handleUnauthorized(response);
+         console.log("[Users] Handling 401 Unauthorized for users list");
+         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+         const errorText = await response.text();
+         console.error(`[Users] Failed to fetch users. Status: ${response.status}, Body:`, errorText);
+        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
       const data: PaginatedResponse = await response.json();
-      setUsers(data.users);
+      console.log("[Users] Users fetched (raw):", data);
+      // --- FIX: Map backend `id` to frontend `id` ---
+      const mappedUsers: User[] = data.users.map(user => ({
+        id: user.id, // Map API 'id' to frontend 'id'
+        anonymousName: user.anonymousName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous User',
+        verified: user.verified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        contact: user.contact, // Added phone number mapping
+      }));
+      console.log("[Users] Users mapped:", mappedUsers);
+      setUsers(mappedUsers);
       setTotalUsers(data.total);
-      setFilteredUsers(data.users);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      console.error('[Users] Error fetching users:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch users');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const sendNotification = async (userId: string) => {
-    if (!validateToken()) return;
+  const searchUsers = async (term: string) => {
+    console.log(`[Users] Searching users for term: ${term}`);
+    if (!validateToken()) {
+        console.log("[Users] Token validation failed for searching users.");
+        return;
+    }
+    if (!term.trim()) {
+      // Reset to regular fetch if search term is empty
+      setIsSearching(false);
+      setCurrentPage(1);
+      fetchUsers();
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setIsSearching(true);
+      setError(null);
+      const response = await fetch(
+        `${API_URL}/users/search/anonymous-name?anonymousName=${encodeURIComponent(term)}`,
+        {
+          headers: getAuthHeaders()
+        }
+      );
+      console.log(`[Users] Search users response status: ${response.status}`);
+      if (response.status === 401) {
+         console.log("[Users] Handling 401 Unauthorized for searching users");
+         return handleUnauthorized(response);
+      }
+      if (response.status === 404) {
+        // No user found - this is not an error, just empty results
+        console.log("[Users] No user found for search term");
+        setUsers([]);
+        setTotalUsers(0);
+        setIsLoading(false);
+        return;
+      }
+      if (!response.ok) {
+         const errorText = await response.text();
+         console.error(`[Users] Failed to search users. Status: ${response.status}, Body:`, errorText);
+        throw new Error(`Failed to search users: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      const data = await response.json();
+      console.log("[Users] Search results:", data);
+      // Handle response - backend returns {users: [...]} not {user: [...]}
+      const userData = data.users ? (Array.isArray(data.users) ? data.users : [data.users]) : [];
+      // Map the search results to match User interface
+      const mappedUsers: User[] = userData.map((user: any) => ({
+        id: user.id, // API returns 'id'
+        anonymousName: user.anonymousName,
+        verified: user.verified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        contact: user.contact,
+      }));
+      console.log("[Users] Search results mapped:", mappedUsers);
+      setUsers(mappedUsers);
+      setTotalUsers(mappedUsers.length);
+    } catch (err) {
+      console.error('[Users] Error searching users:', err);
+      setError(err instanceof Error ? err.message : 'Failed to search users');
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
+  };
 
+  const sendNotification = async (userId: string) => {
+    console.log(`[Users] Sending notification to user ID: ${userId}`);
+    if (!validateToken()) {
+        console.log("[Users] Token validation failed for sending notification.");
+        return;
+    }
     try {
       const notificationData: NotificationRequest = {
         userId,
@@ -334,7 +445,6 @@ const Users: React.FC = () => {
         message: notificationMessage,
         options: notificationOptions
       };
-
       const response = await fetch(`${API_URL}/notifications/send`, {
         method: 'POST',
         headers: {
@@ -343,20 +453,23 @@ const Users: React.FC = () => {
         },
         body: JSON.stringify(notificationData)
       });
-
+      console.log(`[Users] Notification send response status: ${response.status}`);
       if (response.status === 401) {
-        return handleUnauthorized(response);
+         console.log("[Users] Handling 401 Unauthorized for sending notification");
+         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
-        throw new Error('Failed to send notification');
+         const errorText = await response.text();
+         console.error(`[Users] Failed to send notification. Status: ${response.status}, Body:`, errorText);
+        throw new Error(`Failed to send notification: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
+      const result = await response.json();
+      console.log("[Users] Notification sent successfully:", result);
       alert('Notification sent successfully!');
       setShowNotificationModal(false);
       resetNotificationForm();
     } catch (error) {
-      console.error('Error sending notification:', error);
+      console.error('[Users] Error sending notification:', error);
       alert('Failed to send notification. Please try again.');
     }
   };
@@ -372,42 +485,71 @@ const Users: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [currentPage, usersPerPage, sortBy, sortOrder]);
+    if (!isSearching) {
+      fetchUsers();
+    }
+  }, [currentPage, usersPerPage, sortBy, sortOrder]); // Removed isSearching from dependencies
 
-  useEffect(() => {
-    setFilteredUsers(
-      users.filter(user => 
-        (user.anonymousName || 'Anonymous User').toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [searchTerm, users]);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    searchUsers(searchTerm);
+  };
 
   const handleViewUser = (userId: string) => {
+    console.log(`[Users] View user clicked for ID: ${userId}`);
+    if (!userId) {
+        console.error("[Users] Attempted to view user with undefined/empty ID");
+        return; // Prevent action if ID is invalid
+    }
+    setShowNotificationModal(false);
     setSelectedUserId(userId);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseUserDetailsModal = () => {
+    console.log("[Users] Closing user details modal");
     setSelectedUserId(null);
   };
 
-  const exportUsers = async () => {
-    if (!validateToken()) return;
+  const handleOpenNotificationModal = (userId: string) => {
+    console.log(`[Users] Open notification modal for user ID: ${userId}`);
+    if (!userId) {
+        console.error("[Users] Attempted to open notification modal with undefined/empty ID");
+        return; // Prevent action if ID is invalid
+    }
+    // setSelectedUserId(null); // This line was causing the issue
+    setSelectedUserId(userId);
+    setShowNotificationModal(true);
+  };
 
+  const handleCloseNotificationModal = () => {
+    console.log("[Users] Closing notification modal");
+    setShowNotificationModal(false);
+    setSelectedUserId(null);
+    resetNotificationForm();
+  };
+
+  const exportUsers = async () => {
+    console.log("[Users] Exporting users");
+    if (!validateToken()) {
+        console.log("[Users] Token validation failed for exporting users.");
+        return;
+    }
     try {
       const response = await fetch(`${API_URL}/users/export`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
-
+      console.log(`[Users] Export users response status: ${response.status}`);
       if (response.status === 401) {
-        return handleUnauthorized(response);
+         console.log("[Users] Handling 401 Unauthorized for exporting users");
+         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
-        throw new Error('Failed to export users');
+         const errorText = await response.text();
+         console.error(`[Users] Failed to export users. Status: ${response.status}, Body:`, errorText);
+        throw new Error(`Failed to export users: ${response.status} ${response.statusText} - ${errorText}`);
       }
-
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -417,12 +559,15 @@ const Users: React.FC = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      console.log("[Users] Users exported successfully");
     } catch (error) {
-      console.error('Error exporting users:', error);
+      console.error('[Users] Error exporting users:', error);
       alert('Failed to export users. Please try again.');
     }
   };
 
+  // --- FIXED renderUserCard function usage ---
+  // The function itself is fine, but we need to use it correctly in the map.
   const renderUserCard = (user: User) => (
     <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
       <div className="flex justify-between items-start mb-3">
@@ -430,40 +575,48 @@ const Users: React.FC = () => {
           <h3 className="font-medium text-gray-900">{user.anonymousName || 'Anonymous User'}</h3>
         </div>
         <span className={`px-2 py-1 rounded-full text-xs ${
-          user.verified 
-            ? 'bg-green-100 text-green-800' 
+          user.verified
+            ? 'bg-green-100 text-green-800'
             : 'bg-red-100 text-red-800'
         }`}>
           {user.verified ? 'Verified' : 'Unverified'}
         </span>
       </div>
-      
       <div className="space-y-2 text-sm text-gray-600">
+        {user.contact && (
+          <div>
+            <span className="font-medium">Phone:</span> {user.contact}
+          </div>
+        )}
         {user.createdAt && (
-        <div>
-          <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
-        </div>
+          <div>
+            <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
+          </div>
         )}
         {user.updatedAt && (
-        <div>
-          <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
-        </div>
+          <div>
+            <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
+          </div>
         )}
       </div>
-
       <div className="mt-4 flex justify-end space-x-2">
-        <button 
+        <button
           className="text-red-500 hover:text-red-700"
-          onClick={() => handleViewUser(user.id)}
+          onClick={(e) => {
+              e.stopPropagation();
+              handleViewUser(user.id); // Now uses the mapped `id`
+          }}
+          aria-label={`View details for ${user.anonymousName || 'Anonymous User'}`}
         >
           <Eye className="h-5 w-5" />
         </button>
-        <button 
+        <button
           className="text-purple-500 hover:text-purple-700"
-          onClick={() => {
-            setSelectedUserId(user.id);
-            setShowNotificationModal(true);
+          onClick={(e) => {
+              e.stopPropagation();
+              handleOpenNotificationModal(user.id); // Now uses the mapped `id`
           }}
+          aria-label={`Send notification to ${user.anonymousName || 'Anonymous User'}`}
         >
           <MessageCircle className="h-5 w-5" />
         </button>
@@ -476,7 +629,7 @@ const Users: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Users</h2>
         <div className="flex space-x-2">
-          <button 
+          <button
             className="flex items-center justify-center bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
             onClick={exportUsers}
           >
@@ -487,6 +640,7 @@ const Users: React.FC = () => {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="border rounded-lg p-2 bg-white text-gray-800"
+            aria-label="Sort by"
           >
             <option value="anonymousName">Name</option>
             <option value="createdAt">Registration Date</option>
@@ -496,6 +650,7 @@ const Users: React.FC = () => {
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
             className="border rounded-lg p-2 bg-white text-gray-800"
+            aria-label="Sort order"
           >
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
@@ -511,20 +666,25 @@ const Users: React.FC = () => {
           </button>
         </div>
       </div>
-
       <div className="mb-6">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search by anonymous name..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg text-gray-900 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search users"
           />
-        </div>
+          <button
+            type="submit"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600"
+          >
+            Search
+          </button>
+        </form>
       </div>
-
       {isLoading ? (
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="relative">
@@ -534,19 +694,84 @@ const Users: React.FC = () => {
         </div>
       ) : error ? (
         <div className="p-4 text-red-500 text-center">
-          {error}
+          Error: {error}
         </div>
       ) : (
         <>
           <div className="sm:hidden space-y-4">
-            {filteredUsers.map(renderUserCard)}
+            {users.length > 0 ? (
+              // --- CORRECTED: Apply key via map, not inside the function ---
+              users.map(user => (
+                <div key={user.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{user.anonymousName || 'Anonymous User'}</h3>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      user.verified
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user.verified ? 'Verified' : 'Unverified'}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    {user.contact && (
+                      <div>
+                        <span className="font-medium">Phone:</span> {user.contact}
+                      </div>
+                    )}
+                    {user.createdAt && (
+                      <div>
+                        <span className="font-medium">Registered:</span> {new Date(user.createdAt).toLocaleDateString()}
+                      </div>
+                    )}
+                    {user.updatedAt && (
+                      <div>
+                        <span className="font-medium">Last Updated:</span> {new Date(user.updatedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 flex justify-end space-x-2">
+                    <button
+                      className="text-red-500 hover:text-red-700"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewUser(user.id); // Now uses the mapped `id`
+                      }}
+                      aria-label={`View details for ${user.anonymousName || 'Anonymous User'}`}
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                    <button
+                      className="text-purple-500 hover:text-purple-700"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenNotificationModal(user.id); // Now uses the mapped `id`
+                      }}
+                      aria-label={`Send notification to ${user.anonymousName || 'Anonymous User'}`}
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : isSearching ? (
+              <div className="text-center py-8 text-gray-500">
+                No users found matching "{searchTerm}"
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No users available
+              </div>
+            )}
           </div>
-
           <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full border rounded-lg">
               <thead>
                 <tr className="bg-gray-50">
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                   <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration</th>
                   <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -554,91 +779,116 @@ const Users: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{user.anonymousName || 'Anonymous User'}</td>
-                    <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
-                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
-                      {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        user.verified 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {user.verified ? 'Verified' : 'Unverified'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex space-x-2">
-                        <button 
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => handleViewUser(user.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="text-purple-500 hover:text-purple-700"
-                          onClick={() => {
-                            setSelectedUserId(user.id);
-                            setShowNotificationModal(true);
-                          }}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </button>
-                      </div>
+                {users.length > 0 ? (
+                  users.map(user => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">{user.anonymousName || 'Anonymous User'}</td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
+                        {user.contact || 'N/A'}
+                      </td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
+                        {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          user.verified
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.verified ? 'Verified' : 'Unverified'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex space-x-2">
+                          <button
+                            className="text-red-500 hover:text-red-700"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewUser(user.id);
+                            }}
+                            aria-label={`View details for ${user.anonymousName || 'Anonymous User'}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            className="text-purple-500 hover:text-purple-700"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenNotificationModal(user.id);
+                            }}
+                            aria-label={`Send notification to ${user.anonymousName || 'Anonymous User'}`}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : isSearching ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      No users found matching "{searchTerm}"
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      No users available
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {Array.from(
-              { length: Math.ceil(totalUsers / usersPerPage) },
-              (_, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentPage(index + 1)}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    currentPage === index + 1 
-                      ? 'bg-red-500 text-white' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              )
-            )}
-          </div>
+          {!isSearching && totalUsers > 0 && (
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {Array.from(
+                { length: Math.ceil(totalUsers / usersPerPage) },
+                (_, index: number) => (
+                  // --- FIX: Added missing key prop for pagination buttons ---
+                  <button
+                    key={index} // <-- THIS WAS MISSING
+                    onClick={() => {
+                        console.log(`[Users] Pagination clicked - Page ${index + 1}`);
+                        setCurrentPage(index + 1);
+                    }}
+                    className={`px-3 py-1 rounded-md text-sm ${
+                      currentPage === index + 1
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    aria-label={`Go to page ${index + 1}`}
+                  >
+                    {index + 1}
+                  </button>
+                )
+              )}
+            </div>
+          )}
         </>
       )}
-
       {selectedUserId && !showNotificationModal && (
         <UserDetailsModal
+          key={`user-details-${selectedUserId}`}
           userId={selectedUserId}
-          onClose={handleCloseModal}
+          onClose={handleCloseUserDetailsModal}
         />
       )}
-
-      {/* Notification Modal with improved styling */}
       {showNotificationModal && selectedUserId && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 z-[1000] overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Send Notification</h3>
-                
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
+                    <label htmlFor="notification-title" className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
                     <input
+                      id="notification-title"
                       type="text"
                       value={notificationTitle}
                       onChange={(e) => setNotificationTitle(e.target.value)}
@@ -646,10 +896,10 @@ const Users: React.FC = () => {
                       placeholder="Enter notification title"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Message</label>
+                    <label htmlFor="notification-message" className="block text-sm font-semibold text-gray-700 mb-1">Message</label>
                     <textarea
+                      id="notification-message"
                       value={notificationMessage}
                       onChange={(e) => setNotificationMessage(e.target.value)}
                       rows={4}
@@ -657,7 +907,6 @@ const Users: React.FC = () => {
                       placeholder="Enter notification message"
                     />
                   </div>
-
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Notification Options</label>
                     <div className="flex flex-col space-y-2">
@@ -701,7 +950,6 @@ const Users: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
@@ -712,11 +960,7 @@ const Users: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowNotificationModal(false);
-                    setSelectedUserId(null);
-                    resetNotificationForm();
-                  }}
+                  onClick={handleCloseNotificationModal}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Cancel

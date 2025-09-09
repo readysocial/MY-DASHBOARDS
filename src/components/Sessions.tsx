@@ -16,9 +16,7 @@ import {
   Copy,
   Repeat,
   CheckCircle,
-  AlertCircle,
-  ChevronDown,
-  ChevronUp
+  AlertCircle
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
@@ -35,6 +33,7 @@ interface User {
   createdAt: string;
   updatedAt: string;
 }
+
 interface Listener {
   _id: string;
   name: string;
@@ -44,15 +43,18 @@ interface Listener {
   email: string;
   active: boolean;
 }
+
 interface ReflectionQuestion {
   question: string;
   answer: string;
   _id: string;
 }
+
 interface ReflectData {
   userReflectionData: ReflectionQuestion[];
   _id: string;
 }
+
 interface TopicRef {
   _id: string;
   topic: string;
@@ -60,11 +62,13 @@ interface TopicRef {
   createdAt: string;
   updatedAt: string;
 }
+
 interface Repeats {
   count: number;
   pendingAcceptance: boolean;
   _id: string;
 }
+
 interface Session {
   _id: string;
   user: User;
@@ -76,14 +80,17 @@ interface Session {
   status: SessionStatus; 
   reflectData?: ReflectData;
   repeats?: Repeats;
-  repeatSessionId?: string;
+  repeatSessionId?: string; // Indicates this session is a repeat
   createdAt: string;
   updatedAt: string;
+  isRepeated?: boolean; // Derived: true if repeatSessionId exists
+  repeatCount?: number; // Derived: count from repeats object for original sessions
 }
+
 type SessionProgress = 'scheduled' | 'ongoing' | 'completed';
 type SessionStatus = 'successful' | 'unsuccessful' | 'cancelled' | 'pending';
 
-// New SessionStatusUpdate component with confirmation modal
+// SessionStatusUpdate component remains largely the same
 const SessionStatusUpdate: React.FC<{
   sessionId: string;
   currentStatus: SessionStatus;
@@ -93,32 +100,27 @@ const SessionStatusUpdate: React.FC<{
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<SessionStatus | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  
-  // Determine available status options based on current status
+
   const getAvailableStatusOptions = () => {
     if (currentStatus === 'successful' || 
         currentStatus === 'unsuccessful' || 
         currentStatus === 'cancelled') {
-      // No status changes allowed once finalized
       return [];
     }
-    
-    // From 'pending', can go to any other status
     return ['successful', 'unsuccessful', 'cancelled'];
   };
-  
+
   const availableStatusOptions = getAvailableStatusOptions();
-  
+
   const handleStatusChange = (status: SessionStatus) => {
     if (availableStatusOptions.includes(status)) {
       setNewStatus(status);
       setIsModalOpen(true);
     }
   };
-  
+
   const confirmStatusUpdate = async () => {
     if (!newStatus) return;
-    
     setIsUpdating(true);
     try {
       const response = await fetch(`${API_URL}/sessions/${sessionId}/status`, {
@@ -126,17 +128,14 @@ const SessionStatusUpdate: React.FC<{
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus })
       });
-      
       if (response.status === 401) {
         handleUnauthorized(response);
         return;
       }
-      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update status');
       }
-      
       onStatusUpdated(newStatus);
       setIsModalOpen(false);
       setNewStatus(null);
@@ -147,12 +146,11 @@ const SessionStatusUpdate: React.FC<{
       setIsUpdating(false);
     }
   };
-  
+
   if (availableStatusOptions.length === 0) {
-    // No status changes allowed
     return <StatusBadge status={currentStatus} />;
   }
-  
+
   return (
     <div className="flex flex-col">
       <div className="flex space-x-1">
@@ -176,7 +174,6 @@ const SessionStatusUpdate: React.FC<{
           ))}
         </div>
       </div>
-      
       {isModalOpen && newStatus && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -237,6 +234,7 @@ const getSessionProgress = (sessionTime: string): SessionProgress => {
   const now = new Date();
   const sessionDuration = 60 * 60 * 1000;
   const sessionEndTime = new Date(sessionDate.getTime() + sessionDuration);
+
   if (now < sessionDate) {
     return 'scheduled';
   } else if (now >= sessionDate && now <= sessionEndTime) {
@@ -263,6 +261,7 @@ const rotateAnimation = `
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
 `;
 
 const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ onClick, isLoading }) => {
@@ -299,31 +298,30 @@ const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
   );
 };
 
+// Simplified RepeatBadge: Shows count for originals, "Repeated" tag for repeats
 const RepeatBadge: React.FC<{ 
-  repeats?: Repeats; 
-  isParent?: boolean; 
-  isChild?: boolean;
-  pendingAcceptance?: boolean;
-}> = ({ repeats, isParent, isChild, pendingAcceptance }) => {
-  if (!repeats && !isParent && !isChild && pendingAcceptance === undefined) return null;
-  let badgeText = '';
-  let badgeClass = '';
-  if (isParent) {
-    badgeText = `Parent Session (${repeats?.count || 0} repeat${repeats?.count !== 1 ? 's' : ''})`;
-    badgeClass = 'bg-purple-100 text-purple-800';
-  } else if (isChild) {
-    if (pendingAcceptance) {
-      badgeText = 'Pending Acceptance';
-      badgeClass = 'bg-yellow-100 text-yellow-800';
-    } else {
-      badgeText = 'Repeat Session';
-      badgeClass = 'bg-indigo-100 text-indigo-800';
-    }
+  repeatCount?: number; 
+  isRepeated?: boolean;
+}> = ({ repeatCount, isRepeated }) => {
+  if (isRepeated) {
+    return (
+      <span className="px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
+        Repeated
+      </span>
+    );
   }
+  
+  if (repeatCount !== undefined) {
+    return (
+      <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+        {repeatCount}
+      </span>
+    );
+  }
+  
   return (
-    <span className={`px-2 py-1 rounded-full text-xs ${badgeClass} flex items-center`}>
-      <Repeat className="h-3 w-3 mr-1" />
-      {badgeText}
+    <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+      0
     </span>
   );
 };
@@ -332,7 +330,7 @@ const Sessions: React.FC = () => {
   useEffect(() => {
     validateToken();
   }, []);
-  
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
@@ -351,32 +349,7 @@ const Sessions: React.FC = () => {
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editingTopicName, setEditingTopicName] = useState('');
-  const [expandedRepeatSessions, setExpandedRepeatSessions] = useState<Set<string>>(new Set());
-  
-  // Group sessions by parent session
-  const groupSessionsByParent = (sessions: Session[]): { [key: string]: Session[] } => {
-    const groups: { [key: string]: Session[] } = {};
-    // First, find all parent sessions (those with repeats.count > 0)
-    sessions.forEach(session => {
-      if (session.repeats && session.repeats.count > 0) {
-        groups[session._id] = [session];
-      }
-    });
-    // Then, add child sessions to their parent groups
-    sessions.forEach(session => {
-      if (session.repeatSessionId && groups[session.repeatSessionId]) {
-        groups[session.repeatSessionId].push(session);
-      }
-    });
-    // Add standalone sessions (not part of a repeat group)
-    sessions.forEach(session => {
-      if (!session.repeatSessionId && !(session.repeats && session.repeats.count > 0)) {
-        groups[session._id] = [session];
-      }
-    });
-    return groups;
-  };
-  
+
   const fetchTopics = async () => {
     if (!validateToken()) return;
     setIsLoadingTopics(true);
@@ -397,13 +370,13 @@ const Sessions: React.FC = () => {
       setIsLoadingTopics(false);
     }
   };
-  
+
   useEffect(() => {
     if (showTopicModal) {
       fetchTopics();
     }
   }, [showTopicModal]);
-  
+
   const fetchSessions = async () => {
     if (!validateToken()) return;
     try {
@@ -422,15 +395,37 @@ const Sessions: React.FC = () => {
         throw new Error(data.message || 'Failed to fetch sessions');
       }
       if (data && Array.isArray(data.sessions)) {
-        // Filter out invalid sessions, including those with missing user or anonymousName
         const validSessions = data.sessions.filter((session: Session) => 
           session && session._id && session.status && session.user
         );
-        const sortedSessions = [...validSessions].sort((a, b) => {
+        
+        // Process sessions: add isRepeated and repeatCount fields
+        const processedSessions = validSessions.map((session: Session) => {
+          if (session.repeatSessionId) {
+            return {
+              ...session,
+              isRepeated: true,
+              repeatCount: undefined
+            };
+          } else if (session.repeats && session.repeats.count !== undefined) {
+            return {
+              ...session,
+              isRepeated: false,
+              repeatCount: session.repeats.count
+            };
+          } else {
+            return {
+              ...session,
+              isRepeated: false,
+              repeatCount: 0
+            };
+          }
+        });
+        
+        const sortedSessions = [...processedSessions].sort((a, b) => {
           let compareA, compareB;
           switch (sortBy) {
             case 'user':
-              // Safely handle anonymousName being null
               compareA = a.user?.anonymousName ?? '';
               compareB = b.user?.anonymousName ?? '';
               break;
@@ -451,8 +446,8 @@ const Sessions: React.FC = () => {
               compareB = b.status || '';
               break;
             case 'repeats':
-              compareA = a.repeats?.count || 0;
-              compareB = b.repeats?.count || 0;
+              compareA = a.repeatCount !== undefined ? a.repeatCount : (a.repeats?.count || 0);
+              compareB = b.repeatCount !== undefined ? b.repeatCount : (b.repeats?.count || 0);
               break;
             default:
               compareA = new Date(a.time).getTime();
@@ -467,6 +462,7 @@ const Sessions: React.FC = () => {
             ? (compareA < compareB ? -1 : 1)
             : (compareA > compareB ? -1 : 1);
         });
+        
         setSessions(sortedSessions);
         setTotalSessions(sortedSessions.length);
         const startIndex = (currentPage - 1) * sessionsPerPage;
@@ -480,17 +476,15 @@ const Sessions: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
+
   useEffect(() => {
     if (!Array.isArray(sessions)) return;
     const filtered = sessions.filter((session: Session) => {
-      // Skip sessions with missing user data
-      if (!session || !session.user || !session.listener) return false;
+      if (!session || !session.user) return false;
       const searchTermLower = searchTerm.toLowerCase();
-      // Safely handle anonymousName being null or undefined
       const userAnonymousName = session.user.anonymousName != null ? 
         String(session.user.anonymousName) : '';
-      const listenerName = session.listener.name || '';
+      const listenerName = session.listener?.name || '';
       const sessionTime = session.time ? new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
       const topicName = session.topicRef?.topic || session.topic || '';
       return (
@@ -505,34 +499,22 @@ const Sessions: React.FC = () => {
     const endIndex = startIndex + sessionsPerPage;
     setFilteredSessions(filtered.slice(startIndex, endIndex));
   }, [searchTerm, sessions, currentPage, sessionsPerPage]);
-  
+
   useEffect(() => {
     fetchSessions();
   }, [sortBy, sortOrder]);
-  
+
   const paginate = (pageNumber: number) => {
     setCurrentPage(pageNumber);
   };
-  
+
   const handleSort = (column: string) => {
     const newSortOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc';
     setSortBy(column);
     setSortOrder(newSortOrder);
     setCurrentPage(1);
   };
-  
-  const toggleRepeatSession = (sessionId: string) => {
-    setExpandedRepeatSessions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(sessionId)) {
-        newSet.delete(sessionId);
-      } else {
-        newSet.add(sessionId);
-      }
-      return newSet;
-    });
-  };
-  
+
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
     const pageNumbers = [];
     pageNumbers.push(1);
@@ -552,8 +534,8 @@ const Sessions: React.FC = () => {
     }
     return pageNumbers;
   };
-  
-  // ✅ Create Topic Handler
+
+  // Topic management handlers (unchanged)
   const handleCreateTopic = async () => {
     if (!validateToken()) return;
     if (!newTopic.trim()) {
@@ -592,8 +574,7 @@ const Sessions: React.FC = () => {
       setIsTopicOperationLoading(false);
     }
   };
-  
-  // ✅ Edit Topic Handler
+
   const handleEditTopic = async (topicId: string, newTopicName: string) => {
     if (!newTopicName.trim()) {
       setTopicError('Topic name cannot be empty');
@@ -631,8 +612,7 @@ const Sessions: React.FC = () => {
       setIsTopicOperationLoading(false);
     }
   };
-  
-  // ✅ Delete Topic Handler
+
   const handleDeleteTopic = async (topicId: string) => {
     if (!window.confirm('Are you sure you want to delete this topic? This action cannot be undone.')) {
       return;
@@ -658,8 +638,7 @@ const Sessions: React.FC = () => {
       setIsTopicOperationLoading(false);
     }
   };
-  
-  // ✅ Export Sessions function
+
   const exportSessions = async () => {
     if (!validateToken()) return;
     try {
@@ -687,107 +666,46 @@ const Sessions: React.FC = () => {
       alert('Failed to export sessions. Please try again.');
     }
   };
-  
-  // ✅ Mobile Card Renderer
+
+  // Mobile Card Renderer - Standalone sessions
   const renderMobileCard = (session: Session) => {
-    // Skip rendering if session has no user
     if (!session.user) {
       return null;
     }
-    const isParent = session.repeats && session.repeats.count > 0;
-    const isChild = !!session.repeatSessionId;
-    const pendingAcceptance = isChild && session.repeats?.pendingAcceptance;
+
     return (
       <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="font-medium text-gray-900">
-              {/* Handle null/undefined anonymousName */}
               {session.user.anonymousName ?? 'Anonymous User'}
             </h3>
           </div>
           <div className="flex flex-col gap-2">
             <ProgressBadge progress={getSessionProgress(session.time)} />
             <StatusBadge status={session.status} />
-            {isParent && (
-              <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 flex items-center">
-                <Repeat className="h-3 w-3 mr-1" />
-                Parent Session ({session.repeats?.count} repeat{session.repeats?.count !== 1 ? 's' : ''})
-              </span>
-            )}
-            {isChild && pendingAcceptance && (
-              <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 flex items-center">
-                <Repeat className="h-3 w-3 mr-1" />
-                Pending Acceptance
-              </span>
-            )}
+            <RepeatBadge 
+              repeatCount={session.repeatCount} 
+              isRepeated={session.isRepeated} 
+            />
           </div>
         </div>
         
-        {isParent && expandedRepeatSessions.has(session._id) && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-medium text-gray-700">Repeat Sessions ({session.repeats?.count})</span>
-              <button 
-                onClick={() => toggleRepeatSession(session._id)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </button>
-            </div>
-            {sessions
-              .filter(s => s.repeatSessionId === session._id)
-              .map(repeatSession => {
-                const repeatPending = repeatSession.repeats?.pendingAcceptance;
-                return (
-                  <div 
-                    key={repeatSession._id} 
-                    className="mt-2 p-2 bg-white border border-gray-200 rounded-lg"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1 text-gray-500" />
-                          <span className="text-sm">
-                            {new Date(repeatSession.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <div className="flex items-center mt-1">
-                          <Tag className="h-4 w-4 mr-1 text-gray-500" />
-                          <span className="text-sm">
-                            {repeatSession.topicRef?.topic || repeatSession.topic}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <StatusBadge status={repeatSession.status} />
-                        {repeatPending ? (
-                          <span className="text-xs text-yellow-600 mt-1 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Pending
-                          </span>
-                        ) : (
-                          <span className="text-xs text-green-600 mt-1 flex items-center">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Accepted
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-        
         <div className="space-y-2 text-sm text-gray-600">
-          <div className="flex items-center">
-            <Headphones className="h-4 w-4 mr-2" />
-            <div className="flex flex-col">
-              <span>{session.listener.name}</span>
-              <span className="text-xs text-gray-500">{session.listener.email}</span>
+          {session.listener ? (
+            <div className="flex items-center">
+              <Headphones className="h-4 w-4 mr-2" />
+              <div className="flex flex-col">
+                <span>{session.listener.name}</span>
+                <span className="text-xs text-gray-500">{session.listener.email}</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center">
+              <Headphones className="h-4 w-4 mr-2" />
+              <span className="text-sm text-gray-500">No Listener Assigned</span>
+            </div>
+          )}
           <div className="flex items-center">
             <Clock className="h-4 w-4 mr-2" />
             <span>{new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -796,44 +714,6 @@ const Sessions: React.FC = () => {
             <Tag className="h-4 w-4 mr-2" />
             <span>{session.topicRef?.topic || session.topic}</span>
           </div>
-          
-          {isParent && (
-            <div className="flex items-center mt-2">
-              <Repeat className="h-4 w-4 mr-2 text-purple-500" />
-              <div className="flex items-center">
-                <span className="text-sm text-purple-700">
-                  Parent Session • {session.repeats?.count} repeat{session.repeats?.count !== 1 ? 's' : ''}
-                </span>
-                <button 
-                  onClick={() => toggleRepeatSession(session._id)}
-                  className="ml-2 text-purple-500 hover:text-purple-700"
-                >
-                  {expandedRepeatSessions.has(session._id) ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {isChild && (
-            <div className="flex items-center mt-2">
-              <Repeat className="h-4 w-4 mr-2 text-indigo-500" />
-              <div className="flex flex-col">
-                <span className="text-sm text-indigo-700">
-                  Repeat Session
-                </span>
-                {pendingAcceptance && (
-                  <span className="text-xs text-yellow-600 mt-1 flex items-center">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Awaiting listener acceptance
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
           
           {session.reflectData && (
             <div className="mt-4 border-t border-gray-100 pt-3">
@@ -847,9 +727,7 @@ const Sessions: React.FC = () => {
             </div>
           )}
         </div>
-        
         <div className="mt-4 space-y-3">
-          {/* Meeting Link */}
           <div className="flex justify-between items-center">
             <SessionMeetingLink
               sessionId={session._id}
@@ -860,8 +738,6 @@ const Sessions: React.FC = () => {
               isEditable={true}
             />
           </div>
-          
-          {/* Status Update Component */}
           <div className="pt-2 border-t border-gray-100">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Update Status</h4>
             <SessionStatusUpdate
@@ -877,11 +753,9 @@ const Sessions: React.FC = () => {
       </div>
     );
   };
-  
-  // ✅ Table Renderer
+
+  // Table Renderer - Standalone sessions
   const renderTable = () => {
-    const sessionGroups = groupSessionsByParent(filteredSessions);
-    const groupedSessionIds = Object.keys(sessionGroups);
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -894,216 +768,90 @@ const Sessions: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Link</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('repeats')}>Repeats</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('repeats')}>Repeat Count</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reflection</th>
-              {/* Status Update Column */}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Update Status</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {groupedSessionIds.map(groupId => {
-              const group = sessionGroups[groupId];
-              const parentSession = group[0];
-              // Skip if parent session has no user
-              if (!parentSession.user) {
-                return null;
-              }
-              const isParent = parentSession.repeats && parentSession.repeats.count > 0;
-              const hasChildren = group.length > 1;
-              return (
-                <React.Fragment key={groupId}>
-                  <tr className="bg-gray-50">
-                    <td colSpan={10} className="px-6 py-2">
-                      <div className="flex items-center">
-                        {isParent && (
-                          <button 
-                            onClick={() => toggleRepeatSession(parentSession._id)}
-                            className="mr-2 text-gray-500 hover:text-gray-700"
-                          >
-                            {expandedRepeatSessions.has(parentSession._id) ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
-                        {isParent && (
-                          <span className="font-medium text-gray-700">
-                            Parent Session ({parentSession.repeats?.count} repeat{parentSession.repeats?.count !== 1 ? 's' : ''})
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">
+            {filteredSessions.map((session) => {
+               if (!session.user) return null;
+               return (
+                <tr key={session._id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-900">
+                        {session.user.anonymousName ?? 'Anonymous User'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {session.listener ? (
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900">
-                          {/* Handle null/undefined anonymousName */}
-                          {parentSession.user.anonymousName ?? 'Anonymous User'}
-                        </span>
+                        <span className="text-sm text-gray-900">{session.listener.name}</span>
+                        <span className="text-xs text-gray-500">{session.listener.email}</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="text-sm text-gray-900">{parentSession.listener.name}</span>
-                        <span className="text-xs text-gray-500">{parentSession.listener.email}</span>
+                    ) : (
+                      <span className="text-sm text-gray-500">No Listener</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-gray-900">
+                        {new Date(session.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {session.topicRef?.topic || session.topic}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <SessionMeetingLink
+                      sessionId={session._id}
+                      initialMeetingLink={session.meetingLink}
+                      onLinkAdded={(newLink) => {
+                        setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
+                      }}
+                      isEditable={true}
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <ProgressBadge progress={getSessionProgress(session.time)} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={session.status} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <RepeatBadge 
+                      repeatCount={session.repeatCount} 
+                      isRepeated={session.isRepeated} 
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {session.reflectData ? (
+                      <div className="max-w-xs">
+                        {session.reflectData.userReflectionData.map((reflection) => (
+                          <div key={reflection._id} className="mb-2 last:mb-0">
+                            <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
+                            <p className="text-sm text-gray-900">{reflection.answer}</p>
+                          </div>
+                        ))}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="text-sm text-gray-900">
-                          {new Date(parentSession.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {parentSession.topicRef?.topic || parentSession.topic}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <SessionMeetingLink
-                        sessionId={parentSession._id}
-                        initialMeetingLink={parentSession.meetingLink}
-                        onLinkAdded={(newLink) => {
-                          setSessions(prev => prev.map(s => s._id === parentSession._id ? { ...s, meetingLink: newLink } : s));
-                        }}
-                        isEditable={true}
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <ProgressBadge progress={getSessionProgress(parentSession.time)} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={parentSession.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {isParent ? (
-                        <div className="flex items-center">
-                          <Repeat className="h-4 w-4 mr-1 text-purple-500" />
-                          <span className="text-sm text-purple-700">
-                            {parentSession.repeats?.count} repeat{parentSession.repeats?.count !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {parentSession.reflectData ? (
-                        <div className="max-w-xs">
-                          {parentSession.reflectData.userReflectionData.map((reflection) => (
-                            <div key={reflection._id} className="mb-2 last:mb-0">
-                              <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                              <p className="text-sm text-gray-900">{reflection.answer}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-500">No reflection</span>
-                      )}
-                    </td>
-                    {/* Status Update Column */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <SessionStatusUpdate
-                        sessionId={parentSession._id}
-                        currentStatus={parentSession.status}
-                        sessionTime={parentSession.time}
-                        onStatusUpdated={(newStatus) => {
-                          setSessions(prev => prev.map(s => s._id === parentSession._id ? { ...s, status: newStatus } : s));
-                        }}
-                      />
-                    </td>
-                  </tr>
-                  
-                  {isParent && expandedRepeatSessions.has(parentSession._id) && hasChildren && (
-                    group.slice(1).map((childSession) => {
-                      // Skip if child session has no user
-                      if (!childSession.user) {
-                        return null;
-                      }
-                      const pendingAcceptance = childSession.repeats?.pendingAcceptance;
-                      return (
-                        <tr key={childSession._id} className="bg-gray-50">
-                          <td className="pl-12 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <Repeat className="h-4 w-4 mr-2 text-indigo-500" />
-                              <span className="text-sm font-medium text-gray-900">
-                                Repeat Session
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-gray-900">{childSession.listener.name}</span>
-                              <span className="text-xs text-gray-500">{childSession.listener.email}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-gray-900">
-                                {new Date(childSession.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {childSession.topicRef?.topic || childSession.topic}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <SessionMeetingLink
-                              sessionId={childSession._id}
-                              initialMeetingLink={childSession.meetingLink}
-                              onLinkAdded={(newLink) => {
-                                setSessions(prev => prev.map(s => s._id === childSession._id ? { ...s, meetingLink: newLink } : s));
-                              }}
-                              isEditable={true}
-                            />
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <ProgressBadge progress={getSessionProgress(childSession.time)} />
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <StatusBadge status={childSession.status} />
-                              {pendingAcceptance && (
-                                <span className="ml-2 text-xs text-yellow-600 flex items-center">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  Pending
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <span className="text-xs text-gray-500">Child session</span>
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            {childSession.reflectData ? (
-                              <div className="max-w-xs">
-                                {childSession.reflectData.userReflectionData.map((reflection) => (
-                                  <div key={reflection._id} className="mb-1">
-                                    <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                                    <p className="text-xs text-gray-900">{reflection.answer}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">No reflection</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap">
-                            <SessionStatusUpdate
-                              sessionId={childSession._id}
-                              currentStatus={childSession.status}
-                              sessionTime={childSession.time}
-                              onStatusUpdated={(newStatus) => {
-                                setSessions(prev => prev.map(s => s._id === childSession._id ? { ...s, status: newStatus } : s));
-                              }}
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </React.Fragment>
+                    ) : (
+                      <span className="text-xs text-gray-500">No reflection</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <SessionStatusUpdate
+                      sessionId={session._id}
+                      currentStatus={session.status}
+                      sessionTime={session.time}
+                      onStatusUpdated={(newStatus) => {
+                        setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
+                      }}
+                    />
+                  </td>
+                </tr>
               );
             })}
           </tbody>
@@ -1111,7 +859,7 @@ const Sessions: React.FC = () => {
       </div>
     );
   };
-  
+
   const renderTopicModal = () => (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -1206,7 +954,6 @@ const Sessions: React.FC = () => {
                   <div className="space-y-3">
                     {existingTopics.map((topic) => (
                       editingTopicId === topic._id ? (
-                        // Editing state
                         <div key={topic._id} className="flex items-center space-x-3 bg-gray-800 px-4 py-3 rounded-xl w-full">
                           <div className="flex-1">
                             <input
@@ -1238,7 +985,6 @@ const Sessions: React.FC = () => {
                           </div>
                         </div>
                       ) : (
-                        // Normal state
                         <div key={topic._id} className="flex items-center justify-between bg-gray-800 px-4 py-3 rounded-xl w-full">
                           <div className="flex items-center space-x-3">
                             <Tag className="h-5 w-5 text-gray-400" />
@@ -1325,7 +1071,7 @@ const Sessions: React.FC = () => {
       </div>
     </div>
   );
-  
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="sm:flex sm:items-center justify-between mb-6">
@@ -1374,7 +1120,6 @@ const Sessions: React.FC = () => {
           </button>
         </div>
       </div>
-      
       <div className="mt-4 flex justify-between items-center">
         <div className="flex space-x-2">
           <select
@@ -1407,7 +1152,6 @@ const Sessions: React.FC = () => {
           </button>
         </div>
       </div>
-      
       <div className="mt-8">
         {isLoading ? (
           <div className="flex justify-center items-center min-h-[400px]">
@@ -1425,7 +1169,6 @@ const Sessions: React.FC = () => {
             {showTopicModal && renderTopicModal()}
           </>
         )}
-        
         <div className="mt-6 flex flex-wrap justify-center items-center gap-2">
           <button
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -1438,7 +1181,6 @@ const Sessions: React.FC = () => {
           >
             Previous
           </button>
-          
           {generatePageNumbers(currentPage, Math.ceil(totalSessions / sessionsPerPage)).map((pageNum, index) => (
             <button
               key={index}
@@ -1455,7 +1197,6 @@ const Sessions: React.FC = () => {
               {pageNum}
             </button>
           ))}
-          
           <button
             onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalSessions / sessionsPerPage), prev + 1))}
             disabled={currentPage === Math.ceil(totalSessions / sessionsPerPage)}

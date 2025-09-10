@@ -311,8 +311,9 @@ const Users: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState('anonymousName');
-  const [sortOrder, setSortOrder] = useState('asc');
+  // --- CHANGED DEFAULT SORTING ---
+  const [sortBy, setSortBy] = useState('createdAt'); // Default to createdAt
+  const [sortOrder, setSortOrder] = useState('desc'); // Default to descending (newest first)
   const [isSearching, setIsSearching] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
@@ -653,9 +654,10 @@ const Users: React.FC = () => {
             className="border rounded-lg p-2 bg-white text-gray-800"
             aria-label="Sort by"
           >
-            <option value="anonymousName">Name</option>
+            {/* --- CHANGED SORT OPTIONS --- */}
+            {/* <option value="anonymousName">Name</option> */}
             <option value="createdAt">Registration Date</option>
-            <option value="verified">Status</option>
+            {/* <option value="verified">Status</option> */}
           </select>
           <select
             value={sortOrder}
@@ -663,8 +665,8 @@ const Users: React.FC = () => {
             className="border rounded-lg p-2 bg-white text-gray-800"
             aria-label="Sort order"
           >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
+            <option value="desc">Newest First</option>
+            <option value="asc">Oldest First</option>
           </select>
           <button
             onClick={() => {

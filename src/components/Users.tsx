@@ -25,7 +25,7 @@ interface Session {
     description: string;
     gender: string;
     active: boolean;
-  };
+  } | null; // <-- FIXED: Allow listener to be null
   topic: string;
   time: string;
   status: string;
@@ -129,8 +129,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
           return handleUnauthorized(response);
         }
         if (!response.ok) {
-           const errorText = await response.text();
-           console.error(`[UserDetailsModal] Failed to fetch user sessions. Status: ${response.status}, Body:`, errorText);
+          const errorText = await response.text();
+          console.error(`[UserDetailsModal] Failed to fetch user sessions. Status: ${response.status}, Body:`, errorText);
           throw new Error(`Failed to fetch user sessions: ${response.status} ${response.statusText} - ${errorText}`);
         }
         const data = await response.json();
@@ -243,7 +243,10 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ userId, onClose }) 
                         <div className="space-y-2">
                           <div className="flex items-center">
                             <span className="text-gray-700 font-semibold w-20">Listener:</span>
-                            <span className="text-black font-medium">{session.listener.name}</span>
+                            {/* --- FIXED: Check if listener exists before accessing name --- */}
+                            <span className="text-black font-medium">
+                              {session.listener ? session.listener.name : 'Unknown Listener'}
+                            </span>
                           </div>
                           <div className="flex items-center">
                             <span className="text-gray-700 font-semibold w-20">Status:</span>
@@ -311,6 +314,7 @@ const Users: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
   // --- CHANGED DEFAULT SORTING ---
   const [sortBy, setSortBy] = useState('createdAt'); // Default to createdAt
   const [sortOrder, setSortOrder] = useState('desc'); // Default to descending (newest first)
@@ -525,7 +529,6 @@ const Users: React.FC = () => {
         console.error("[Users] Attempted to open notification modal with undefined/empty ID");
         return; // Prevent action if ID is invalid
     }
-    // setSelectedUserId(null); // This line was causing the issue
     setSelectedUserId(userId);
     setShowNotificationModal(true);
   };
@@ -679,6 +682,7 @@ const Users: React.FC = () => {
           </button>
         </div>
       </div>
+
       <div className="mb-6">
         <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -698,6 +702,7 @@ const Users: React.FC = () => {
           </button>
         </form>
       </div>
+
       {isLoading ? (
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="relative">
@@ -783,6 +788,7 @@ const Users: React.FC = () => {
               </div>
             )}
           </div>
+
           <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full border rounded-lg">
               <thead>
@@ -864,6 +870,7 @@ const Users: React.FC = () => {
               </tbody>
             </table>
           </div>
+
           {!isSearching && totalUsers > 0 && (
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {Array.from(
@@ -891,6 +898,7 @@ const Users: React.FC = () => {
           )}
         </>
       )}
+
       {selectedUserId && !showNotificationModal && (
         <UserDetailsModal
           key={`user-details-${selectedUserId}`}
@@ -898,6 +906,7 @@ const Users: React.FC = () => {
           onClose={handleCloseUserDetailsModal}
         />
       )}
+
       {showNotificationModal && selectedUserId && (
         <div className="fixed inset-0 z-[1000] overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">

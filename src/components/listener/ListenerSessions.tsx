@@ -25,7 +25,7 @@ const ITEMS_PER_PAGE = 5;
 /* ---------- helpers ---------- */
 // Updated helpers to handle potentially undefined Session properties
 const isParentSession = (s: Session): boolean => !!(s.repeats && typeof s.repeats.count === 'number' && s.repeats.count > 0);
-const isRepeatSession   = (s: Session): boolean => !!(s.repeatSessionId); // Check for existence/truthiness
+const isRepeatSession = (s: Session): boolean => !!(s.repeatSessionId); // Check for existence/truthiness
 
 interface ListenerSessionsProps {
   listenerId: string;
@@ -288,7 +288,7 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
     );
   };
 
-  // Generate page numbers for pagination
+  // Generate page numbers for pagination with ellipsis and edge protection
   const generatePageNumbers = () => {
     // Ensure totalPages is a positive number before generating pages
     if (totalPages <= 1) return [];
@@ -320,7 +320,7 @@ export const ListenerSessions: React.FC<ListenerSessionsProps> = ({ listenerId }
       range.push(totalPages);
     }
 
-    // Combine ranges with dots
+    // Combine ranges with dots intelligently
     range.forEach((page, index) => {
       // Check if we need to add dots before this page
       if (index > 0) {

@@ -22,8 +22,8 @@ import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api'
 import { API_URL } from '@/config/api';
 import { SessionMeetingLink } from '@/components/listener/SessionMeetingLink';
 import { Button } from '@/components/ui/button';
+import { SessionStatusUpdate } from '@/components/listener/SessionStatusUpdate'; 
 
-// --- Interfaces remain the same ---
 interface User {
   _id: string;
   firstName?: string;
@@ -34,7 +34,6 @@ interface User {
   createdAt: string;
   updatedAt: string;
 }
-
 interface Listener {
   _id: string;
   name: string;
@@ -44,18 +43,15 @@ interface Listener {
   email: string;
   active: boolean;
 }
-
 interface ReflectionQuestion {
   question: string;
   answer: string;
   _id: string;
 }
-
 interface ReflectData {
   userReflectionData: ReflectionQuestion[];
   _id: string;
 }
-
 interface TopicRef {
   _id: string;
   topic: string;
@@ -63,13 +59,11 @@ interface TopicRef {
   createdAt: string;
   updatedAt: string;
 }
-
 interface Repeats {
   count: number;
   pendingAcceptance: boolean;
   _id: string;
 }
-
 interface Session {
   _id: string;
   user: User;
@@ -87,175 +81,16 @@ interface Session {
   isRepeated?: boolean; // Derived: true if repeatSessionId exists
   repeatCount?: number; // Derived: count from repeats object for original sessions
 }
-
 type SessionProgress = 'scheduled' | 'ongoing' | 'completed';
 type SessionStatus = 'successful' | 'unsuccessful' | 'cancelled' | 'pending';
 
-// --- SessionStatusUpdate component remains largely the same ---
-const SessionStatusUpdate: React.FC<{
-  sessionId: string;
-  currentStatus: SessionStatus;
-  sessionTime: string;
-  onStatusUpdated: (newStatus: SessionStatus) => void;
-}> = ({ sessionId, currentStatus, sessionTime, onStatusUpdated }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<SessionStatus | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  const getAvailableStatusOptions = () => {
-    if (currentStatus === 'successful' ||
-      currentStatus === 'unsuccessful' ||
-      currentStatus === 'cancelled') {
-      return [];
-    }
-    return ['successful', 'unsuccessful', 'cancelled'];
-  };
-
-  const availableStatusOptions = getAvailableStatusOptions();
-
-  const handleStatusChange = (status: SessionStatus) => {
-    if (availableStatusOptions.includes(status)) {
-      setNewStatus(status);
-      setIsModalOpen(true);
-    }
-  };
-
-  const confirmStatusUpdate = async () => {
-    if (!newStatus) return;
-    setIsUpdating(true);
-    try {
-      const response = await fetch(`${API_URL}/sessions/${sessionId}/status`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (response.status === 401) {
-        handleUnauthorized(response);
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
-      }
-
-      onStatusUpdated(newStatus);
-      setIsModalOpen(false);
-      setNewStatus(null);
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert(`Failed to update status: ${error instanceof Error ? error.message : 'Please try again.'}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  if (availableStatusOptions.length === 0) {
-    return <StatusBadge status={currentStatus} />;
-  }
-
-  return (
-    <div className="flex flex-col">
-      <div className="flex space-x-1">
-        <StatusBadge status={currentStatus} />
-        <div className="flex space-x-1">
-          {['successful', 'unsuccessful', 'cancelled'].map((status) => (
-            <button
-              key={status}
-              onClick={() => handleStatusChange(status as SessionStatus)}
-              className={`px-2 py-1 rounded text-xs ${
-                status === 'successful'
-                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                  : status === 'unsuccessful'
-                    ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                    : 'bg-red-100 text-red-800 hover:bg-red-200'
-                } ${!availableStatusOptions.includes(status as SessionStatus) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              disabled={!availableStatusOptions.includes(status as SessionStatus)}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {isModalOpen && newStatus && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <AlertCircle className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                      Confirm Status Update
-                    </h3>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Are you sure you want to update this session status from <strong>{currentStatus}</strong> to <strong>{newStatus}</strong>?
-                      </p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Once updated, this status cannot be changed back.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={confirmStatusUpdate}
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? 'Updating...' : 'Confirm Update'}
-                </button>
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setNewStatus(null);
-                  }}
-                  disabled={isUpdating}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const getSessionProgress = (sessionTime: string): SessionProgress => {
-  const sessionDate = new Date(sessionTime);
-  const now = new Date();
-  const sessionDuration = 60 * 60 * 1000;
-  const sessionEndTime = new Date(sessionDate.getTime() + sessionDuration);
-
-  if (now < sessionDate) {
-    return 'scheduled';
-  } else if (now >= sessionDate && now <= sessionEndTime) {
-    return 'ongoing';
-  } else {
-    return 'completed';
-  }
-};
-
+// --- SessionProgressBadge remains the same ---
 const ProgressBadge: React.FC<{ progress: SessionProgress }> = ({ progress }) => {
   const progressClasses = {
     'scheduled': 'bg-blue-100 text-blue-800',
     'ongoing': 'bg-yellow-100 text-yellow-800',
     'completed': 'bg-green-100 text-green-800'
   };
-
   return (
     <span className={`px-2 py-1 rounded-full text-xs ${progressClasses[progress]}`}>
       {progress}
@@ -263,6 +98,7 @@ const ProgressBadge: React.FC<{ progress: SessionProgress }> = ({ progress }) =>
   );
 };
 
+// --- Rotate animation for refresh button ---
 const rotateAnimation = `
   @keyframes spin {
     from { transform: rotate(0deg); }
@@ -290,6 +126,7 @@ const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ 
   );
 };
 
+// --- StatusBadge remains the same ---
 const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
   const statusClasses = {
     'successful': 'bg-green-100 text-green-800',
@@ -297,7 +134,6 @@ const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
     'cancelled': 'bg-red-100 text-red-800',
     'pending': 'bg-blue-100 text-blue-800'
   };
-
   return (
     <span className={`px-2 py-1 rounded-full text-xs ${statusClasses[status]}`}>
       {status}
@@ -317,7 +153,6 @@ const RepeatBadge: React.FC<{
       </span>
     );
   }
-
   if (repeatCount !== undefined) {
     return (
       <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
@@ -325,7 +160,6 @@ const RepeatBadge: React.FC<{
       </span>
     );
   }
-
   return (
     <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
       0
@@ -336,28 +170,24 @@ const RepeatBadge: React.FC<{
 // Helper function to format date with proper timezone handling
 const formatDateDisplay = (dateString: string) => {
   const date = new Date(dateString);
-  
   // Format date (e.g., "Mar 6, 2025")
   const formattedDate = date.toLocaleDateString([], {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   });
-  
   // Format time in 24-hour format (e.g., "18:15")
   const formattedTime = date.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false
   });
-  
   return { formattedDate, formattedTime };
 };
 
 // Alternative function if you want to display UTC time instead of local time
 const formatDateDisplayUTC = (dateString: string) => {
   const date = new Date(dateString);
-  
   // Format UTC date
   const formattedDate = date.toLocaleDateString([], {
     year: 'numeric',
@@ -365,7 +195,6 @@ const formatDateDisplayUTC = (dateString: string) => {
     day: 'numeric',
     timeZone: 'UTC'
   });
-  
   // Format UTC time
   const formattedTime = date.toLocaleTimeString([], {
     hour: '2-digit',
@@ -373,15 +202,27 @@ const formatDateDisplayUTC = (dateString: string) => {
     hour12: false,
     timeZone: 'UTC'
   });
-  
   return { formattedDate, formattedTime };
+};
+
+const getSessionProgress = (sessionTime: string): SessionProgress => {
+  const sessionDate = new Date(sessionTime);
+  const now = new Date();
+  const sessionDuration = 60 * 60 * 1000;
+  const sessionEndTime = new Date(sessionDate.getTime() + sessionDuration);
+  if (now < sessionDate) {
+    return 'scheduled';
+  } else if (now >= sessionDate && now <= sessionEndTime) {
+    return 'ongoing';
+  } else {
+    return 'completed';
+  }
 };
 
 const Sessions: React.FC = () => {
   useEffect(() => {
     validateToken();
   }, []);
-
   const [sessions, setSessions] = useState<Session[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
@@ -408,11 +249,9 @@ const Sessions: React.FC = () => {
       const response = await fetch(`${API_URL}/sessions/topics`, {
         headers: getAuthHeaders()
       });
-
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-
       const data = await response.json();
       if (data && Array.isArray(data.topics)) {
         setExistingTopics(data.topics);
@@ -440,21 +279,17 @@ const Sessions: React.FC = () => {
           headers: getAuthHeaders()
         }
       );
-
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch sessions');
       }
-
       if (data && Array.isArray(data.sessions)) {
         const validSessions = data.sessions.filter((session: Session) =>
           session && session._id && session.status && session.user
         );
-
         // Process sessions: add isRepeated and repeatCount fields
         const processedSessions = validSessions.map((session: Session) => {
           if (session.repeatSessionId) {
@@ -477,7 +312,6 @@ const Sessions: React.FC = () => {
             };
           }
         });
-
         const sortedSessions = [...processedSessions].sort((a, b) => {
           let compareA, compareB;
           switch (sortBy) {
@@ -509,18 +343,15 @@ const Sessions: React.FC = () => {
               compareA = new Date(a.time).getTime();
               compareB = new Date(b.time).getTime();
           }
-
           if (typeof compareA === 'string' && typeof compareB === 'string') {
             return sortOrder === 'asc'
               ? compareA.localeCompare(compareB)
               : compareB.localeCompare(compareA);
           }
-
           return sortOrder === 'asc'
             ? (compareA < compareB ? -1 : 1)
             : (compareA > compareB ? -1 : 1);
         });
-
         setSessions(sortedSessions);
         setTotalSessions(sortedSessions.length);
         const startIndex = (currentPage - 1) * sessionsPerPage;
@@ -537,15 +368,12 @@ const Sessions: React.FC = () => {
 
   useEffect(() => {
     if (!Array.isArray(sessions)) return;
-    
     const filtered = sessions.filter((session: Session) => {
       if (!session || !session.user) return false;
-      
       const searchTermLower = searchTerm.toLowerCase();
       const userAnonymousName = session.user.anonymousName != null ?
         String(session.user.anonymousName) : '';
       const listenerName = session.listener?.name || '';
-      
       // Format the date for search, including date and time
       const sessionDate = new Date(session.time);
       const formattedDateTime = sessionDate.toLocaleString([], {
@@ -556,9 +384,7 @@ const Sessions: React.FC = () => {
         minute: '2-digit',
         hour12: false
       }).replace(',', '');
-      
       const topicName = session.topicRef?.topic || session.topic || '';
-      
       return (
         userAnonymousName.toLowerCase().includes(searchTermLower) ||
         listenerName.toLowerCase().includes(searchTermLower) ||
@@ -566,7 +392,6 @@ const Sessions: React.FC = () => {
         topicName.toLowerCase().includes(searchTermLower)
       );
     });
-
     setTotalSessions(filtered.length);
     const startIndex = (currentPage - 1) * sessionsPerPage;
     const endIndex = startIndex + sessionsPerPage;
@@ -591,26 +416,20 @@ const Sessions: React.FC = () => {
   const generatePageNumbers = (currentPage: number, totalPages: number) => {
     const pageNumbers = [];
     pageNumbers.push(1);
-    
     let start = Math.max(2, currentPage - 2);
     let end = Math.min(totalPages - 1, currentPage + 2);
-    
     if (start > 2) {
       pageNumbers.push('...');
     }
-    
     for (let i = start; i <= end; i++) {
       pageNumbers.push(i);
     }
-    
     if (end < totalPages - 1) {
       pageNumbers.push('...');
     }
-    
     if (totalPages > 1) {
       pageNumbers.push(totalPages);
     }
-    
     return pageNumbers;
   };
 
@@ -621,35 +440,28 @@ const Sessions: React.FC = () => {
       setTopicError('Please enter a topic name');
       return;
     }
-
     const topicExists = existingTopics.some(
       t => t.topic.toLowerCase() === newTopic.trim().toLowerCase()
     );
-
     if (topicExists) {
       setTopicError('This topic already exists');
       return;
     }
-
     setIsTopicOperationLoading(true);
     setTopicError(null);
-    
     try {
       const response = await fetch(`${API_URL}/sessions/topics`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ topic: newTopic.trim().toLowerCase() })
       });
-
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to create topic');
       }
-
       setNewTopic('');
       fetchTopics();
       alert('Topic created successfully!');
@@ -666,35 +478,28 @@ const Sessions: React.FC = () => {
       setTopicError('Topic name cannot be empty');
       return;
     }
-
     const topicExists = existingTopics.some(
       t => t._id !== topicId && t.topic.toLowerCase() === newTopicName.trim().toLowerCase()
     );
-
     if (topicExists) {
       setTopicError('This topic already exists');
       return;
     }
-
     setIsTopicOperationLoading(true);
     setTopicError(null);
-    
     try {
       const response = await fetch(`${API_URL}/sessions/topics/${topicId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ topic: newTopicName.trim().toLowerCase() })
       });
-
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to update topic');
       }
-
       setEditingTopicId(null);
       setEditingTopicName('');
       fetchTopics();
@@ -710,24 +515,19 @@ const Sessions: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this topic? This action cannot be undone.')) {
       return;
     }
-
     setIsTopicOperationLoading(true);
-    
     try {
       const response = await fetch(`${API_URL}/sessions/topics/${topicId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to delete topic');
       }
-
       fetchTopics();
     } catch (error) {
       console.error('Error deleting topic:', error);
@@ -744,15 +544,12 @@ const Sessions: React.FC = () => {
         method: 'GET',
         headers: getAuthHeaders(),
       });
-
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-
       if (!response.ok) {
         throw new Error('Failed to export sessions');
       }
-
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -773,10 +570,8 @@ const Sessions: React.FC = () => {
     if (!session.user) {
       return null;
     }
-    
     // Use the helper function to format date and time
     const { formattedDate, formattedTime } = formatDateDisplay(session.time);
-
     return (
       <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <div className="flex justify-between items-start mb-3">
@@ -809,7 +604,6 @@ const Sessions: React.FC = () => {
               <span className="text-sm text-gray-500">No Listener Assigned</span>
             </div>
           )}
-          
           {/* Updated Time Display using the helper function */}
           <div className="flex items-center">
             <Clock className="h-4 w-4 mr-2" />
@@ -818,12 +612,10 @@ const Sessions: React.FC = () => {
               <span className="text-xs text-gray-500">{formattedTime}</span>
             </div>
           </div>
-          
           <div className="flex items-center">
             <Tag className="h-4 w-4 mr-2" />
             <span>{session.topicRef?.topic || session.topic}</span>
           </div>
-          
           {session.reflectData && (
             <div className="mt-4 border-t border-gray-100 pt-3">
               <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
@@ -849,6 +641,7 @@ const Sessions: React.FC = () => {
           </div>
           <div className="pt-2 border-t border-gray-100">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Update Status</h4>
+            {/* ✅ USE THE EXTERNAL SESSION STATUS UPDATE COMPONENT */}
             <SessionStatusUpdate
               sessionId={session._id}
               currentStatus={session.status}
@@ -885,10 +678,8 @@ const Sessions: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredSessions.map((session) => {
               if (!session.user) return null;
-              
               // Use the helper function to format date and time
               const { formattedDate, formattedTime } = formatDateDisplay(session.time);
-
               return (
                 <tr key={session._id}>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -954,6 +745,7 @@ const Sessions: React.FC = () => {
                       <span className="text-xs text-gray-500">No reflection</span>
                     )}
                   </td>
+                  {/* ✅ USE THE EXTERNAL SESSION STATUS UPDATE COMPONENT */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <SessionStatusUpdate
                       sessionId={session._id}

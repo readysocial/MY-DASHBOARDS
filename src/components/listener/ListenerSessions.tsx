@@ -77,7 +77,8 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
       setLoading(true);
       setError(null);
       try {
-        const res = await getListenerSessions({ skip: 0, limit: 0 });
+        // ✅ fetch enough rows to cover the entire collection
+        const res = await getListenerSessions({ skip: 0, limit: 1000 });
         if (!cancelled) {
           const unique = Array.from(
             new Map((res.sessions || []).map((s) => [s._id, s] as const)).values()
@@ -194,7 +195,7 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
                         />
                       </div>
                       <div>
-                        <div className="font-bold text-gray-900">{userName}</div> {/* 👈 Bold user name */}
+                        <div className="font-bold text-gray-900">{userName}</div>
                         {isRepeat(s) && (
                           <div className="mt-1 text-xs text-gray-500">🔁 Repeat Session</div>
                         )}
@@ -204,7 +205,7 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
 
                   {/* Date & Time */}
                   <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">{fmtDate(s.time)}</div> {/* 👈 Bold date */}
+                    <div className="font-bold text-gray-900">{fmtDate(s.time)}</div>
                     <div className="mt-1 text-sm text-gray-700">{fmtTime(s.time)}</div>
                   </td>
 
@@ -221,9 +222,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
                     <span className={statusBadge(s.status)}>{s.status}</span>
                   </td>
 
-                  {/* Repeat Count — always shows 0 if not repeated */}
+                  {/* Repeat Count */}
                   <td className="px-6 py-4 text-sm text-gray-700">
-                    <span className="font-bold text-gray-900">{repeatCount}</span> {/* 👈 Bold 0 or number */}
+                    <span className="font-bold text-gray-900">{repeatCount}</span>
                   </td>
 
                   {/* Actions */}
@@ -233,10 +234,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full justify-start gap-2 font-bold" // 👈 Bold text, no hover
-                          // Prevent hover styles by overriding default button behavior
-                          style={{ 
-                            transition: 'none', 
+                          className="w-full justify-start gap-2 font-bold"
+                          style={{
+                            transition: 'none',
                             backgroundColor: 'transparent',
                             borderColor: '#D1D5DB',
                             color: '#374151',
@@ -256,9 +256,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
                         >
                           <Button
                             size="sm"
-                            className="w-full justify-start gap-2 font-bold" // 👈 Bold text, no hover
-                            style={{ 
-                              transition: 'none', 
+                            className="w-full justify-start gap-2 font-bold"
+                            style={{
+                              transition: 'none',
                               backgroundColor: '#3B82F6',
                               color: 'white',
                               borderColor: '#3B82F6',
@@ -294,9 +294,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage(0)}
               disabled={page === 0}
               aria-label="Go to first page"
-              className="h-8 w-8 p-0 font-bold text-gray-700" // 👈 Bold text, no hover
-              style={{ 
-                transition: 'none', 
+              className="h-8 w-8 p-0 font-bold text-gray-700"
+              style={{
+                transition: 'none',
                 backgroundColor: 'transparent',
                 borderColor: '#D1D5DB',
                 color: '#374151',
@@ -309,9 +309,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               aria-label="Go to previous page"
-              className="h-8 w-8 p-0 font-bold text-gray-700" // 👈 Bold text, no hover
-              style={{ 
-                transition: 'none', 
+              className="h-8 w-8 p-0 font-bold text-gray-700"
+              style={{
+                transition: 'none',
                 backgroundColor: 'transparent',
                 borderColor: '#D1D5DB',
                 color: '#374151',
@@ -321,7 +321,7 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
             </Button>
           </div>
 
-          <span className="text-sm font-bold text-gray-900"> {/* 👈 Bold page indicator */}
+          <span className="text-sm font-bold text-gray-900">
             Page {page + 1} of {pageCount}
           </span>
 
@@ -331,9 +331,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
               disabled={page === pageCount - 1}
               aria-label="Go to next page"
-              className="h-8 w-8 p-0 font-bold text-gray-700" // 👈 Bold text, no hover
-              style={{ 
-                transition: 'none', 
+              className="h-8 w-8 p-0 font-bold text-gray-700"
+              style={{
+                transition: 'none',
                 backgroundColor: 'transparent',
                 borderColor: '#D1D5DB',
                 color: '#374151',
@@ -346,9 +346,9 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage(pageCount - 1)}
               disabled={page === pageCount - 1}
               aria-label="Go to last page"
-              className="h-8 w-8 p-0 font-bold text-gray-700" // 👈 Bold text, no hover
-              style={{ 
-                transition: 'none', 
+              className="h-8 w-8 p-0 font-bold text-gray-700"
+              style={{
+                transition: 'none',
                 backgroundColor: 'transparent',
                 borderColor: '#D1D5DB',
                 color: '#374151',

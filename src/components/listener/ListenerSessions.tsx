@@ -1,5 +1,5 @@
 // ListenerSessions.tsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import {
   Calendar,
@@ -65,46 +65,41 @@ const statusBadge = (st?: Session['status']) => {
 const ITEMS_PER_PAGE = 5;
 
 export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId }) => {
-  const [allSessions, setAllSessions] = useState<Session[]>([]);
+  const [page, setPage] = useState(0);
+  const [rows, setRows] = useState<Session[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0); // 0-based
 
-  /* ---------- data fetching ---------- */
+  /* ---------- server-side pagination ---------- */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        // ✅ fetch enough rows to cover the entire collection
-        const res = await getListenerSessions({ skip: 0, limit: 1000 });
+        const res = await getListenerSessions({
+          skip: page * ITEMS_PER_PAGE,
+          limit: ITEMS_PER_PAGE,
+        });
         if (!cancelled) {
-          const unique = Array.from(
-            new Map((res.sessions || []).map((s) => [s._id, s] as const)).values()
-          );
-          setAllSessions(unique);
+          setRows(res.sessions);
+          setTotal(res.total);
         }
       } catch (e) {
         if (!cancelled) {
           setError((e as Error)?.message || 'Failed to fetch sessions');
-          setAllSessions([]);
+          setRows([]);
+          setTotal(0);
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [listenerId]);
+    return () => { cancelled = true; };
+  }, [listenerId, page]);
 
-  /* ---------- pagination ---------- */
-  const pageCount = Math.ceil(allSessions.length / ITEMS_PER_PAGE);
-  const pagedSessions = useMemo(
-    () => allSessions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE),
-    [allSessions, page]
-  );
+  const pageCount = Math.ceil(total / ITEMS_PER_PAGE);
 
   /* ---------- render ---------- */
   if (loading)
@@ -132,7 +127,7 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
       </Card>
     );
 
-  if (!allSessions.length)
+  if (total === 0)
     return (
       <Card className="p-8 text-center">
         <Calendar className="mx-auto mb-4 h-12 w-12 text-gray-400" />
@@ -170,7 +165,7 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
           </thead>
 
           <tbody className="divide-y divide-gray-200 bg-white">
-            {pagedSessions.map((s) => {
+            {rows.map((s) => {
               const userName = s.user?.anonymousName || 'Anonymous User';
               const repeatCount = Number(s.repeats?.count ?? 0);
 

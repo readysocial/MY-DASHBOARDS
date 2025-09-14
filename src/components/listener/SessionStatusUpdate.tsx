@@ -1,8 +1,9 @@
+// SessionStatusUpdate.tsx
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { updateSessionStatus } from '@/api/admin/sessions/api';
 import type { SessionStatus } from '@/api/listener/updatestatus/types'; // ✅ correct file
-import { AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { AlertCircle, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
 
 interface SessionStatusUpdateProps {
   sessionId: string;
@@ -19,6 +20,8 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [targetStatus, setTargetStatus] = useState<SessionStatus | null>(null);
 
   const handleStatusUpdate = async (newStatus: SessionStatus) => {
     try {
@@ -26,6 +29,7 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
       setError(null);
       const result = await updateSessionStatus(sessionId, { status: newStatus });
       onStatusUpdated(result.session.status);
+      setShowConfirmModal(false); // Close modal after success
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
@@ -82,37 +86,93 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
     );
   }
 
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        size="sm"
-        onClick={() => handleStatusUpdate('successful')}
-        disabled={isLoading}
-        className="bg-green-600 hover:bg-green-700"
-      >
-        <CheckCircle2 size={14} className="mr-1" />
-        Successful
-      </Button>
-      <Button
-        size="sm"
-        onClick={() => handleStatusUpdate('unsuccessful')}
-        disabled={isLoading}
-        className="bg-red-600 hover:bg-red-700"
-      >
-        <XCircle size={14} className="mr-1" />
-        Unsuccessful
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => handleStatusUpdate('cancelled')}
-        disabled={isLoading}
-        className="border-slate-600 text-slate-300 hover:bg-slate-800"
-      >
-        <AlertCircle size={14} className="mr-1" />
-        Cancel
-      </Button>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+  // --- MODAL COMPONENT ---
+  const ConfirmModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center gap-3 mb-4">
+          <AlertTriangle className="h-8 w-8 text-yellow-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Confirm Status Change</h3>
+        </div>
+
+        <p className="text-gray-700 mb-6">
+          {targetStatus === 'unsuccessful'
+            ? 'Are you sure you want to mark this session as "Unsuccessful"? This cannot be undone.'
+            : targetStatus === 'cancelled'
+            ? 'Are you sure you want to cancel this session? This will notify the listener and user.'
+            : 'Are you sure you want to mark this session as "Successful"?'}
+        </p>
+
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowConfirmModal(false)}
+            className="text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (targetStatus) handleStatusUpdate(targetStatus);
+            }}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Processing...' : 'Confirm'}
+          </Button>
+        </div>
+      </div>
     </div>
+  );
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          onClick={() => {
+            setTargetStatus('successful');
+            setShowConfirmModal(true);
+          }}
+          disabled={isLoading}
+          className="bg-green-600 hover:bg-green-700"
+        >
+          <CheckCircle2 size={14} className="mr-1" />
+          Successful
+        </Button>
+
+        <Button
+          size="sm"
+          onClick={() => {
+            setTargetStatus('unsuccessful');
+            setShowConfirmModal(true);
+          }}
+          disabled={isLoading}
+          className="bg-red-600 hover:bg-red-700"
+        >
+          <XCircle size={14} className="mr-1" />
+          Unsuccessful
+        </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setTargetStatus('cancelled');
+            setShowConfirmModal(true);
+          }}
+          disabled={isLoading}
+          className="border-slate-600 text-slate-300 hover:bg-slate-800"
+        >
+          <AlertCircle size={14} className="mr-1" />
+          Cancel
+        </Button>
+      </div>
+
+      {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+
+      {/* Render modal only when needed */}
+      {showConfirmModal && <ConfirmModal />}
+    </>
   );
 };

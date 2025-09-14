@@ -80,6 +80,12 @@ export interface Session {
   __v: number;
 }
 
+
+
+
 export interface GetListenerSessionsResponse {
   sessions: Session[];
+  total: number;   // ← Added
+  skip: number;    // ← Added
+  limit: number;   // ← Added
 }

@@ -289,13 +289,15 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage(0)}
               disabled={page === 0}
               aria-label="Go to first page"
-              className="h-8 w-8 p-0 font-bold text-gray-700"
+              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
               style={{
-                transition: 'none',
+                transition: 'all 0.2s ease',
                 backgroundColor: 'transparent',
-                borderColor: '#D1D5DB',
-                color: '#374151',
+                borderColor: '#E5E7EB',
+                color: '#1F2937', // <-- DARKER CHEVRON COLOR
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
             >
               <ChevronFirst className="h-4 w-4" />
             </Button>
@@ -304,13 +306,15 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               aria-label="Go to previous page"
-              className="h-8 w-8 p-0 font-bold text-gray-700"
+              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
               style={{
-                transition: 'none',
+                transition: 'all 0.2s ease',
                 backgroundColor: 'transparent',
-                borderColor: '#D1D5DB',
-                color: '#374151',
+                borderColor: '#E5E7EB',
+                color: '#1F2937', // <-- DARKER CHEVRON COLOR
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -326,13 +330,15 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
               disabled={page === pageCount - 1}
               aria-label="Go to next page"
-              className="h-8 w-8 p-0 font-bold text-gray-700"
+              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
               style={{
-                transition: 'none',
+                transition: 'all 0.2s ease',
                 backgroundColor: 'transparent',
-                borderColor: '#D1D5DB',
-                color: '#374151',
+                borderColor: '#E5E7EB',
+                color: '#1F2937', // <-- DARKER CHEVRON COLOR
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -341,13 +347,15 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
               onClick={() => setPage(pageCount - 1)}
               disabled={page === pageCount - 1}
               aria-label="Go to last page"
-              className="h-8 w-8 p-0 font-bold text-gray-700"
+              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
               style={{
-                transition: 'none',
+                transition: 'all 0.2s ease',
                 backgroundColor: 'transparent',
-                borderColor: '#D1D5DB',
-                color: '#374151',
+                borderColor: '#E5E7EB',
+                color: '#1F2937', // <-- DARKER CHEVRON COLOR
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
             >
               <ChevronLast className="h-4 w-4" />
             </Button>

@@ -29,3 +29,11 @@ export interface ActivateDeactivateListenerRequest {
     phoneNumber: string;
     active?: boolean;
   }
+
+  export interface InviteListenerRequest {
+    email: string;
+  }
+
+  export interface InviteListenerResponse {
+    message: string;
+  }

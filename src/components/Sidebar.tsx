@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Users, UserCheck, BarChart2, Settings, LogOut, Menu, X, LucideIcon } from 'lucide-react';
+import { Home, Users, UserCheck, BarChart2, Settings, LogOut, Menu, X, Smartphone, LucideIcon } from 'lucide-react';
 import { useRouter } from 'next/router';
 
 interface NavItemProps {
@@ -21,7 +21,8 @@ const Sidebar: React.FC = () => {
     { icon: Users, text: 'Users', path: '/users' },
     { icon: UserCheck, text: 'Listeners', path: '/listeners' },
     { icon: LogOut, text: 'Sessions', path: '/sessions' },
-    { icon: BarChart2, text: 'Analytics', path: '/analytics' },
+    // { icon: BarChart2, text: 'Analytics', path: '/analytics' },
+    { icon: Smartphone, text: 'App Version', path: '/app-version' },
     { icon: Settings, text: 'Settings', path: '/settings' },
   ];
 

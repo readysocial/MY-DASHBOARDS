@@ -1,33 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { ListenerSidebar } from './ListenerSidebar';
 import { Bell, Menu } from 'lucide-react';
+import { requireListenerAuth } from '@/utils/listenerAuth';
 
 interface ListenerLayoutProps {
   children: React.ReactNode;
 }
 
-interface ListenerData {
-  _id: string;
-  name: string;
-  email: string;
-}
-
 export const ListenerLayout: React.FC<ListenerLayoutProps> = ({ children }) => {
   const [listenerName, setListenerName] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Get listener data from localStorage
-    const listenerDataStr = localStorage.getItem('listenerData');
-    if (listenerDataStr) {
-      try {
-        const listenerData: ListenerData = JSON.parse(listenerDataStr);
-        setListenerName(listenerData.name || '');
-      } catch (error) {
-        console.error('Error parsing listener data:', error);
-      }
-    }
+    // Validate session before rendering any listener page. If the session is
+    // missing or corrupted, requireListenerAuth() triggers a redirect to the
+    // login screen and returns null — in that case we keep the layout blank
+    // so no half-rendered page flashes during navigation.
+    const auth = requireListenerAuth();
+    if (!auth) return;
+    setListenerName(auth.listenerData.name || '');
+    setIsAuthChecked(true);
   }, []);
+
+  if (!isAuthChecked) {
+    // Render nothing while the auth check (and any redirect) is in flight.
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">

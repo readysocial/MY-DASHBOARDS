@@ -9,6 +9,7 @@ import type { ListenerProfile as ListenerProfileType } from '@/api/listener/list
 import type { UpdateListenerRequest } from '@/api/listener/listenerupdate/types';
 import { UserCircle, Phone, Mail, Clock, Pencil, Save, X, User } from 'lucide-react';
 import { useRouter } from 'next/router';
+import { requireListenerAuth } from '@/utils/listenerAuth';
 
 interface ProfileFormData {
   name: string;
@@ -42,13 +43,10 @@ export const ListenerProfile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      const auth = requireListenerAuth();
+      if (!auth) return; // redirect already triggered
       try {
-        const listenerData = localStorage.getItem('listenerData');
-        if (!listenerData) {
-          throw new Error('No listener data found');
-        }
-        const { _id } = JSON.parse(listenerData);
-        const response = await getListenerProfile(_id);
+        const response = await getListenerProfile(auth.listenerData._id);
         setProfile(response.listener);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load profile');
@@ -119,9 +117,9 @@ export const ListenerProfile = () => {
     setError(null);
 
     try {
-      const listenerData = localStorage.getItem('listenerData');
-      if (!listenerData) throw new Error('No listener data found');
-      const parsedListenerData = JSON.parse(listenerData);
+      const auth = requireListenerAuth();
+      if (!auth) return; // redirect already triggered
+      const parsedListenerData = auth.listenerData;
       const { _id } = parsedListenerData;
 
       const updateData: UpdateListenerRequest = {

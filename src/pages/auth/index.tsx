@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 
 interface AuthComponentProps {
   onSuccess: () => void;
@@ -29,6 +30,14 @@ export default function Auth() {
       <div className="max-w-md w-full p-8">
         <div className="bg-white p-8 rounded-lg shadow-md">
           <Login onSuccess={handleSuccess} />
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Are you a listener?{' '}
+              <Link href="/listener/login" className="text-purple-600 hover:text-purple-700 font-medium">
+                Sign in here
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -50,6 +50,7 @@ export default function Login({ onSuccess }: LoginProps) {
       }
 
       localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('adminToken', data.accessToken);
       showAlert('success', 'Login successful!');
       onSuccess();
     } catch (err) {

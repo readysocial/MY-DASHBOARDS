@@ -1,15 +1,20 @@
 import { API_ENDPOINTS } from '@/config/api';
-import type { 
-  GetListenerTopicsResponse, 
-  DeleteTopicsRequest, 
-  DeleteTopicsResponse 
+import {
+  getListenerToken,
+  handleListenerUnauthorized,
+  redirectToListenerLogin,
+} from '@/utils/listenerAuth';
+import type {
+  GetListenerTopicsResponse,
+  DeleteTopicsRequest,
+  DeleteTopicsResponse
 } from './types';
 
 export const getListenerTopics = async (listenerId: string): Promise<GetListenerTopicsResponse> => {
-  const token = localStorage.getItem('listenerToken');
-  
+  const token = getListenerToken();
   if (!token) {
-    throw new Error('No authentication token found');
+    redirectToListenerLogin('invalid');
+    throw new Error('Authentication required');
   }
 
   const response = await fetch(API_ENDPOINTS.listeners.getListenerTopics(listenerId), {
@@ -19,6 +24,10 @@ export const getListenerTopics = async (listenerId: string): Promise<GetListener
       'Content-Type': 'application/json',
     },
   });
+
+  if (handleListenerUnauthorized(response)) {
+    throw new Error('Authentication required');
+  }
 
   if (!response.ok) {
     const error = await response.json();
@@ -32,10 +41,10 @@ export const deleteListenerTopics = async (
   listenerId: string,
   topics: string[]
 ): Promise<DeleteTopicsResponse> => {
-  const token = localStorage.getItem('listenerToken');
-  
+  const token = getListenerToken();
   if (!token) {
-    throw new Error('No authentication token found');
+    redirectToListenerLogin('invalid');
+    throw new Error('Authentication required');
   }
 
   const response = await fetch(API_ENDPOINTS.listeners.deleteListenerTopics(listenerId), {
@@ -47,10 +56,14 @@ export const deleteListenerTopics = async (
     body: JSON.stringify({ topics }),
   });
 
+  if (handleListenerUnauthorized(response)) {
+    throw new Error('Authentication required');
+  }
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || 'Failed to delete listener topics');
   }
 
   return response.json();
-}; 
+};

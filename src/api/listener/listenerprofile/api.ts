@@ -1,11 +1,16 @@
 import { API_ENDPOINTS } from '@/config/api';
+import {
+  getListenerToken,
+  handleListenerUnauthorized,
+  redirectToListenerLogin,
+} from '@/utils/listenerAuth';
 import type { ListenerProfileResponse } from './types';
 
 export const getListenerProfile = async (listenerId: string): Promise<ListenerProfileResponse> => {
-  const token = localStorage.getItem('listenerToken');
-  
+  const token = getListenerToken();
   if (!token) {
-    throw new Error('No authentication token found');
+    redirectToListenerLogin('invalid');
+    throw new Error('Authentication required');
   }
 
   const response = await fetch(API_ENDPOINTS.listeners.profile(listenerId), {
@@ -16,6 +21,10 @@ export const getListenerProfile = async (listenerId: string): Promise<ListenerPr
     },
   });
 
+  if (handleListenerUnauthorized(response)) {
+    throw new Error('Authentication required');
+  }
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || 'Failed to fetch listener profile');
@@ -23,4 +32,4 @@ export const getListenerProfile = async (listenerId: string): Promise<ListenerPr
 
   const result = await response.json();
   return result;
-}; 
+};

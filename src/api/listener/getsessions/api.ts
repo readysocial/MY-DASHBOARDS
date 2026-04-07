@@ -1,8 +1,13 @@
 // Update your API file (e.g., '@/api/listener/getsessions/api.ts')
 import { API_ENDPOINTS } from '@/config/api';
-import type { 
-  GetListenerSessionsResponse, 
-  Session 
+import {
+  getListenerToken,
+  handleListenerUnauthorized,
+  redirectToListenerLogin,
+} from '@/utils/listenerAuth';
+import type {
+  GetListenerSessionsResponse,
+  Session
 } from './types';
 
 // Define types for request parameters
@@ -12,9 +17,10 @@ interface GetListenerSessionsRequest {
 }
 
 export const getListenerSessions = async (params: GetListenerSessionsRequest = {}): Promise<GetListenerSessionsResponse> => {
-  const token = localStorage.getItem('listenerToken');
+  const token = getListenerToken();
   if (!token) {
-    throw new Error('No authentication token found');
+    redirectToListenerLogin('invalid');
+    throw new Error('Authentication required');
   }
 
   // Build query string
@@ -34,9 +40,8 @@ export const getListenerSessions = async (params: GetListenerSessionsRequest = {
       },
     });
 
-    if (response.status === 401) {
-      localStorage.removeItem('listenerToken');
-      throw new Error('Unauthorized access - please log in again');
+    if (handleListenerUnauthorized(response)) {
+      throw new Error('Authentication required');
     }
     if (response.status === 404) {
       throw new Error('Listener not found');

@@ -8,6 +8,7 @@ import { updateListenerProfile } from '@/api/listener/listenerupdate/api';
 import type { ListenerProfile, DayAvailability } from '@/api/listener/listenerprofile/types';
 import type { UpdateListenerRequest } from '@/api/listener/listenerupdate/types';
 import { Clock, Save, X, Check, X as XIcon, Plus } from 'lucide-react';
+import { requireListenerAuth } from '@/utils/listenerAuth';
 
 // Time slots for selection
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -48,13 +49,10 @@ export const ListenerScheduleEditor = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      const auth = requireListenerAuth();
+      if (!auth) return; // redirect already triggered
       try {
-        const listenerData = localStorage.getItem('listenerData');
-        if (!listenerData) {
-          throw new Error('No listener data found');
-        }
-        const { _id } = JSON.parse(listenerData);
-        const response = await getListenerProfile(_id);
+        const response = await getListenerProfile(auth.listenerData._id);
         setProfile(response.listener);
         setAvailability(response.listener.availability);
       } catch (err) {
@@ -178,11 +176,9 @@ export const ListenerScheduleEditor = () => {
         }))
       };
 
-      const listenerData = localStorage.getItem('listenerData');
-      if (!listenerData) throw new Error('No listener data found');
-      
-      const { _id } = JSON.parse(listenerData);
-      await updateListenerProfile(_id, updateData);
+      const auth = requireListenerAuth();
+      if (!auth) return; // redirect already triggered
+      await updateListenerProfile(auth.listenerData._id, updateData);
       setError('Schedule updated successfully!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update schedule');

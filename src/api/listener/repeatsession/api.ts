@@ -1,13 +1,18 @@
 import { API_ENDPOINTS } from '@/config/api';
+import {
+  getListenerToken,
+  handleListenerUnauthorized,
+  redirectToListenerLogin,
+} from '@/utils/listenerAuth';
 import type { RelatedSessionsResponse, GetRelatedSessionsParams } from './types';
 
 export const getRelatedSessions = async ({
   sessionId,
 }: GetRelatedSessionsParams): Promise<RelatedSessionsResponse> => {
-  const token = localStorage.getItem('listenerToken');
-
+  const token = getListenerToken();
   if (!token) {
-    throw new Error('No authentication token found');
+    redirectToListenerLogin('invalid');
+    throw new Error('Authentication required');
   }
 
   try {
@@ -22,8 +27,8 @@ export const getRelatedSessions = async ({
       }
     );
 
-    if (response.status === 401) {
-      throw new Error('Unauthorized access');
+    if (handleListenerUnauthorized(response)) {
+      throw new Error('Authentication required');
     }
 
     if (response.status === 404) {

@@ -17,10 +17,10 @@ export function ConfirmDialog() {
 
   return (
     <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) respond(false); }}>
-      <AlertDialogContent>
+      <AlertDialogContent className="bg-white border border-gray-200 shadow-xl">
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogTitle className="text-gray-900">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-gray-600">{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => respond(false)}>

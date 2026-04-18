@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, MessageCircle } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
+import { confirm } from '@/lib/confirm';
 
 // --- ADJUSTED INTERFACE: Removed firstName, lastName as they are not part of the User object used for display ---
 interface User {
@@ -450,6 +451,15 @@ const Users: React.FC = () => {
         console.log("[Users] Token validation failed for sending notification.");
         return;
     }
+
+    const confirmed = await confirm({
+      title: 'Send Notification',
+      description: 'Are you sure you want to send this notification to the user?',
+      confirmText: 'Send',
+      variant: 'default',
+    });
+    if (!confirmed) return;
+
     try {
       const notificationData: NotificationRequest = {
         userId,

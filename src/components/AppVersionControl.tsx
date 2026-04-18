@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
+import { confirm } from '@/lib/confirm';
 
 const AppVersionControl: React.FC = () => {
   useEffect(() => {
@@ -70,9 +71,11 @@ const AppVersionControl: React.FC = () => {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Are you sure you want to set the minimum ${platformLabel} version to ${version}? Users on older versions will be forced to update.`
-    );
+    const confirmed = await confirm({
+      title: `Update ${platformLabel} Minimum Version`,
+      description: `Are you sure you want to set the minimum ${platformLabel} version to ${version}? Users on older versions will be forced to update.`,
+      confirmText: 'Update Version',
+    });
     if (!confirmed) return;
 
     setLoading(true);

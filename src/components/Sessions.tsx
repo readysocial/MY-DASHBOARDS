@@ -22,7 +22,8 @@ import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api'
 import { API_URL } from '@/config/api';
 import { SessionMeetingLink } from '@/components/listener/SessionMeetingLink';
 import { Button } from '@/components/ui/button';
-import { SessionStatusUpdate } from '@/components/listener/SessionStatusUpdate'; 
+import { SessionStatusUpdate } from '@/components/listener/SessionStatusUpdate';
+import { confirm } from '@/lib/confirm';
 
 interface User {
   _id: string;
@@ -512,9 +513,12 @@ const Sessions: React.FC = () => {
   };
 
   const handleDeleteTopic = async (topicId: string) => {
-    if (!window.confirm('Are you sure you want to delete this topic? This action cannot be undone.')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Topic',
+      description: 'Are you sure you want to delete this topic? This action cannot be undone.',
+      confirmText: 'Delete',
+    });
+    if (!confirmed) return;
     setIsTopicOperationLoading(true);
     try {
       const response = await fetch(`${API_URL}/sessions/topics/${topicId}`, {

@@ -6,15 +6,16 @@ import { Listener, FormErrors, Message, TimeSlot } from '../types/listener';
 import { DAYS_OF_WEEK, DEFAULT_TIME_SLOTS, GENDERS } from '../constants/listener';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
-import { 
-  activateDeactivateListener, 
-  getListener, 
-  updateListener, 
-  createListener, 
+import {
+  activateDeactivateListener,
+  getListener,
+  updateListener,
+  createListener,
   deleteListener,
   inviteListener,
   updateListenerAvailability
 } from '../api/listener/api';
+import { confirm } from '@/lib/confirm';
 
 const Listeners: React.FC = (): JSX.Element => {
 
@@ -172,7 +173,15 @@ const Listeners: React.FC = (): JSX.Element => {
   // Send Message to Listener
   const sendMessageToListener = async () => {
     if (!validateToken() || !selectedListener) return;
-  
+
+    const confirmed = await confirm({
+      title: 'Send Message',
+      description: `Send this message to ${selectedListener.name}?`,
+      confirmText: 'Send',
+      variant: 'default',
+    });
+    if (!confirmed) return;
+
     try {
       const response = await fetch(`${API_URL}/listeners/${selectedListener._id}/messages`, {
         method: 'POST',
@@ -284,7 +293,15 @@ const Listeners: React.FC = (): JSX.Element => {
     if (!validateForm() || !selectedListener?._id) {
       return;
     }
-  
+
+    const confirmed = await confirm({
+      title: 'Update Availability',
+      description: `Save availability changes for ${selectedListener.name}?`,
+      confirmText: 'Save',
+      variant: 'default',
+    });
+    if (!confirmed) return;
+
     setIsSubmitting(true);
     try {
       await updateListenerAvailability(selectedListener._id, newListener.availability);
@@ -490,15 +507,15 @@ const addTimeSlot = (dayOfWeek: string) => {
 
     // Show confirmation dialog for both activation and deactivation
     const action = currentStatus ? 'deactivate' : 'activate';
-    const confirmed = window.confirm(
-      currentStatus 
+    const confirmed = await confirm({
+      title: `${currentStatus ? 'Deactivate' : 'Activate'} Listener`,
+      description: currentStatus
         ? 'Are you sure you want to deactivate this listener? This will prevent them from receiving new sessions.'
-        : 'Are you sure you want to activate this listener? This will allow them to receive new sessions.'
-    );
-    
-    if (!confirmed) {
-      return;
-    }
+        : 'Are you sure you want to activate this listener? This will allow them to receive new sessions.',
+      confirmText: currentStatus ? 'Deactivate' : 'Activate',
+    });
+
+    if (!confirmed) return;
 
     try {
       setIsActivating(true);
@@ -517,9 +534,12 @@ const addTimeSlot = (dayOfWeek: string) => {
   const handleDeleteListener = async (listenerId: string) => {
     if (!validateToken()) return;
 
-    if (!window.confirm('Are you sure you want to delete this listener?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Listener',
+      description: 'Are you sure you want to delete this listener? This action cannot be undone.',
+      confirmText: 'Delete',
+    });
+    if (!confirmed) return;
 
     try {
       await deleteListener(listenerId);

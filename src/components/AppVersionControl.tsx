@@ -63,11 +63,17 @@ const AppVersionControl: React.FC = () => {
 
     const version = platform === 'android' ? androidInput : iosInput;
     const setLoading = platform === 'android' ? setAndroidLoading : setIosLoading;
+    const platformLabel = platform === 'android' ? 'Android' : 'iOS';
 
     if (!isValidVersion(version)) {
       showAlert('error', 'Invalid version format. Use x.y.z (e.g., 1.2.0)');
       return;
     }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to set the minimum ${platformLabel} version to ${version}? Users on older versions will be forced to update.`
+    );
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -90,7 +96,7 @@ const AppVersionControl: React.FC = () => {
       if (platform === 'android') setAndroidVersion(version);
       else setIosVersion(version);
 
-      showAlert('success', `${platform === 'android' ? 'Android' : 'iOS'} minimum version updated to ${version}`);
+      showAlert('success', `${platformLabel} minimum version updated to ${version}`);
     } catch (err) {
       showAlert('error', err instanceof Error ? err.message : 'Failed to update version');
     } finally {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Smartphone, ChevronDown, ChevronUp } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
@@ -10,7 +10,6 @@ const AppVersionControl: React.FC = () => {
     validateToken();
   }, []);
 
-  const [expandedSection, setExpandedSection] = useState<string | null>('android');
   const [androidVersion, setAndroidVersion] = useState('');
   const [iosVersion, setIosVersion] = useState('');
   const [androidInput, setAndroidInput] = useState('');
@@ -26,10 +25,6 @@ const AppVersionControl: React.FC = () => {
   const showAlert = (type: 'success' | 'error', message: string) => {
     setAlert({ type, message });
     setTimeout(() => setAlert({ type: null, message: '' }), 5000);
-  };
-
-  const toggleSection = (sectionId: string) => {
-    setExpandedSection(expandedSection === sectionId ? null : sectionId);
   };
 
   useEffect(() => {
@@ -119,107 +114,77 @@ const AppVersionControl: React.FC = () => {
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Android Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
-            onClick={() => toggleSection('android')}
-          >
-            <div className="flex items-center space-x-3">
-              <Smartphone className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-800">Android</span>
-              {androidVersion && (
-                <span className="text-sm text-gray-500">
-                  Current minimum: <span className="font-mono font-semibold">{androidVersion}</span>
-                </span>
-              )}
-            </div>
-            {expandedSection === 'android' ? (
-              <ChevronUp className="h-5 w-5 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+          <div className="flex items-center space-x-3 p-4">
+            <Smartphone className="h-5 w-5 text-gray-500" />
+            <span className="font-medium text-gray-800">Android</span>
+            {androidVersion && (
+              <span className="text-sm text-gray-500">
+                Current: <span className="font-mono font-semibold">{androidVersion}</span>
+              </span>
             )}
-          </button>
-
-          {expandedSection === 'android' && (
-            <div className="p-4 border-t border-gray-200">
-              <div className="max-w-md mx-auto space-y-4">
-                <p className="text-sm text-gray-600">
-                  Users on Android versions below this will be required to update before using the app.
-                </p>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Minimum Version
-                  </label>
-                  <Input
-                    value={androidInput}
-                    onChange={(e) => setAndroidInput(e.target.value)}
-                    placeholder="e.g. 1.2.0"
-                    className="bg-white border-gray-300 text-gray-900 font-mono"
-                  />
-                </div>
-                <Button
-                  onClick={() => handleSave('android')}
-                  disabled={androidLoading}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white"
-                >
-                  {androidLoading ? 'Saving...' : 'Save Android Version'}
-                </Button>
-              </div>
+          </div>
+          <div className="p-4 border-t border-gray-200 space-y-4">
+            <p className="text-sm text-gray-600">
+              Users on Android versions below this will be required to update before using the app.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Minimum Version
+              </label>
+              <Input
+                value={androidInput}
+                onChange={(e) => setAndroidInput(e.target.value)}
+                placeholder="e.g. 1.2.0"
+                className="bg-white border-gray-300 text-gray-900 font-mono"
+              />
             </div>
-          )}
+            <Button
+              onClick={() => handleSave('android')}
+              disabled={androidLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              {androidLoading ? 'Saving...' : 'Save Android Version'}
+            </Button>
+          </div>
         </div>
 
         {/* iOS Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
-            onClick={() => toggleSection('ios')}
-          >
-            <div className="flex items-center space-x-3">
-              <Smartphone className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-800">iOS</span>
-              {iosVersion && (
-                <span className="text-sm text-gray-500">
-                  Current minimum: <span className="font-mono font-semibold">{iosVersion}</span>
-                </span>
-              )}
-            </div>
-            {expandedSection === 'ios' ? (
-              <ChevronUp className="h-5 w-5 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+          <div className="flex items-center space-x-3 p-4">
+            <Smartphone className="h-5 w-5 text-gray-500" />
+            <span className="font-medium text-gray-800">iOS</span>
+            {iosVersion && (
+              <span className="text-sm text-gray-500">
+                Current: <span className="font-mono font-semibold">{iosVersion}</span>
+              </span>
             )}
-          </button>
-
-          {expandedSection === 'ios' && (
-            <div className="p-4 border-t border-gray-200">
-              <div className="max-w-md mx-auto space-y-4">
-                <p className="text-sm text-gray-600">
-                  Users on iOS versions below this will be required to update before using the app.
-                </p>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Minimum Version
-                  </label>
-                  <Input
-                    value={iosInput}
-                    onChange={(e) => setIosInput(e.target.value)}
-                    placeholder="e.g. 1.2.0"
-                    className="bg-white border-gray-300 text-gray-900 font-mono"
-                  />
-                </div>
-                <Button
-                  onClick={() => handleSave('ios')}
-                  disabled={iosLoading}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white"
-                >
-                  {iosLoading ? 'Saving...' : 'Save iOS Version'}
-                </Button>
-              </div>
+          </div>
+          <div className="p-4 border-t border-gray-200 space-y-4">
+            <p className="text-sm text-gray-600">
+              Users on iOS versions below this will be required to update before using the app.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Minimum Version
+              </label>
+              <Input
+                value={iosInput}
+                onChange={(e) => setIosInput(e.target.value)}
+                placeholder="e.g. 1.2.0"
+                className="bg-white border-gray-300 text-gray-900 font-mono"
+              />
             </div>
-          )}
+            <Button
+              onClick={() => handleSave('ios')}
+              disabled={iosLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              {iosLoading ? 'Saving...' : 'Save iOS Version'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
+import { confirm } from '@/lib/confirm';
 
 const Settings: React.FC = () => {
   useEffect(() => {
@@ -42,9 +43,9 @@ const Settings: React.FC = () => {
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
-    if (!validateToken()) return;
     e.preventDefault();
-    
+    if (!validateToken()) return;
+
     if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
       showAlert('error', 'New passwords do not match');
       return;
@@ -59,6 +60,13 @@ const Settings: React.FC = () => {
       showAlert('error', 'Please enter your current password');
       return;
     }
+
+    const confirmed = await confirm({
+      title: 'Change Password',
+      description: 'Are you sure you want to change your admin password?',
+      confirmText: 'Change Password',
+    });
+    if (!confirmed) return;
 
     setLoading(true);
 

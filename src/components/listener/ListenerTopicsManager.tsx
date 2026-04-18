@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tag, Check, X, Trash2 } from 'lucide-react';
 import { getListenerTopics, deleteListenerTopics } from '@/api/listener/topicsmanage/api';
 import type { GetListenerTopicsResponse } from '@/api/listener/topicsmanage/types';
+import { confirm } from '@/lib/confirm';
 
 interface ListenerTopicsManagerProps {
   listenerId: string;
@@ -35,6 +36,13 @@ export const ListenerTopicsManager = ({ listenerId, onUpdateSuccess }: ListenerT
   }, [listenerId]);
 
   const handleDeleteTopic = async (topicId: string) => {
+    const confirmed = await confirm({
+      title: 'Remove Topic',
+      description: 'Are you sure you want to remove this topic from the listener?',
+      confirmText: 'Remove',
+    });
+    if (!confirmed) return;
+
     setIsDeleting(true);
     setError(null);
     setSuccessMessage(null);

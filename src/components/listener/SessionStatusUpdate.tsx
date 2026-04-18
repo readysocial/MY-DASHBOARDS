@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { updateSessionStatus } from '@/api/admin/sessions/api';
 import type { SessionStatus } from '@/api/listener/updatestatus/types'; // ✅ correct file
-import { AlertCircle, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { confirm } from '@/lib/confirm';
 
 interface SessionStatusUpdateProps {
   sessionId: string;
@@ -20,16 +21,26 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [targetStatus, setTargetStatus] = useState<SessionStatus | null>(null);
 
   const handleStatusUpdate = async (newStatus: SessionStatus) => {
+    const messages: Record<string, string> = {
+      cancelled: 'Are you sure you want to cancel this session? This action cannot be undone.',
+      unsuccessful: 'Are you sure you want to mark this session as "Unsuccessful"? This cannot be undone.',
+      successful: 'Are you sure you want to mark this session as "Successful"?',
+    };
+
+    const confirmed = await confirm({
+      title: 'Confirm Status Change',
+      description: messages[newStatus] || `Change session status to "${newStatus}"?`,
+      confirmText: 'Confirm',
+    });
+    if (!confirmed) return;
+
     try {
       setIsLoading(true);
       setError(null);
       const result = await updateSessionStatus(sessionId, { status: newStatus });
       onStatusUpdated(result.session.status);
-      setShowConfirmModal(false); // Close modal after success
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
@@ -70,45 +81,6 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
     );
   }
 
-  // --- MODAL COMPONENT ---
-  const ConfirmModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center gap-3 mb-4">
-          <AlertTriangle className="h-8 w-8 text-yellow-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Confirm Status Change</h3>
-        </div>
-
-        <p className="text-gray-700 mb-6">
-          {targetStatus === 'cancelled'
-            ? 'Are you sure you want to cancel this session? This action cannot be undone.'
-            : targetStatus === 'unsuccessful'
-            ? 'Are you sure you want to mark this session as "Unsuccessful"? This cannot be undone.'
-            : 'Are you sure you want to mark this session as "Successful"?'}
-        </p>
-
-        <div className="flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setShowConfirmModal(false)}
-            className="text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              if (targetStatus) handleStatusUpdate(targetStatus);
-            }}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Processing...' : 'Confirm'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -117,10 +89,7 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              setTargetStatus('cancelled');
-              setShowConfirmModal(true);
-            }}
+            onClick={() => handleStatusUpdate('cancelled')}
             disabled={isLoading}
             className="border-slate-600 text-slate-700 hover:bg-slate-100"
           >
@@ -134,10 +103,7 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              onClick={() => {
-                setTargetStatus('successful');
-                setShowConfirmModal(true);
-              }}
+              onClick={() => handleStatusUpdate('successful')}
               disabled={isLoading}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -147,10 +113,7 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
 
             <Button
               size="sm"
-              onClick={() => {
-                setTargetStatus('unsuccessful');
-                setShowConfirmModal(true);
-              }}
+              onClick={() => handleStatusUpdate('unsuccessful')}
               disabled={isLoading}
               className="bg-red-600 hover:bg-red-700"
             >
@@ -171,9 +134,6 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
       </div>
 
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
-
-      {/* Render modal only when needed */}
-      {showConfirmModal && <ConfirmModal />}
     </>
   );
 };

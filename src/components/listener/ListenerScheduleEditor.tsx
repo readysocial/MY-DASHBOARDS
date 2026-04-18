@@ -9,6 +9,7 @@ import type { ListenerProfile, DayAvailability } from '@/api/listener/listenerpr
 import type { UpdateListenerRequest } from '@/api/listener/listenerupdate/types';
 import { Clock, Save, X, Check, X as XIcon, Plus } from 'lucide-react';
 import { requireListenerAuth } from '@/utils/listenerAuth';
+import { confirm } from '@/lib/confirm';
 
 // Time slots for selection
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -155,6 +156,14 @@ export const ListenerScheduleEditor = () => {
 
   const handleSave = async () => {
     if (!profile) return;
+
+    const confirmed = await confirm({
+      title: 'Save Schedule',
+      description: 'Are you sure you want to save these schedule changes?',
+      confirmText: 'Save Changes',
+      variant: 'default',
+    });
+    if (!confirmed) return;
 
     setSaving(true);
     setError(null);

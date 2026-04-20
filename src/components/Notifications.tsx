@@ -20,6 +20,8 @@ interface NotificationOptions {
   email: boolean;
 }
 
+const isTargetSelected = (t: Target | ''): t is Target => t !== '';
+
 const TARGET_LABELS: Record<Target, string> = {
   all: 'All (Users + Listeners)',
   users: 'All Users',
@@ -153,7 +155,7 @@ const Notifications: React.FC = () => {
     (target !== 'selected' || selectedUsers.length > 0);
 
   const handleSend = async () => {
-    if (!validateToken() || !isFormValid || target === '') return;
+    if (!validateToken() || !isFormValid || !isTargetSelected(target)) return;
 
     const targetLabel = target === 'selected'
       ? `${selectedUsers.length} selected user${selectedUsers.length > 1 ? 's' : ''}`

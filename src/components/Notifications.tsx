@@ -34,7 +34,7 @@ const Notifications: React.FC = () => {
     validateToken();
   }, []);
 
-  const [target, setTarget] = useState<Target>('all');
+  const [target, setTarget] = useState<Target | ''>('');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [options, setOptions] = useState<NotificationOptions>({
@@ -146,13 +146,14 @@ const Notifications: React.FC = () => {
   };
 
   const isFormValid =
+    target !== '' &&
     title.trim() &&
     message.trim() &&
     (options.inApp || options.push || options.email) &&
     (target !== 'selected' || selectedUsers.length > 0);
 
   const handleSend = async () => {
-    if (!validateToken() || !isFormValid) return;
+    if (!validateToken() || !isFormValid || target === '') return;
 
     const targetLabel = target === 'selected'
       ? `${selectedUsers.length} selected user${selectedUsers.length > 1 ? 's' : ''}`
@@ -227,6 +228,9 @@ const Notifications: React.FC = () => {
             onChange={(e) => setTarget(e.target.value as Target)}
             className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-red-500 focus:border-red-500"
           >
+            <option value="" disabled>
+              Select target audience
+            </option>
             {Object.entries(TARGET_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}

@@ -7,7 +7,11 @@ import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api'
 import { API_URL } from '@/config/api';
 import { confirm } from '@/lib/confirm';
 
-type Target = 'all' | 'users' | 'listeners' | 'active_users' | 'inactive_users' | 'selected';
+// Listener targets ("all" and "listeners") are intentionally omitted:
+// the backend doesn't deliver to listeners yet — push/email lookups throw
+// and in-app rows are orphaned. Re-add once listener notifications are
+// supported end-to-end.
+type Target = 'users' | 'active_users' | 'inactive_users' | 'selected';
 
 interface SelectedUser {
   id: string;
@@ -23,9 +27,7 @@ interface NotificationChannelOptions {
 const isTargetSelected = (t: Target | ''): t is Target => t !== '';
 
 const TARGET_LABELS: Record<Target, string> = {
-  all: 'All (Users + Listeners)',
   users: 'All Users',
-  listeners: 'All Listeners',
   active_users: 'Active Users (sessions in last 30 days)',
   inactive_users: 'Inactive Users (no sessions in 30 days)',
   selected: 'Selected Users',

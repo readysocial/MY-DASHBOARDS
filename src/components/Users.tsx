@@ -56,7 +56,7 @@ interface PaginatedResponse {
   currentPage: number;
 }
 
-interface NotificationOptions {
+interface NotificationChannelOptions {
   inApp: boolean;
   push: boolean;
   email: boolean;
@@ -66,7 +66,7 @@ interface NotificationRequest {
   userId: string;
   title: string;
   message: string;
-  options: NotificationOptions;
+  channels: NotificationChannelOptions;
 }
 
 interface UserDetailsModalProps {
@@ -323,7 +323,7 @@ const Users: React.FC = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
-  const [notificationOptions, setNotificationOptions] = useState<NotificationOptions>({
+  const [notificationChannels, setNotificationChannels] = useState<NotificationChannelOptions>({
     inApp: true,
     push: false,
     email: false
@@ -465,7 +465,7 @@ const Users: React.FC = () => {
         userId,
         title: notificationTitle,
         message: notificationMessage,
-        options: notificationOptions
+        channels: notificationChannels
       };
       const response = await fetch(`${API_URL}/notifications/send`, {
         method: 'POST',
@@ -499,7 +499,7 @@ const Users: React.FC = () => {
   const resetNotificationForm = () => {
     setNotificationTitle('');
     setNotificationMessage('');
-    setNotificationOptions({
+    setNotificationChannels({
       inApp: true,
       push: false,
       email: false
@@ -953,8 +953,8 @@ const Users: React.FC = () => {
                       <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
                         <input
                           type="checkbox"
-                          checked={notificationOptions.inApp}
-                          onChange={(e) => setNotificationOptions(prev => ({
+                          checked={notificationChannels.inApp}
+                          onChange={(e) => setNotificationChannels(prev => ({
                             ...prev,
                             inApp: e.target.checked
                           }))}
@@ -965,8 +965,8 @@ const Users: React.FC = () => {
                       <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
                         <input
                           type="checkbox"
-                          checked={notificationOptions.push}
-                          onChange={(e) => setNotificationOptions(prev => ({
+                          checked={notificationChannels.push}
+                          onChange={(e) => setNotificationChannels(prev => ({
                             ...prev,
                             push: e.target.checked
                           }))}
@@ -977,8 +977,8 @@ const Users: React.FC = () => {
                       <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
                         <input
                           type="checkbox"
-                          checked={notificationOptions.email}
-                          onChange={(e) => setNotificationOptions(prev => ({
+                          checked={notificationChannels.email}
+                          onChange={(e) => setNotificationChannels(prev => ({
                             ...prev,
                             email: e.target.checked
                           }))}

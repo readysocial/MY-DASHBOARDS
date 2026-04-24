@@ -14,7 +14,7 @@ interface SelectedUser {
   anonymousName: string;
 }
 
-interface NotificationOptions {
+interface NotificationChannelOptions {
   inApp: boolean;
   push: boolean;
   email: boolean;
@@ -39,7 +39,7 @@ const Notifications: React.FC = () => {
   const [target, setTarget] = useState<Target | ''>('');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [options, setOptions] = useState<NotificationOptions>({
+  const [channels, setChannels] = useState<NotificationChannelOptions>({
     inApp: true,
     push: false,
     email: false,
@@ -151,7 +151,7 @@ const Notifications: React.FC = () => {
     target !== '' &&
     title.trim() &&
     message.trim() &&
-    (options.inApp || options.push || options.email) &&
+    (channels.inApp || channels.push || channels.email) &&
     (target !== 'selected' || selectedUsers.length > 0);
 
   const handleSend = async () => {
@@ -171,7 +171,7 @@ const Notifications: React.FC = () => {
 
     setIsSending(true);
     try {
-      const body: any = { title, message, options, target };
+      const body: any = { title, message, channels, target };
       if (target === 'selected') {
         body.userIds = selectedUsers.map((u) => u.id);
       }
@@ -329,7 +329,7 @@ const Notifications: React.FC = () => {
           />
         </div>
 
-        {/* Notification options */}
+        {/* Delivery channels */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Delivery Channels
@@ -338,8 +338,8 @@ const Notifications: React.FC = () => {
             <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
               <input
                 type="checkbox"
-                checked={options.inApp}
-                onChange={(e) => setOptions((prev) => ({ ...prev, inApp: e.target.checked }))}
+                checked={channels.inApp}
+                onChange={(e) => setChannels((prev) => ({ ...prev, inApp: e.target.checked }))}
                 className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
               />
               <span className="text-sm font-medium text-gray-900">In-App Notification</span>
@@ -347,8 +347,8 @@ const Notifications: React.FC = () => {
             <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
               <input
                 type="checkbox"
-                checked={options.push}
-                onChange={(e) => setOptions((prev) => ({ ...prev, push: e.target.checked }))}
+                checked={channels.push}
+                onChange={(e) => setChannels((prev) => ({ ...prev, push: e.target.checked }))}
                 className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
               />
               <span className="text-sm font-medium text-gray-900">Push Notification</span>
@@ -356,8 +356,8 @@ const Notifications: React.FC = () => {
             <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
               <input
                 type="checkbox"
-                checked={options.email}
-                onChange={(e) => setOptions((prev) => ({ ...prev, email: e.target.checked }))}
+                checked={channels.email}
+                onChange={(e) => setChannels((prev) => ({ ...prev, email: e.target.checked }))}
                 className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
               />
               <span className="text-sm font-medium text-gray-900">Email Notification</span>

@@ -1,8 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Send, Search, X, Users, Bell } from 'lucide-react';
+import { Send, Search, X, Users, Bell, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 import { confirm } from '@/lib/confirm';
@@ -48,15 +57,24 @@ const Notifications: React.FC = () => {
   });
   const [isSending, setIsSending] = useState(false);
 
-  const [alert, setAlert] = useState<{ type: 'success' | 'error' | null; message: string }>({
-    type: null,
-    message: '',
-  });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const showAlert = (type: 'success' | 'error', msg: string) => {
-    setAlert({ type, message: msg });
-    setTimeout(() => setAlert({ type: null, message: '' }), 5000);
+  const showError = (msg: string) => {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 5000);
   };
+
+  const [sentReceipt, setSentReceipt] = useState<{
+    queuedCount: number;
+    title: string;
+    targetLabel: string;
+    channelsLabel: string;
+  } | null>(null);
+
+  const buildChannelsLabel = (c: NotificationChannelOptions) =>
+    [c.inApp && 'In-app', c.push && 'Push', c.email && 'Email']
+      .filter(Boolean)
+      .join(', ');
 
   // User picker state
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
@@ -191,12 +209,25 @@ const Notifications: React.FC = () => {
         throw new Error(data.message || 'Failed to send notifications');
       }
 
-      showAlert('success', 'Notifications sent successfully!');
+      const queuedCount =
+        typeof data?.queuedCount === 'number' ? data.queuedCount : 0;
+      const receiptTargetLabel =
+        target === 'selected'
+          ? `${selectedUsers.length} selected user${selectedUsers.length === 1 ? '' : 's'}`
+          : TARGET_LABELS[target];
+
+      setSentReceipt({
+        queuedCount,
+        title,
+        targetLabel: receiptTargetLabel,
+        channelsLabel: buildChannelsLabel(channels),
+      });
+
       setTitle('');
       setMessage('');
       setSelectedUsers([]);
     } catch (err) {
-      showAlert('error', err instanceof Error ? err.message : 'Failed to send notifications');
+      showError(err instanceof Error ? err.message : 'Failed to send notifications');
     } finally {
       setIsSending(false);
     }
@@ -209,15 +240,12 @@ const Notifications: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Send Notification</h2>
       </div>
 
-      {alert.type && (
+      {errorMessage && (
         <div
-          className={`mb-6 p-4 rounded-md ${
-            alert.type === 'success'
-              ? 'bg-green-100 text-green-700 border border-green-400'
-              : 'bg-red-100 text-red-700 border border-red-400'
-          }`}
+          role="alert"
+          className="mb-6 p-4 rounded-md bg-red-100 text-red-700 border border-red-400"
         >
-          {alert.message}
+          {errorMessage}
         </div>
       )}
 
@@ -377,6 +405,70 @@ const Notifications: React.FC = () => {
           {isSending ? 'Sending...' : 'Send Notification'}
         </Button>
       </div>
+
+      <AlertDialog
+        open={!!sentReceipt}
+        onOpenChange={(isOpen) => { if (!isOpen) setSentReceipt(null); }}
+      >
+        {sentReceipt && (
+          <AlertDialogContent className="bg-white border border-gray-200 shadow-xl">
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3">
+                {sentReceipt.queuedCount === 0 ? (
+                  <AlertTriangle className="h-7 w-7 text-yellow-500" />
+                ) : (
+                  <CheckCircle2 className="h-7 w-7 text-green-600" />
+                )}
+                <AlertDialogTitle className="text-gray-900">
+                  {sentReceipt.queuedCount === 0
+                    ? 'No recipients matched'
+                    : 'Notification sent'}
+                </AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="text-gray-700 pt-2">
+                {sentReceipt.queuedCount === 0 ? (
+                  <>
+                    The notification was not delivered to anyone — the audience filter
+                    matched <strong>0 users</strong>. Adjust your target audience and try
+                    again.
+                  </>
+                ) : (
+                  <>
+                    Queued for delivery to{' '}
+                    <strong>
+                      {sentReceipt.queuedCount.toLocaleString()} recipient
+                      {sentReceipt.queuedCount === 1 ? '' : 's'}
+                    </strong>
+                    .
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
+              <div>
+                <span className="text-gray-500">Audience:</span>{' '}
+                <span className="font-medium">{sentReceipt.targetLabel}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Title:</span>{' '}
+                <span className="font-medium">{sentReceipt.title}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Channels:</span>{' '}
+                <span className="font-medium">{sentReceipt.channelsLabel}</span>
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogAction
+                onClick={() => setSentReceipt(null)}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Done
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
     </div>
   );
 };

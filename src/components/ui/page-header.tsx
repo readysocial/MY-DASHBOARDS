@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
-  title: string;
+  title?: string;
   description?: string;
   icon?: React.ReactNode;
   actions?: React.ReactNode;
@@ -27,14 +27,18 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <div className="flex items-center gap-2">
-          {icon ? (
-            <span className="text-rs-text-muted shrink-0 [&_svg]:h-5 [&_svg]:w-5">
-              {icon}
-            </span>
-          ) : null}
-          <h1 className="rs-page-title truncate">{title}</h1>
-        </div>
+        {title || icon ? (
+          <div className="flex items-center gap-2">
+            {icon ? (
+              <span className="text-rs-text-muted shrink-0 [&_svg]:h-5 [&_svg]:w-5">
+                {icon}
+              </span>
+            ) : null}
+            {title ? (
+              <h1 className="rs-page-title truncate">{title}</h1>
+            ) : null}
+          </div>
+        ) : null}
         {description ? (
           <p className="rs-page-description max-w-2xl">{description}</p>
         ) : null}

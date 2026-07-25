@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   ArrowUp,
   ArrowDown,
-  Home,
   User,
   Headphones,
   Video,
@@ -30,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
@@ -175,26 +173,20 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Dashboard"
         description="Overview of users, listeners, and sessions across the platform."
-        icon={<Home strokeWidth={1.75} />}
         actions={
-          <>
-            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-[120px] border-rs-border bg-rs-surface shadow-none">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                {["2021", "2022", "2023", "2024"].map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline">Documentation</Button>
-            <Button>Download Report</Button>
-          </>
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-[120px] border-rs-border bg-rs-surface shadow-none">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {["2021", "2022", "2023", "2024"].map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         }
       />
 

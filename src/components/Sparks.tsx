@@ -1,18 +1,28 @@
-import React, { useCallback, useEffect, useState } from "react";
-import {
-  Zap,
-  RefreshCw,
-  Search,
-  X,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Zap, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHeader,
+  TableRow,
+  SortableTableHead,
+  TableHead,
+} from "@/components/ui/table";
+import { TableCard } from "@/components/ui/table-card";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { tableControlClassName } from "@/components/ui/table-search";
+import {
+  FilterField,
+  TableFilterMenu,
+} from "@/components/ui/table-filter-menu";
+import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
 import { confirm } from "@/lib/confirm";
 import { validateToken } from "@/utils/api";
 import {
@@ -33,6 +43,7 @@ import type {
   Wallet as WalletType,
   WalletStatus,
 } from "@/api/admin/sparks/types";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
@@ -51,22 +62,6 @@ const formatNumber = (value: number | undefined) =>
 const formatDate = (value?: string) =>
   value ? new Date(value).toLocaleString() : "—";
 
-const statusBadgeClass = (status: string) => {
-  switch (status) {
-    case "active":
-    case "completed":
-      return "border border-rs-border bg-transparent text-rs-success";
-    case "suspended":
-    case "pending":
-      return "border border-rs-border bg-transparent text-rs-warning";
-    case "closed":
-    case "failed":
-    case "cancelled":
-      return "border border-rs-border bg-transparent text-rs-text-muted";
-    default:
-      return "border border-rs-border bg-transparent text-rs-text-secondary";
-  }
-};
 
 const Sparks: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -246,8 +241,7 @@ const WalletsTab: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const applyFilters = (e: React.FormEvent) => {
-    e.preventDefault();
+  const applyFilters = () => {
     setApplied({
       userId,
       sparkId,
@@ -280,192 +274,223 @@ const WalletsTab: React.FC = () => {
     setPage(1);
   };
 
+  const handleSort = (column: string) => {
+    const nextOrder: "1" | "-1" =
+      applied.sortBy === column && applied.sortOrder === "-1" ? "1" : "-1";
+    setSortBy(column);
+    setSortOrder(nextOrder);
+    setApplied((prev) => ({
+      ...prev,
+      sortBy: column,
+      sortOrder: nextOrder,
+    }));
+    setPage(1);
+  };
+
+  const uiSortOrder = applied.sortOrder === "1" ? "asc" : "desc";
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (applied.userId) count += 1;
+    if (applied.sparkId) count += 1;
+    if (applied.status) count += 1;
+    if (applied.minSparks) count += 1;
+    if (applied.maxSparks) count += 1;
+    return count;
+  }, [applied]);
+
   return (
     <div className="space-y-4">
-      <form
-        onSubmit={applyFilters}
-        className="bg-white rounded-lg border p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3"
-      >
-        <Input
-          placeholder="User ID"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-        />
-        <Input
-          placeholder="Spark ID prefix"
-          value={sparkId}
-          onChange={(e) => setSparkId(e.target.value)}
-        />
-        <select
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as WalletStatus | "")}
-        >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="closed">Closed</option>
-        </select>
-        <Input
-          type="number"
-          placeholder="Min sparks"
-          value={minSparks}
-          onChange={(e) => setMinSparks(e.target.value)}
-        />
-        <Input
-          type="number"
-          placeholder="Max sparks"
-          value={maxSparks}
-          onChange={(e) => setMaxSparks(e.target.value)}
-        />
-        <div className="flex gap-2">
-          <select
-            className="h-9 flex-1 rounded-md border border-input bg-transparent px-3 text-sm"
-            value={`${sortBy}:${sortOrder}`}
-            onChange={(e) => {
-              const [by, order] = e.target.value.split(":") as [
-                string,
-                "1" | "-1",
-              ];
-              setSortBy(by);
-              setSortOrder(order);
-            }}
-          >
-            <option value="createdAt:-1">Newest</option>
-            <option value="createdAt:1">Oldest</option>
-            <option value="sparks:-1">Sparks high → low</option>
-            <option value="sparks:1">Sparks low → high</option>
-          </select>
-        </div>
-        <div className="md:col-span-3 xl:col-span-6 flex gap-2">
-          <Button type="submit" size="sm">
-            <Search className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
-            Clear
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setRefreshKey((k) => k + 1)}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </form>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {error ? (
+        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-3 text-sm text-rs-text">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-rs-border bg-rs-surface">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-rs-header text-left text-xs text-rs-text-muted">
-              <tr className="border-b border-rs-border">
-                <th className="px-4 py-2.5 font-medium">Spark ID</th>
-                <th className="px-4 py-2.5 font-medium">User ID</th>
-                <th className="px-4 py-2.5 font-medium">Balance</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium">Created</th>
-              </tr>
-            </thead>
-            <tbody>
+      <TableCard
+        title="Wallets"
+        description={`${total} wallet${total === 1 ? "" : "s"}`}
+        actions={
+          <>
+            <TableFilterMenu
+              activeCount={activeFilterCount}
+              onApply={applyFilters}
+              onClear={clearFilters}
+            >
+              <FilterField label="User ID">
+                <Input
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Exact or partial ID"
+                />
+              </FilterField>
+              <FilterField label="Spark ID">
+                <Input
+                  value={sparkId}
+                  onChange={(e) => setSparkId(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="Prefix"
+                />
+              </FilterField>
+              <FilterField label="Status">
+                <select
+                  className={cn(tableControlClassName, "w-full")}
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value as WalletStatus | "")
+                  }
+                >
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </FilterField>
+              <div className="grid grid-cols-2 gap-2">
+                <FilterField label="Min balance">
+                  <Input
+                    type="number"
+                    value={minSparks}
+                    onChange={(e) => setMinSparks(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="0"
+                  />
+                </FilterField>
+                <FilterField label="Max balance">
+                  <Input
+                    type="number"
+                    value={maxSparks}
+                    onChange={(e) => setMaxSparks(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="—"
+                  />
+                </FilterField>
+              </div>
+            </TableFilterMenu>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              disabled={loading}
+              aria-label="Refresh wallets"
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", loading && "animate-spin")}
+              />
+            </Button>
+          </>
+        }
+        footer={
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            itemLabel="wallets"
+            onPageChange={setPage}
+          />
+        }
+      >
+        <div className="hidden md:block">
+          <Table variant="plain">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Spark ID</TableHead>
+                <TableHead>User ID</TableHead>
+                <SortableTableHead
+                  column="sparks"
+                  sortBy={applied.sortBy}
+                  sortOrder={uiSortOrder}
+                  onSort={handleSort}
+                >
+                  Balance
+                </SortableTableHead>
+                <TableHead>Status</TableHead>
+                <SortableTableHead
+                  column="createdAt"
+                  sortBy={applied.sortBy}
+                  sortOrder={uiSortOrder}
+                  onSort={handleSort}
+                >
+                  Created
+                </SortableTableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    Loading wallets…
-                  </td>
-                </tr>
+                <TableEmpty colSpan={5}>Loading wallets…</TableEmpty>
               ) : wallets.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    No wallets found.
-                  </td>
-                </tr>
+                <TableEmpty colSpan={5}>No wallets found</TableEmpty>
               ) : (
                 wallets.map((wallet) => (
-                  <tr
+                  <TableRow
                     key={wallet.userId}
-                    className="border-b border-rs-border hover:bg-rs-page/60 cursor-pointer rs-transition"
+                    className="cursor-pointer"
                     onClick={() => setSelectedUserId(wallet.userId)}
                   >
-                    <td className="px-4 py-3 font-mono text-xs">
+                    <TableCell className="font-mono text-xs text-rs-text">
                       {wallet.sparkId}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
+                    </TableCell>
+                    <TableCell className="max-w-[10rem] truncate font-mono text-xs">
                       {wallet.userId}
-                    </td>
-                    <td className="px-4 py-3 font-semibold">
+                    </TableCell>
+                    <TableCell className="font-medium text-rs-text">
                       {formatNumber(wallet.sparks)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(wallet.status)}`}
-                      >
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone={statusToneFrom(wallet.status)}>
                         {wallet.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-rs-text-muted">
                       {formatDate(wallet.createdAt)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
-        <div className="md:hidden divide-y">
+        <div className="divide-y divide-rs-border md:hidden">
           {loading ? (
-            <p className="p-4 text-center text-gray-500">Loading wallets…</p>
+            <p className="p-4 text-center text-sm text-rs-text-muted">
+              Loading wallets…
+            </p>
           ) : wallets.length === 0 ? (
-            <p className="p-4 text-center text-gray-500">No wallets found.</p>
+            <p className="p-4 text-center text-sm text-rs-text-muted">
+              No wallets found
+            </p>
           ) : (
             wallets.map((wallet) => (
               <button
                 key={wallet.userId}
                 type="button"
-                className="w-full text-left p-4 hover:bg-gray-50"
+                className="w-full p-3 text-left rs-transition hover:bg-rs-page"
                 onClick={() => setSelectedUserId(wallet.userId)}
               >
-                <div className="flex justify-between items-start gap-2">
-                  <div>
-                    <p className="font-mono text-xs text-gray-500">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-rs-text-muted">
                       {wallet.sparkId}
                     </p>
-                    <p className="font-semibold mt-1">
+                    <p className="mt-1 font-medium text-rs-text">
                       {formatNumber(wallet.sparks)} sparks
                     </p>
-                    <p className="font-mono text-xs text-gray-400 mt-1 truncate">
+                    <p className="mt-0.5 truncate font-mono text-xs text-rs-text-muted">
                       {wallet.userId}
                     </p>
                   </div>
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(wallet.status)}`}
-                  >
+                  <StatusBadge tone={statusToneFrom(wallet.status)}>
                     {wallet.status}
-                  </span>
+                  </StatusBadge>
                 </div>
               </button>
             ))
           )}
         </div>
-      </div>
-
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        total={total}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-      />
+      </TableCard>
 
       {selectedUserId && (
         <WalletDetailModal
@@ -554,11 +579,9 @@ const WalletDetailModal: React.FC<WalletDetailModalProps> = ({
                     Status
                   </label>
                   <div className="mt-1">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(wallet.status)}`}
-                    >
+                    <StatusBadge tone={statusToneFrom(wallet.status)}>
                       {wallet.status}
-                    </span>
+                    </StatusBadge>
                   </div>
                 </div>
                 <DetailField
@@ -624,7 +647,9 @@ const WalletDetailModal: React.FC<WalletDetailModalProps> = ({
                         </div>
                         <p className="text-gray-600 mt-1">{tx.description}</p>
                         <div className="flex gap-2 mt-1 text-xs text-gray-500">
-                          <Badge variant="outline">{tx.status}</Badge>
+                          <StatusBadge tone={statusToneFrom(tx.status)}>
+                            {tx.status}
+                          </StatusBadge>
                           <span>{formatDate(tx.createdAt)}</span>
                         </div>
                       </li>
@@ -985,8 +1010,7 @@ const LedgerTab: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const applyFilters = (e: React.FormEvent) => {
-    e.preventDefault();
+  const applyFilters = () => {
     setApplied({
       userId,
       type,
@@ -1016,125 +1040,158 @@ const LedgerTab: React.FC = () => {
     setPage(1);
   };
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (applied.userId) count += 1;
+    if (applied.type) count += 1;
+    if (applied.status) count += 1;
+    if (applied.direction) count += 1;
+    if (applied.startDate) count += 1;
+    if (applied.endDate) count += 1;
+    return count;
+  }, [applied]);
+
   return (
     <div className="space-y-4">
-      <form
-        onSubmit={applyFilters}
-        className="bg-white rounded-lg border p-4 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3"
-      >
-        <Input
-          placeholder="User ID"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-        />
-        <select
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={type}
-          onChange={(e) => setType(e.target.value as TransactionType | "")}
-        >
-          <option value="">All types</option>
-          {TRANSACTION_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <select
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={status}
-          onChange={(e) =>
-            setStatus(e.target.value as TransactionStatus | "")
-          }
-        >
-          <option value="">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <select
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={direction}
-          onChange={(e) =>
-            setDirection(e.target.value as TransactionDirection | "")
-          }
-        >
-          <option value="">All directions</option>
-          <option value="credit">Credit</option>
-          <option value="debit">Debit</option>
-        </select>
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-        />
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-        <div className="md:col-span-3 xl:col-span-6 flex gap-2">
-          <Button type="submit" size="sm">
-            <Search className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
-            Clear
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setRefreshKey((k) => k + 1)}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </form>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {error ? (
+        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-3 text-sm text-rs-text">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-rs-border bg-rs-surface">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-rs-header text-left text-xs text-rs-text-muted">
-              <tr className="border-b border-rs-border">
-                <th className="px-4 py-2.5 font-medium">Date</th>
-                <th className="px-4 py-2.5 font-medium">Type</th>
-                <th className="px-4 py-2.5 font-medium">Direction</th>
-                <th className="px-4 py-2.5 font-medium">Amount</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium">User ID</th>
-                <th className="px-4 py-2.5 font-medium">Description</th>
-              </tr>
-            </thead>
-            <tbody>
+      <TableCard
+        title="Transaction ledger"
+        description={`${total} transaction${total === 1 ? "" : "s"}`}
+        actions={
+          <>
+            <TableFilterMenu
+              activeCount={activeFilterCount}
+              onApply={applyFilters}
+              onClear={clearFilters}
+            >
+              <FilterField label="User ID">
+                <Input
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="h-8 text-xs"
+                  placeholder="User ID"
+                />
+              </FilterField>
+              <FilterField label="Type">
+                <select
+                  className={cn(tableControlClassName, "w-full")}
+                  value={type}
+                  onChange={(e) =>
+                    setType(e.target.value as TransactionType | "")
+                  }
+                >
+                  <option value="">All types</option>
+                  {TRANSACTION_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </FilterField>
+              <FilterField label="Status">
+                <select
+                  className={cn(tableControlClassName, "w-full")}
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value as TransactionStatus | "")
+                  }
+                >
+                  <option value="">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </FilterField>
+              <FilterField label="Direction">
+                <select
+                  className={cn(tableControlClassName, "w-full")}
+                  value={direction}
+                  onChange={(e) =>
+                    setDirection(e.target.value as TransactionDirection | "")
+                  }
+                >
+                  <option value="">All directions</option>
+                  <option value="credit">Credit</option>
+                  <option value="debit">Debit</option>
+                </select>
+              </FilterField>
+              <div className="grid grid-cols-2 gap-2">
+                <FilterField label="From">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </FilterField>
+                <FilterField label="To">
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </FilterField>
+              </div>
+            </TableFilterMenu>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              disabled={loading}
+              aria-label="Refresh transactions"
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", loading && "animate-spin")}
+              />
+            </Button>
+          </>
+        }
+        footer={
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            itemLabel="transactions"
+            onPageChange={setPage}
+          />
+        }
+      >
+        <div className="hidden md:block">
+          <Table variant="plain">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Direction</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>User ID</TableHead>
+                <TableHead>Description</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    Loading transactions…
-                  </td>
-                </tr>
+                <TableEmpty colSpan={7}>Loading transactions…</TableEmpty>
               ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No transactions found.
-                  </td>
-                </tr>
+                <TableEmpty colSpan={7}>No transactions found</TableEmpty>
               ) : (
                 transactions.map((tx) => (
-                  <tr key={tx._id} className="border-b border-rs-border hover:bg-rs-page/60">
-                    <td className="px-4 py-3 text-rs-text-secondary whitespace-nowrap">
+                  <TableRow key={tx._id}>
+                    <TableCell className="whitespace-nowrap text-xs text-rs-text-muted">
                       {formatDate(tx.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-rs-text">{tx.type}</td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="font-medium text-rs-text">
+                      {tx.type}
+                    </TableCell>
+                    <TableCell>
                       <span
                         className={
                           tx.direction === "credit"
@@ -1144,112 +1201,70 @@ const LedgerTab: React.FC = () => {
                       >
                         {tx.direction}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 font-semibold">
+                    </TableCell>
+                    <TableCell className="font-medium text-rs-text">
                       {formatNumber(tx.amount)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(tx.status)}`}
-                      >
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone={statusToneFrom(tx.status)}>
                         {tx.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">{tx.userId}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell className="max-w-[8rem] truncate font-mono text-xs">
+                      {tx.userId}
+                    </TableCell>
+                    <TableCell className="max-w-[12rem] truncate text-xs">
                       {tx.description}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
-        <div className="md:hidden divide-y">
+        <div className="divide-y divide-rs-border md:hidden">
           {loading ? (
-            <p className="p-4 text-center text-gray-500">
+            <p className="p-4 text-center text-sm text-rs-text-muted">
               Loading transactions…
             </p>
           ) : transactions.length === 0 ? (
-            <p className="p-4 text-center text-gray-500">
-              No transactions found.
+            <p className="p-4 text-center text-sm text-rs-text-muted">
+              No transactions found
             </p>
           ) : (
             transactions.map((tx) => (
-              <div key={tx._id} className="p-4 space-y-1">
+              <div key={tx._id} className="space-y-1 p-3">
                 <div className="flex justify-between gap-2">
-                  <span className="font-medium text-sm">{tx.type}</span>
+                  <span className="text-sm font-medium text-rs-text">
+                    {tx.type}
+                  </span>
                   <span
-                    className={`font-semibold text-sm ${
+                    className={`text-sm font-medium ${
                       tx.direction === "credit"
-                        ? "text-green-700"
-                        : "text-red-700"
+                        ? "text-rs-success"
+                        : "text-rs-text-muted"
                     }`}
                   >
                     {tx.direction === "credit" ? "+" : "-"}
                     {formatNumber(tx.amount)}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">{tx.description}</p>
-                <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-medium ${statusBadgeClass(tx.status)}`}
-                  >
+                <p className="text-sm text-rs-text-secondary">{tx.description}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-rs-text-muted">
+                  <StatusBadge tone={statusToneFrom(tx.status)}>
                     {tx.status}
-                  </span>
+                  </StatusBadge>
                   <span>{formatDate(tx.createdAt)}</span>
-                  <span className="font-mono truncate">{tx.userId}</span>
+                  <span className="truncate font-mono">{tx.userId}</span>
                 </div>
               </div>
             ))
           )}
         </div>
-      </div>
-
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        total={total}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-      />
+      </TableCard>
     </div>
   );
 };
-
-const Pagination: React.FC<{
-  page: number;
-  totalPages: number;
-  total: number;
-  onPrev: () => void;
-  onNext: () => void;
-}> = ({ page, totalPages, total, onPrev, onNext }) => (
-  <div className="flex items-center justify-between text-sm text-gray-600">
-    <span>
-      Page {page} of {totalPages} · {formatNumber(total)} total
-    </span>
-    <div className="flex gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={onPrev}
-        disabled={page <= 1}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={onNext}
-        disabled={page >= totalPages}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  </div>
-);
 
 export default Sparks;

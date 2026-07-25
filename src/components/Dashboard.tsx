@@ -40,8 +40,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableCard } from "@/components/ui/table-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
 import { colors } from "@/styles/tokens";
 import { cn } from "@/lib/utils";
 
@@ -113,9 +115,7 @@ const SessionRow: React.FC<SessionRowProps> = ({
     <TableCell>{listener}</TableCell>
     <TableCell>{duration}</TableCell>
     <TableCell>
-      <span className="inline-flex items-center rounded-full border border-rs-border bg-rs-surface px-2 py-0.5 text-xs font-medium text-rs-text">
-        {status}
-      </span>
+      <StatusBadge tone={statusToneFrom(status)}>{status}</StatusBadge>
     </TableCell>
   </TableRow>
 );
@@ -345,51 +345,46 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Recent Sessions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Listener</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <SessionRow
-                  id="S-1234"
-                  date="Mar 15, 2024"
-                  user="John Doe"
-                  listener="Sarah Smith"
-                  duration="45 mins"
-                  status="Completed"
-                />
-                <SessionRow
-                  id="S-1235"
-                  date="Mar 15, 2024"
-                  user="Alice Johnson"
-                  listener="Mike Brown"
-                  duration="30 mins"
-                  status="In Progress"
-                />
-                <SessionRow
-                  id="S-1236"
-                  date="Mar 14, 2024"
-                  user="Emma Wilson"
-                  listener="David Lee"
-                  duration="60 mins"
-                  status="Completed"
-                />
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <TableCard title="Recent Sessions" className="lg:col-span-2">
+          <Table variant="plain">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>ID</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Listener</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <SessionRow
+                id="S-1234"
+                date="Mar 15, 2024"
+                user="John Doe"
+                listener="Sarah Smith"
+                duration="45 mins"
+                status="Completed"
+              />
+              <SessionRow
+                id="S-1235"
+                date="Mar 15, 2024"
+                user="Alice Johnson"
+                listener="Mike Brown"
+                duration="30 mins"
+                status="In Progress"
+              />
+              <SessionRow
+                id="S-1236"
+                date="Mar 14, 2024"
+                user="Emma Wilson"
+                listener="David Lee"
+                duration="60 mins"
+                status="Completed"
+              />
+            </TableBody>
+          </Table>
+        </TableCard>
 
         <div className="space-y-4">
           <Card>

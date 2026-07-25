@@ -1,29 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Search,
   Plus,
-  Calendar,
   X,
-  Eye,
   Edit2,
   Video,
-  Clock,
-  Headphones,
   RefreshCw,
   Tag,
   Check,
   Trash2,
-  Copy,
-  Repeat,
-  CheckCircle,
-  AlertCircle
+  Download,
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 import { SessionMeetingLink } from '@/components/listener/SessionMeetingLink';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+  SortableTableHead,
+} from '@/components/ui/table';
+import { TableCard } from '@/components/ui/table-card';
+import { TablePagination } from '@/components/ui/table-pagination';
+import { TableCardSearch } from '@/components/ui/table-search';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SessionStatusUpdate } from '@/components/listener/SessionStatusUpdate';
 import { confirm } from '@/lib/confirm';
+import { cn } from '@/lib/utils';
 
 interface User {
   _id: string;
@@ -86,87 +95,12 @@ type SessionProgress = 'scheduled' | 'ongoing' | 'completed';
 type SessionStatus = 'successful' | 'unsuccessful' | 'cancelled' | 'pending';
 
 // --- SessionProgressBadge remains the same ---
-const ProgressBadge: React.FC<{ progress: SessionProgress }> = ({ progress }) => {
-  const progressClasses = {
-    'scheduled': 'bg-blue-100 text-blue-800',
-    'ongoing': 'bg-yellow-100 text-yellow-800',
-    'completed': 'bg-green-100 text-green-800'
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs ${progressClasses[progress]}`}>
-      {progress}
-    </span>
-  );
-};
-
-// --- Rotate animation for refresh button ---
-const rotateAnimation = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ onClick, isLoading }) => {
-  return (
-    <>
-      <style>{rotateAnimation}</style>
-      <button
-        onClick={onClick}
-        disabled={isLoading}
-        className={`p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors
-          flex items-center justify-center ${isLoading ? 'cursor-not-allowed' : ''}`}
-        title="Refresh"
-      >
-        <RefreshCw
-          className={`h-5 w-5 text-gray-600
-            ${isLoading ? 'animate-spin' : 'transform transition-transform hover:rotate-180'}`}
-        />
-      </button>
-    </>
-  );
-};
-
-// --- StatusBadge remains the same ---
-const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
-  const statusClasses = {
-    'successful': 'bg-green-100 text-green-800',
-    'unsuccessful': 'bg-yellow-100 text-yellow-800',
-    'cancelled': 'bg-red-100 text-red-800',
-    'pending': 'bg-blue-100 text-blue-800'
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs ${statusClasses[status]}`}>
-      {status}
-    </span>
-  );
-};
-
-// Simplified RepeatBadge: Shows count for originals, "Repeated" tag for repeats
-const RepeatBadge: React.FC<{
-  repeatCount?: number;
-  isRepeated?: boolean;
-}> = ({ repeatCount, isRepeated }) => {
-  if (isRepeated) {
-    return (
-      <span className="px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
-        Repeated
-      </span>
-    );
-  }
-  if (repeatCount !== undefined) {
-    return (
-      <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-        {repeatCount}
-      </span>
-    );
-  }
-  return (
-    <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-      0
-    </span>
-  );
-};
+/** Tiny timing hint — not a second status pill. */
+const ProgressHint: React.FC<{ progress: SessionProgress }> = ({
+  progress,
+}) => (
+  <span className="text-[11px] capitalize text-rs-text-muted">{progress}</span>
+);
 
 // Helper function to format date with proper timezone handling
 const formatDateDisplay = (dateString: string) => {
@@ -414,26 +348,6 @@ const Sessions: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const generatePageNumbers = (currentPage: number, totalPages: number) => {
-    const pageNumbers = [];
-    pageNumbers.push(1);
-    let start = Math.max(2, currentPage - 2);
-    let end = Math.min(totalPages - 1, currentPage + 2);
-    if (start > 2) {
-      pageNumbers.push('...');
-    }
-    for (let i = start; i <= end; i++) {
-      pageNumbers.push(i);
-    }
-    if (end < totalPages - 1) {
-      pageNumbers.push('...');
-    }
-    if (totalPages > 1) {
-      pageNumbers.push(totalPages);
-    }
-    return pageNumbers;
-  };
-
   // Topic management handlers (unchanged)
   const handleCreateTopic = async () => {
     if (!validateToken()) return;
@@ -569,203 +483,230 @@ const Sessions: React.FC = () => {
     }
   };
 
-  // --- Updated Mobile Card Renderer ---
   const renderMobileCard = (session: Session) => {
     if (!session.user) {
       return null;
     }
-    // Use the helper function to format date and time
     const { formattedDate, formattedTime } = formatDateDisplay(session.time);
+    const topic = session.topicRef?.topic || session.topic;
     return (
-      <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h3 className="font-medium text-gray-900">
+      <div
+        key={session._id}
+        className="space-y-3 rounded-lg border border-rs-border bg-rs-surface p-3"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-rs-text">
               {session.user.anonymousName ?? 'Anonymous User'}
-            </h3>
+            </p>
+            <p className="truncate text-xs text-rs-text-muted">
+              {session.listener?.name ?? 'No listener'}
+              {session.isRepeated
+                ? ' · Repeated'
+                : session.repeatCount
+                  ? ` · ${session.repeatCount} repeats`
+                  : ''}
+            </p>
           </div>
-          <div className="flex flex-col gap-2">
-            <ProgressBadge progress={getSessionProgress(session.time)} />
-            <StatusBadge status={session.status} />
-            <RepeatBadge
-              repeatCount={session.repeatCount}
-              isRepeated={session.isRepeated}
-            />
-          </div>
+          <ProgressHint progress={getSessionProgress(session.time)} />
         </div>
-        <div className="space-y-2 text-sm text-gray-600">
-          {session.listener ? (
-            <div className="flex items-center">
-              <Headphones className="h-4 w-4 mr-2" />
-              <div className="flex flex-col">
-                <span>{session.listener.name}</span>
-                <span className="text-xs text-gray-500">{session.listener.email}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center">
-              <Headphones className="h-4 w-4 mr-2" />
-              <span className="text-sm text-gray-500">No Listener Assigned</span>
-            </div>
-          )}
-          {/* Updated Time Display using the helper function */}
-          <div className="flex items-center">
-            <Clock className="h-4 w-4 mr-2" />
-            <div className="flex flex-col">
-              <span>{formattedDate}</span>
-              <span className="text-xs text-gray-500">{formattedTime}</span>
-            </div>
+        <div className="flex items-baseline justify-between gap-3 text-sm">
+          <div>
+            <p className="text-rs-text">{formattedDate}</p>
+            <p className="text-xs text-rs-text-muted">{formattedTime}</p>
           </div>
-          <div className="flex items-center">
-            <Tag className="h-4 w-4 mr-2" />
-            <span>{session.topicRef?.topic || session.topic}</span>
-          </div>
-          {session.reflectData && (
-            <div className="mt-4 border-t border-gray-100 pt-3">
-              <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
-              {session.reflectData.userReflectionData.map((reflection) => (
-                <div key={reflection._id} className="mb-2 last:mb-0 pl-2 border-l-2 border-gray-200">
-                  <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                  <p className="text-sm text-gray-900">{reflection.answer}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="max-w-[50%] truncate text-right text-rs-text-secondary">
+            {topic}
+          </p>
         </div>
-        <div className="mt-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <SessionMeetingLink
-              sessionId={session._id}
-              initialMeetingLink={session.meetingLink}
-              onLinkAdded={(newLink) => {
-                setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
-              }}
-              isEditable={true}
-            />
-          </div>
-          <div className="pt-2 border-t border-gray-100">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Update Status</h4>
-            {/* ✅ USE THE EXTERNAL SESSION STATUS UPDATE COMPONENT */}
-            <SessionStatusUpdate
-              sessionId={session._id}
-              currentStatus={session.status}
-              sessionTime={session.time}
-              onStatusUpdated={(newStatus) => {
-                setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
-              }}
-            />
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-rs-border pt-3">
+          <SessionMeetingLink
+            sessionId={session._id}
+            initialMeetingLink={session.meetingLink}
+            onLinkAdded={(newLink) => {
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s._id === session._id ? { ...s, meetingLink: newLink } : s
+                )
+              );
+            }}
+            isEditable={true}
+          />
+          <SessionStatusUpdate
+            sessionId={session._id}
+            currentStatus={session.status}
+            sessionTime={session.time}
+            onStatusUpdated={(newStatus) => {
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s._id === session._id ? { ...s, status: newStatus } : s
+                )
+              );
+            }}
+          />
         </div>
       </div>
     );
   };
 
-  // --- Updated Table Renderer ---
-  const renderTable = () => {
+  const totalPages = Math.max(1, Math.ceil(totalSessions / sessionsPerPage));
+
+  const sessionsCardActions = (
+    <TableCardSearch
+      value={searchTerm}
+      onChange={(value) => {
+        setSearchTerm(value);
+        setCurrentPage(1);
+      }}
+      aria-label="Search sessions"
+    />
+  );
+
+  const renderSessionsPanel = () => {
+    const rows = filteredSessions.filter((session) => session.user);
+
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('user')}>User</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('listener')}>Listener</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('time')}>Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('topic')}>Topic</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Link</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('repeats')}>Repeat Count</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reflection</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Update Status</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredSessions.map((session) => {
-              if (!session.user) return null;
-              // Use the helper function to format date and time
-              const { formattedDate, formattedTime } = formatDateDisplay(session.time);
-              return (
-                <tr key={session._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-gray-900">
-                        {session.user.anonymousName ?? 'Anonymous User'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {session.listener ? (
-                      <div className="flex flex-col">
-                        <span className="text-sm text-gray-900">{session.listener.name}</span>
-                        <span className="text-xs text-gray-500">{session.listener.email}</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-500">No Listener</span>
-                    )}
-                  </td>
-                  {/* Updated Time Cell using the helper function */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-900">{formattedDate}</span>
-                      <span className="text-xs text-gray-500">{formattedTime}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {session.topicRef?.topic || session.topic}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <SessionMeetingLink
-                      sessionId={session._id}
-                      initialMeetingLink={session.meetingLink}
-                      onLinkAdded={(newLink) => {
-                        setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
-                      }}
-                      isEditable={true}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <ProgressBadge progress={getSessionProgress(session.time)} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={session.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <RepeatBadge
-                      repeatCount={session.repeatCount}
-                      isRepeated={session.isRepeated}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {session.reflectData ? (
-                      <div className="max-w-xs">
-                        {session.reflectData.userReflectionData.map((reflection) => (
-                          <div key={reflection._id} className="mb-2 last:mb-0">
-                            <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                            <p className="text-sm text-gray-900">{reflection.answer}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-500">No reflection</span>
-                    )}
-                  </td>
-                  {/* ✅ USE THE EXTERNAL SESSION STATUS UPDATE COMPONENT */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <SessionStatusUpdate
-                      sessionId={session._id}
-                      currentStatus={session.status}
-                      sessionTime={session.time}
-                      onStatusUpdated={(newStatus) => {
-                        setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
-                      }}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <TableCard
+        title="All sessions"
+        description={`${totalSessions} booking${totalSessions === 1 ? '' : 's'}`}
+        actions={sessionsCardActions}
+        footer={
+          <TablePagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={totalSessions}
+            itemLabel="sessions"
+            onPageChange={setCurrentPage}
+          />
+        }
+      >
+        <div className="hidden sm:block">
+          <Table variant="plain">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <SortableTableHead
+                  column="user"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                >
+                  Session
+                </SortableTableHead>
+                <SortableTableHead
+                  column="time"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                >
+                  When
+                </SortableTableHead>
+                <SortableTableHead
+                  column="topic"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                >
+                  Topic
+                </SortableTableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Meeting</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableEmpty colSpan={5}>No sessions found</TableEmpty>
+              ) : (
+                rows.map((session) => {
+                  const { formattedDate, formattedTime } = formatDateDisplay(
+                    session.time
+                  );
+                  const metaBits = [
+                    session.listener?.name,
+                    session.isRepeated
+                      ? 'Repeated'
+                      : session.repeatCount
+                        ? `${session.repeatCount} repeats`
+                        : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <TableRow key={session._id}>
+                      <TableCell className="max-w-[14rem]">
+                        <p className="truncate font-medium text-rs-text">
+                          {session.user.anonymousName ?? 'Anonymous User'}
+                        </p>
+                        <p className="truncate text-xs text-rs-text-muted">
+                          {metaBits.length > 0
+                            ? metaBits.join(' · ')
+                            : 'No listener'}
+                        </p>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <p className="text-sm text-rs-text">{formattedDate}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-rs-text-muted">
+                            {formattedTime}
+                          </span>
+                          <span className="text-rs-border">·</span>
+                          <ProgressHint
+                            progress={getSessionProgress(session.time)}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[12rem]">
+                        <span className="line-clamp-1 text-sm text-rs-text">
+                          {session.topicRef?.topic || session.topic}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <SessionStatusUpdate
+                          sessionId={session._id}
+                          currentStatus={session.status}
+                          sessionTime={session.time}
+                          onStatusUpdated={(newStatus) => {
+                            setSessions((prev) =>
+                              prev.map((s) =>
+                                s._id === session._id
+                                  ? { ...s, status: newStatus }
+                                  : s
+                              )
+                            );
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <SessionMeetingLink
+                          sessionId={session._id}
+                          initialMeetingLink={session.meetingLink}
+                          onLinkAdded={(newLink) => {
+                            setSessions((prev) =>
+                              prev.map((s) =>
+                                s._id === session._id
+                                  ? { ...s, meetingLink: newLink }
+                                  : s
+                              )
+                            );
+                          }}
+                          isEditable={true}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="space-y-2 p-3 sm:hidden">
+          {rows.length === 0 ? (
+            <p className="py-6 text-center text-sm text-rs-text-muted">
+              No sessions found
+            </p>
+          ) : (
+            rows.map(renderMobileCard)
+          )}
+        </div>
+      </TableCard>
     );
   };
 
@@ -984,142 +925,58 @@ const Sessions: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="sm:flex sm:items-center justify-between">
-        <div className="sm:flex-auto">
-          <h1 className="rs-page-title">Sessions</h1>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:flex items-center space-x-4">
-          <button
-            className="flex items-center justify-center bg-rs-primary text-white
-              px-4 py-2 rounded-md text-sm font-medium hover:bg-rs-primary/90 rs-transition"
-            onClick={() => {
-              setEditingTopicId(null);
-              setShowTopicModal(true);
-            }}
-          >
-            <Tag className="h-4 w-4 mr-2" />
-            <span>Manage Topics</span>
-          </button>
-          <RefreshButton
-            onClick={() => {
-              setCurrentPage(1);
-              fetchSessions();
-            }}
-            isLoading={isLoading}
-          />
-          <div className="relative w-64">
-            <input
-              type="text"
-              className="w-full focus:ring-blue-500 focus:border-blue-500 block pr-10
-                sm:text-sm border-gray-300 rounded-lg"
-              placeholder="Search sessions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-          <button
-            className="flex items-center justify-center bg-green-500 text-white
-              px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            onClick={exportSessions}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span>Export Sessions</span>
-          </button>
-        </div>
-      </div>
-      <div className="mt-4 flex justify-between items-center">
-        <div className="flex space-x-2">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="border rounded-lg p-2 bg-white text-gray-800"
-          >
-            <option value="user">User</option>
-            <option value="listener">Listener</option>
-            <option value="time">Time</option>
-            <option value="topic">Topic</option>
-            <option value="repeats">Repeats</option>
-          </select>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className="border rounded-lg p-2 bg-white text-gray-800"
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-          <button
-            onClick={() => {
-              setCurrentPage(1);
-              fetchSessions();
-            }}
-            className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Sort
-          </button>
-        </div>
-      </div>
-      <div className="mt-8">
-        {isLoading ? (
-          <div className="flex justify-center items-center min-h-[400px]">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
-              <div className="w-12 h-12 rounded-full border-4 border-red-500 border-t-transparent animate-spin absolute top-0 left-0"></div>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-600">{error}</div>
-        ) : (
+      <PageHeader
+        title="Sessions"
+        description="Review bookings, meeting links, and session outcomes."
+        icon={<Video strokeWidth={1.75} />}
+        actions={
           <>
-            <div className="hidden sm:block">{renderTable()}</div>
-            <div className="sm:hidden space-y-4">{sessions.map(renderMobileCard)}</div>
-            {showTopicModal && renderTopicModal()}
-          </>
-        )}
-        <div className="mt-6 flex flex-wrap justify-center items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded-md text-sm ${
-              currentPage === 1
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-          >
-            Previous
-          </button>
-          {generatePageNumbers(currentPage, Math.ceil(totalSessions / sessionsPerPage)).map((pageNum, index) => (
-            <button
-              key={index}
-              onClick={() => typeof pageNum === 'number' ? setCurrentPage(pageNum) : null}
-              disabled={pageNum === '...'}
-              className={`px-3 py-1 rounded-md text-sm ${
-                pageNum === currentPage
-                  ? 'bg-red-500 text-white'
-                  : pageNum === '...'
-                    ? 'bg-transparent cursor-default'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCurrentPage(1);
+                fetchSessions();
+              }}
+              disabled={isLoading}
             >
-              {pageNum}
-            </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalSessions / sessionsPerPage), prev + 1))}
-            disabled={currentPage === Math.ceil(totalSessions / sessionsPerPage)}
-            className={`px-3 py-1 rounded-md text-sm ${
-              currentPage === Math.ceil(totalSessions / sessionsPerPage)
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-          >
-            Next
-          </button>
+              <RefreshCw
+                className={cn('mr-2 h-3.5 w-3.5', isLoading && 'animate-spin')}
+              />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportSessions}>
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Export
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingTopicId(null);
+                setShowTopicModal(true);
+              }}
+            >
+              <Tag className="mr-2 h-3.5 w-3.5" />
+              Manage Topics
+            </Button>
+          </>
+        }
+      />
+
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
-      </div>
+      ) : error ? (
+        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-8 text-center text-sm text-rs-text">
+          {error}
+        </div>
+      ) : (
+        renderSessionsPanel()
+      )}
+
+      {showTopicModal && renderTopicModal()}
     </div>
   );
 };

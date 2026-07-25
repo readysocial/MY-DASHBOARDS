@@ -1,8 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, MessageCircle } from 'lucide-react';
+import { Download, Eye, MessageCircle, Users as UsersIcon } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 import { confirm } from '@/lib/confirm';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+  SortableTableHead,
+} from '@/components/ui/table';
+import { TableCard } from '@/components/ui/table-card';
+import { TablePagination } from '@/components/ui/table-pagination';
+import { TableCardSearch } from '@/components/ui/table-search';
+import { StatusBadge, statusToneFrom } from '@/components/ui/status-badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // --- ADJUSTED INTERFACE: Removed firstName, lastName as they are not part of the User object used for display ---
 interface User {
@@ -738,299 +756,223 @@ const Users: React.FC = () => {
     </div>
   );
 
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("desc");
+    }
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="rs-page-title">Users</h2>
-        <div className="flex space-x-2">
-          <button
-            className="flex items-center justify-center bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            onClick={exportUsers}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span>Export Users</span>
-          </button>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="border rounded-lg p-2 bg-white text-gray-800"
-            aria-label="Sort by"
-          >
-            {/* --- CHANGED SORT OPTIONS --- */}
-            {/* <option value="anonymousName">Name</option> */}
-            <option value="createdAt">Registration Date</option>
-            {/* <option value="verified">Status</option> */}
-          </select>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className="border rounded-lg p-2 bg-white text-gray-800"
-            aria-label="Sort order"
-          >
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
-          <button
-            onClick={() => {
-              setCurrentPage(1);
-              fetchUsers();
-            }}
-            className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-          >
-            Sort
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <form onSubmit={handleSearch} className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="Search by anonymous name..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg text-gray-900 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            aria-label="Search users"
-          />
-          <button
-            type="submit"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600"
-          >
-            Search
-          </button>
-        </form>
-      </div>
+      <PageHeader
+        title="Users"
+        description="Browse and manage registered platform users."
+        icon={<UsersIcon strokeWidth={1.75} />}
+        actions={
+          <Button variant="outline" size="sm" onClick={exportUsers}>
+            <Download className="mr-2 h-3.5 w-3.5" />
+            Export
+          </Button>
+        }
+      />
 
       {isLoading ? (
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
-            <div className="w-12 h-12 rounded-full border-4 border-red-500 border-t-transparent animate-spin absolute top-0 left-0"></div>
-          </div>
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
         </div>
       ) : error ? (
-        <div className="p-4 text-red-500 text-center">Error: {error}</div>
+        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-8 text-center text-sm text-rs-text">
+          Error: {error}
+        </div>
       ) : (
         <>
-          <div className="sm:hidden space-y-4">
+          <div className="space-y-3 sm:hidden">
             {users.length > 0 ? (
-              // --- CORRECTED: Apply key via map, not inside the function ---
               users.map((user) => (
                 <div
                   key={user.id}
-                  className="bg-white rounded-lg shadow-sm p-4 border border-gray-200"
+                  className="rounded-xl border border-rs-border bg-rs-surface p-3"
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      {/* --- HANDLE EDGE CASE: anonymousName null/undefined --- */}
-                      <h3 className="font-medium text-gray-900">
-                        {user.anonymousName || "Anonymous User"}
-                      </h3>
-                    </div>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        user.verified
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <h3 className="font-medium text-rs-text">
+                      {user.anonymousName || "Anonymous User"}
+                    </h3>
+                    <StatusBadge
+                      tone={statusToneFrom(
+                        user.verified ? "verified" : "unverified"
+                      )}
                     >
                       {user.verified ? "Verified" : "Unverified"}
-                    </span>
+                    </StatusBadge>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
-                    {user.contact && (
-                      <div>
-                        <span className="font-medium">Phone:</span>{" "}
-                        {user.contact}
-                      </div>
-                    )}
-                    {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
-                    {user.createdAt && (
-                      <div>
-                        <span className="font-medium">Registered:</span>{" "}
+                  <div className="space-y-1 text-xs text-rs-text-muted">
+                    {user.contact ? <p>{user.contact}</p> : null}
+                    {user.createdAt ? (
+                      <p>
+                        Registered{" "}
                         {new Date(user.createdAt).toLocaleDateString()}
-                      </div>
-                    )}
-                    {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
-                    {user.updatedAt && (
-                      <div>
-                        <span className="font-medium">Last Updated:</span>{" "}
-                        {new Date(user.updatedAt).toLocaleDateString()}
-                      </div>
-                    )}
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="mt-4 flex justify-end space-x-2">
-                    <button
-                      className="text-red-500 hover:text-red-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewUser(user.id); // Now uses the mapped `id`
-                      }}
+                  <div className="mt-3 flex justify-end gap-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-rs-text-muted"
+                      onClick={() => handleViewUser(user.id)}
                       aria-label={`View details for ${user.anonymousName || "Anonymous User"}`}
                     >
-                      <Eye className="h-5 w-5" />
-                    </button>
-                    <button
-                      className="text-purple-500 hover:text-purple-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenNotificationModal(user.id); // Now uses the mapped `id`
-                      }}
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-rs-text-muted"
+                      onClick={() => handleOpenNotificationModal(user.id)}
                       aria-label={`Send notification to ${user.anonymousName || "Anonymous User"}`}
                     >
-                      <MessageCircle className="h-5 w-5" />
-                    </button>
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))
-            ) : isSearching ? (
-              <div className="text-center py-8 text-gray-500">
-                No users found matching "{searchTerm}"
-              </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                No users available
-              </div>
+              <p className="py-8 text-center text-sm text-rs-text-muted">
+                {isSearching
+                  ? `No users found matching "${searchTerm}"`
+                  : "No users available"}
+              </p>
             )}
           </div>
 
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="min-w-full border rounded-lg">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Phone
-                  </th>
-                  <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Registration
-                  </th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Updated
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.length > 0 ? (
-                  users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      {/* --- HANDLE EDGE CASE: anonymousName null/undefined --- */}
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {user.anonymousName || "Anonymous User"}
-                      </td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
-                        {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
-                        {user.contact || "N/A"}
-                      </td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-500">
-                        {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
-                        {user.createdAt
-                          ? new Date(user.createdAt).toLocaleDateString()
-                          : "N/A"}
-                      </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-500">
-                        {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
-                        {user.updatedAt
-                          ? new Date(user.updatedAt).toLocaleDateString()
-                          : "N/A"}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            user.verified
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {user.verified ? "Verified" : "Unverified"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex space-x-2">
-                          <button
-                            className="text-red-500 hover:text-red-700"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewUser(user.id);
-                            }}
-                            aria-label={`View details for ${user.anonymousName || "Anonymous User"}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            className="text-purple-500 hover:text-purple-700"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenNotificationModal(user.id);
-                            }}
-                            aria-label={`Send notification to ${user.anonymousName || "Anonymous User"}`}
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : isSearching ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-8 text-center text-gray-500"
+          <div className="hidden sm:block">
+            <TableCard
+              title="All users"
+              description={`${totalUsers} user${totalUsers === 1 ? "" : "s"}`}
+              actions={
+                <form
+                  onSubmit={handleSearch}
+                  className="flex items-center gap-2"
+                >
+                  <TableCardSearch
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search by name…"
+                    aria-label="Search users"
+                  />
+                  <Button type="submit" size="sm" variant="outline">
+                    Search
+                  </Button>
+                </form>
+              }
+              footer={
+                !isSearching ? (
+                  <TablePagination
+                    page={currentPage}
+                    totalPages={Math.ceil(totalUsers / usersPerPage)}
+                    total={totalUsers}
+                    itemLabel="users"
+                    onPageChange={setCurrentPage}
+                  />
+                ) : undefined
+              }
+            >
+              <Table variant="plain">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Name</TableHead>
+                    <TableHead className="hidden lg:table-cell">Phone</TableHead>
+                    <SortableTableHead
+                      column="createdAt"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                      className="hidden lg:table-cell"
                     >
-                      No users found matching "{searchTerm}"
-                    </td>
-                  </tr>
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-8 text-center text-gray-500"
-                    >
-                      No users available
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      Registration
+                    </SortableTableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Last Updated
+                    </TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[1%] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.length > 0 ? (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium text-rs-text">
+                          {user.anonymousName || "Anonymous User"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {user.contact || "N/A"}
+                        </TableCell>
+                        <TableCell className="hidden text-xs text-rs-text-muted lg:table-cell">
+                          {user.createdAt
+                            ? new Date(user.createdAt).toLocaleDateString()
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell className="hidden text-xs text-rs-text-muted md:table-cell">
+                          {user.updatedAt
+                            ? new Date(user.updatedAt).toLocaleDateString()
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            tone={statusToneFrom(
+                              user.verified ? "verified" : "unverified"
+                            )}
+                          >
+                            {user.verified ? "Verified" : "Unverified"}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-rs-text-muted"
+                              onClick={() => handleViewUser(user.id)}
+                              aria-label={`View details for ${user.anonymousName || "Anonymous User"}`}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-rs-text-muted"
+                              onClick={() =>
+                                handleOpenNotificationModal(user.id)
+                              }
+                              aria-label={`Send notification to ${user.anonymousName || "Anonymous User"}`}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : isSearching ? (
+                    <TableEmpty colSpan={6}>
+                      No users found matching &quot;{searchTerm}&quot;
+                    </TableEmpty>
+                  ) : (
+                    <TableEmpty colSpan={6}>No users available</TableEmpty>
+                  )}
+                </TableBody>
+              </Table>
+            </TableCard>
           </div>
-
-          {!isSearching && totalUsers > 0 && (
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {Array.from(
-                { length: Math.ceil(totalUsers / usersPerPage) },
-                (_, index: number) => (
-                  // --- FIX: Added missing key prop for pagination buttons ---
-                  <button
-                    key={index} // <-- THIS WAS MISSING
-                    onClick={() => {
-                      console.log(
-                        `[Users] Pagination clicked - Page ${index + 1}`,
-                      );
-                      setCurrentPage(index + 1);
-                    }}
-                    className={`px-3 py-1 rounded-md text-sm ${
-                      currentPage === index + 1
-                        ? "bg-red-500 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                    aria-label={`Go to page ${index + 1}`}
-                  >
-                    {index + 1}
-                  </button>
-                ),
-              )}
-            </div>
-          )}
         </>
       )}
 

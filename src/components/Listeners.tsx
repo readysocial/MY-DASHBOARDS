@@ -1,11 +1,30 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, RefreshCw, MessageCircle, CheckCircle, PowerOff, UserCheck, X, Mail, Download } from 'lucide-react';
-import { Listener, FormErrors, Message, TimeSlot } from '../types/listener';
-import { DAYS_OF_WEEK, DEFAULT_TIME_SLOTS, GENDERS } from '../constants/listener';
-import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
-import { API_URL } from '@/config/api';
+import React, { useEffect, useState } from "react";
+import {
+  Plus,
+  Edit2,
+  RefreshCw,
+  MessageCircle,
+  CheckCircle,
+  PowerOff,
+  UserCheck,
+  X,
+  Mail,
+  Download,
+} from "lucide-react";
+import { Listener, FormErrors, Message, TimeSlot } from "../types/listener";
+import {
+  DAYS_OF_WEEK,
+  DEFAULT_TIME_SLOTS,
+  GENDERS,
+} from "../constants/listener";
+import {
+  getAuthHeaders,
+  handleUnauthorized,
+  validateToken,
+} from "../utils/api";
+import { API_URL } from "@/config/api";
 import {
   activateDeactivateListener,
   getListener,
@@ -13,12 +32,12 @@ import {
   createListener,
   deleteListener,
   inviteListener,
-  updateListenerAvailability
-} from '../api/listener/api';
-import { confirm } from '@/lib/confirm';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/ui/page-header';
+  updateListenerAvailability,
+} from "../api/listener/api";
+import { confirm } from "@/lib/confirm";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Table,
   TableBody,
@@ -28,18 +47,19 @@ import {
   TableHeader,
   TableRow,
   SortableTableHead,
-} from '@/components/ui/table';
-import { TableCard } from '@/components/ui/table-card';
-import { StatusBadge, statusToneFrom } from '@/components/ui/status-badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { TablePagination } from '@/components/ui/table-pagination';
-import { TableCardSearch, tableControlClassName } from '@/components/ui/table-search';
-import { Modal } from '@/components/ui/modal';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/table";
+import { TableCard } from "@/components/ui/table-card";
+import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TablePagination } from "@/components/ui/table-pagination";
+import {
+  TableCardSearch,
+  tableControlClassName,
+} from "@/components/ui/table-search";
+import { Modal } from "@/components/ui/modal";
+import { cn } from "@/lib/utils";
 
 const Listeners: React.FC = (): JSX.Element => {
-
-
   useEffect(() => {
     const checkAuth = () => {
       if (!validateToken()) {
@@ -52,7 +72,7 @@ const Listeners: React.FC = (): JSX.Element => {
 
   // State Management
   const [listeners, setListeners] = useState<Listener[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [filteredListeners, setFilteredListeners] = useState<Listener[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [listenersPerPage] = useState(10);
@@ -62,39 +82,44 @@ const Listeners: React.FC = (): JSX.Element => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedListener, setSelectedListener] = useState<Listener | null>(null);
-  const [messageSubject, setMessageSubject] = useState('');
-  const [messageContent, setMessageContent] = useState('');
-  const [messagePriority, setMessagePriority] = useState<'normal' | 'urgent'>('normal');
+  const [selectedListener, setSelectedListener] = useState<Listener | null>(
+    null,
+  );
+  const [messageSubject, setMessageSubject] = useState("");
+  const [messageContent, setMessageContent] = useState("");
+  const [messagePriority, setMessagePriority] = useState<"normal" | "urgent">(
+    "normal",
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [availableDays, setAvailableDays] = useState<Set<string>>(new Set(DAYS_OF_WEEK));
-
-  
+  const [availableDays, setAvailableDays] = useState<Set<string>>(
+    new Set(DAYS_OF_WEEK),
+  );
 
   // Sorting state
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   // Initialize new listener state
   const [newListener, setNewListener] = useState<Listener>({
-    name: '',
-    description: '',
-    gender: 'male',
-    email: '',
-    phoneNumber: '',
-    availability: DAYS_OF_WEEK.map(day => ({
+    name: "",
+    description: "",
+    gender: "male",
+    email: "",
+    phoneNumber: "",
+    availability: DAYS_OF_WEEK.map((day) => ({
       dayOfWeek: day,
-      times: day === 'saturday' || day === 'sunday'
-        ? DEFAULT_TIME_SLOTS.weekend.map(slot => ({
-            ...slot,
-            isAvailable: true
-          }))
-        : DEFAULT_TIME_SLOTS.weekday.map(slot => ({
-            ...slot,
-            isAvailable: true
-          }))
-    }))
+      times:
+        day === "saturday" || day === "sunday"
+          ? DEFAULT_TIME_SLOTS.weekend.map((slot) => ({
+              ...slot,
+              isAvailable: true,
+            }))
+          : DEFAULT_TIME_SLOTS.weekday.map((slot) => ({
+              ...slot,
+              isAvailable: true,
+            })),
+    })),
   });
 
   // Add new state for activation status
@@ -109,27 +134,30 @@ const Listeners: React.FC = (): JSX.Element => {
   } | null>(null);
 
   // Add invite form state
-  const [inviteForm, setInviteForm] = useState({ email: '' });
+  const [inviteForm, setInviteForm] = useState({ email: "" });
 
   // Fetch Listeners
   const fetchListeners = async () => {
     if (!validateToken()) return;
-  
+
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/listeners?sortBy=${sortBy}&sortOrder=${sortOrder}`, {
-        headers: getAuthHeaders()
-      });
-      
+      const response = await fetch(
+        `${API_URL}/listeners?sortBy=${sortBy}&sortOrder=${sortOrder}`,
+        {
+          headers: getAuthHeaders(),
+        },
+      );
+
       if (response.status === 401) {
         handleUnauthorized(response);
         return;
       }
-  
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch listeners');
+        throw new Error(data.message || "Failed to fetch listeners");
       }
 
       const listenersArray = Array.isArray(data) ? data : data.listeners || [];
@@ -137,8 +165,8 @@ const Listeners: React.FC = (): JSX.Element => {
       setFilteredListeners(listenersArray);
       setError(null);
     } catch (error) {
-      console.error('Error fetching listeners:', error);
-      setError('Failed to fetch listeners');
+      console.error("Error fetching listeners:", error);
+      setError("Failed to fetch listeners");
       setListeners([]);
       setFilteredListeners([]);
     } finally {
@@ -149,15 +177,15 @@ const Listeners: React.FC = (): JSX.Element => {
   // Fetch Listener Details
   const fetchListenerDetails = async (listenerId: string) => {
     if (!validateToken()) return;
-  
+
     try {
       setIsLoading(true);
       const listener = await getListener(listenerId);
       setSelectedListener(listener);
       // setShowDetailsModal(true); // Removed as per edit hint
     } catch (error) {
-      console.error('Error fetching listener details:', error);
-      alert('Failed to fetch listener details. Please try again.');
+      console.error("Error fetching listener details:", error);
+      alert("Failed to fetch listener details. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -166,27 +194,29 @@ const Listeners: React.FC = (): JSX.Element => {
   // Fetch Messages for Listener
   const fetchMessagesForListener = async (listenerId?: string) => {
     if (!validateToken() || !listenerId) return;
-  
+
     try {
-      const response = await fetch(`${API_URL}/listeners/${listenerId}/messages`, {
-        headers: getAuthHeaders()
-      });
-  
+      const response = await fetch(
+        `${API_URL}/listeners/${listenerId}/messages`,
+        {
+          headers: getAuthHeaders(),
+        },
+      );
+
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch messages');
+        throw new Error(data.message || "Failed to fetch messages");
       }
-      
 
       setMessages(data.messages);
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      alert('Failed to fetch messages. Please try again.');
+      console.error("Error fetching messages:", error);
+      alert("Failed to fetch messages. Please try again.");
     }
   };
 
@@ -195,75 +225,78 @@ const Listeners: React.FC = (): JSX.Element => {
     if (!validateToken() || !selectedListener) return;
 
     const confirmed = await confirm({
-      title: 'Send Message',
+      title: "Send Message",
       description: `Send this message to ${selectedListener.name}?`,
-      confirmText: 'Send',
-      variant: 'default',
+      confirmText: "Send",
+      variant: "default",
     });
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`${API_URL}/listeners/${selectedListener._id}/messages`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          subject: messageSubject,
-          content: messageContent,
-          priority: messagePriority,
-        }),
-      });
-  
+      const response = await fetch(
+        `${API_URL}/listeners/${selectedListener._id}/messages`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            subject: messageSubject,
+            content: messageContent,
+            priority: messagePriority,
+          }),
+        },
+      );
+
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to send message');
+        throw new Error(data.message || "Failed to send message");
       }
 
-      alert('Message sent successfully!');
-      setMessageSubject('');
-      setMessageContent('');
-      setMessagePriority('normal');
+      alert("Message sent successfully!");
+      setMessageSubject("");
+      setMessageContent("");
+      setMessagePriority("normal");
       setShowMessageModal(false);
     } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      console.error("Error sending message:", error);
+      alert("Failed to send message. Please try again.");
     }
   };
 
   // Export Listeners
   const exportListeners = async () => {
     if (!validateToken()) return;
-  
+
     try {
       const response = await fetch(`${API_URL}/listeners/export`, {
-        method: 'GET',
+        method: "GET",
         headers: getAuthHeaders(),
       });
-  
+
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-  
+
       if (!response.ok) {
-        throw new Error('Failed to export listeners');
+        throw new Error("Failed to export listeners");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = 'listeners_export.csv';
+      a.download = "listeners_export.csv";
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error exporting listeners:', error);
-      alert('Failed to export listeners. Please try again.');
+      console.error("Error exporting listeners:", error);
+      alert("Failed to export listeners. Please try again.");
     }
   };
 
@@ -278,7 +311,7 @@ const Listeners: React.FC = (): JSX.Element => {
       return;
     }
 
-    const filtered = listeners.filter(listener => {
+    const filtered = listeners.filter((listener) => {
       if (!listener) return false;
       const searchTermLower = searchTerm.toLowerCase();
       return listener.name?.toLowerCase()?.includes(searchTermLower) || false;
@@ -288,19 +321,17 @@ const Listeners: React.FC = (): JSX.Element => {
     setCurrentPage(1);
   }, [searchTerm, listeners]);
 
-
-
   // Form validation
   const validateForm = (): boolean => {
     const errors: FormErrors = {};
     let isValid = true;
 
-    const hasInvalidTimes = newListener.availability.some(day => 
-      day.times.some(time => !time.startTime || !time.endTime)
+    const hasInvalidTimes = newListener.availability.some((day) =>
+      day.times.some((time) => !time.startTime || !time.endTime),
     );
 
     if (hasInvalidTimes) {
-      errors.availability = 'All time slots must have start and end times';
+      errors.availability = "All time slots must have start and end times";
       isValid = false;
     }
 
@@ -315,23 +346,26 @@ const Listeners: React.FC = (): JSX.Element => {
     }
 
     const confirmed = await confirm({
-      title: 'Update Availability',
+      title: "Update Availability",
       description: `Save availability changes for ${selectedListener.name}?`,
-      confirmText: 'Save',
-      variant: 'default',
+      confirmText: "Save",
+      variant: "default",
     });
     if (!confirmed) return;
 
     setIsSubmitting(true);
     try {
-      await updateListenerAvailability(selectedListener._id, newListener.availability);
+      await updateListenerAvailability(
+        selectedListener._id,
+        newListener.availability,
+      );
       await fetchListeners();
       setShowModal(false);
       resetForm();
-      alert('Availability updated successfully!');
+      alert("Availability updated successfully!");
     } catch (error) {
-      console.error('Error updating availability:', error);
-      alert('Failed to update availability. Please try again.');
+      console.error("Error updating availability:", error);
+      alert("Failed to update availability. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -339,12 +373,12 @@ const Listeners: React.FC = (): JSX.Element => {
 
   // Reset form
   const resetForm = () => {
-    setNewListener(prev => ({
+    setNewListener((prev) => ({
       ...prev,
-      availability: DAYS_OF_WEEK.map(day => ({
+      availability: DAYS_OF_WEEK.map((day) => ({
         dayOfWeek: day,
-        times: []  // Start with empty times for each day
-      }))
+        times: [], // Start with empty times for each day
+      })),
     }));
     setAvailableDays(new Set(DAYS_OF_WEEK));
     setFormErrors({});
@@ -362,43 +396,41 @@ const Listeners: React.FC = (): JSX.Element => {
     setAvailableDays(newAvailableDays);
 
     // Update the newListener state to reflect the change
-    setNewListener(prev => ({
+    setNewListener((prev) => ({
       ...prev,
-      availability: prev.availability.map(day => {
+      availability: prev.availability.map((day) => {
         if (day.dayOfWeek === dayOfWeek) {
           return {
             ...day,
-            times: newAvailableDays.has(dayOfWeek) ? [{ startTime: '09:00', endTime: '17:00', isAvailable: true }] : []
+            times: newAvailableDays.has(dayOfWeek)
+              ? [{ startTime: "09:00", endTime: "17:00", isAvailable: true }]
+              : [],
           };
         }
         return day;
-      })
+      }),
     }));
   };
 
-
-
-
-
   // Handle form input changes
   const handleInputChange = (field: keyof Listener, value: any) => {
-    setNewListener(prev => ({
+    setNewListener((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   // Update the handleTimeSlotChange function
   const handleTimeSlotChange = async (
-    dayOfWeek: string, 
-    index: number, 
-    field: keyof TimeSlot, 
-    value: string
+    dayOfWeek: string,
+    index: number,
+    field: keyof TimeSlot,
+    value: string,
   ) => {
     if (!selectedListener?._id) return;
 
     try {
-      const updatedAvailability = newListener.availability.map(day => {
+      const updatedAvailability = newListener.availability.map((day) => {
         if (day.dayOfWeek === dayOfWeek) {
           const newTimes = [...day.times];
           // Check if the time slot is unavailable
@@ -406,7 +438,7 @@ const Listeners: React.FC = (): JSX.Element => {
             setUnavailableSlotInfo({
               dayOfWeek,
               startTime: newTimes[index].startTime,
-              endTime: newTimes[index].endTime
+              endTime: newTimes[index].endTime,
             });
             setShowUnavailableModal(true);
             return day;
@@ -414,7 +446,7 @@ const Listeners: React.FC = (): JSX.Element => {
           newTimes[index] = {
             ...newTimes[index],
             [field]: value,
-            isAvailable: true
+            isAvailable: true,
           };
           return { ...day, times: newTimes };
         }
@@ -422,31 +454,34 @@ const Listeners: React.FC = (): JSX.Element => {
       });
 
       // Update local state
-      setNewListener(prev => ({
+      setNewListener((prev) => ({
         ...prev,
-        availability: updatedAvailability
+        availability: updatedAvailability,
       }));
 
       // Call the API to update availability
-      await updateListenerAvailability(selectedListener._id, updatedAvailability);
+      await updateListenerAvailability(
+        selectedListener._id,
+        updatedAvailability,
+      );
     } catch (error) {
-      console.error('Error updating availability:', error);
-      alert('Failed to update availability. Please try again.');
+      console.error("Error updating availability:", error);
+      alert("Failed to update availability. Please try again.");
     }
   };
 
   // Update the removeTimeSlot function
   const removeTimeSlot = (dayOfWeek: string, index: number) => {
-    setNewListener(prev => ({
+    setNewListener((prev) => ({
       ...prev,
-      availability: prev.availability.map(day => {
+      availability: prev.availability.map((day) => {
         if (day.dayOfWeek === dayOfWeek) {
           // Check if the time slot is unavailable
           if (day.times[index].isAvailable === false) {
             setUnavailableSlotInfo({
               dayOfWeek,
               startTime: day.times[index].startTime,
-              endTime: day.times[index].endTime
+              endTime: day.times[index].endTime,
             });
             setShowUnavailableModal(true);
             return day;
@@ -455,27 +490,30 @@ const Listeners: React.FC = (): JSX.Element => {
           return { ...day, times: newTimes };
         }
         return day;
-      })
+      }),
     }));
   };
 
   // Add new time slot
-const addTimeSlot = (dayOfWeek: string) => {
-  setNewListener(prev => ({
-    ...prev,
-    availability: prev.availability.map(day => {
-      if (day.dayOfWeek === dayOfWeek) {
-        return {
-          ...day,
-          times: [...day.times, { 
-            startTime: '09:00', 
-            endTime: '17:00', 
-            isAvailable: true 
-          }]
-        };
+  const addTimeSlot = (dayOfWeek: string) => {
+    setNewListener((prev) => ({
+      ...prev,
+      availability: prev.availability.map((day) => {
+        if (day.dayOfWeek === dayOfWeek) {
+          return {
+            ...day,
+            times: [
+              ...day.times,
+              {
+                startTime: "09:00",
+                endTime: "17:00",
+                isAvailable: true,
+              },
+            ],
+          };
         }
         return day;
-      })
+      }),
     }));
   };
 
@@ -483,46 +521,45 @@ const addTimeSlot = (dayOfWeek: string) => {
   const handleEditClick = (listener: Listener) => {
     const availableDaysSet = new Set(
       listener.availability
-        .filter(day => day.times.length > 0)
-        .map(day => day.dayOfWeek)
+        .filter((day) => day.times.length > 0)
+        .map((day) => day.dayOfWeek),
     );
-    
+
     setAvailableDays(availableDaysSet);
     setNewListener({
       _id: listener._id,
-      name: listener.name || '',
-      description: listener.description || '',
-      gender: listener.gender || 'male',
-      email: listener.email || '',
-      phoneNumber: listener.phoneNumber || '',
-      availability: DAYS_OF_WEEK.map(day => ({
+      name: listener.name || "",
+      description: listener.description || "",
+      gender: listener.gender || "male",
+      email: listener.email || "",
+      phoneNumber: listener.phoneNumber || "",
+      availability: DAYS_OF_WEEK.map((day) => ({
         dayOfWeek: day,
-        times: listener.availability.find(d => d.dayOfWeek === day)?.times || []
-      }))
+        times:
+          listener.availability.find((d) => d.dayOfWeek === day)?.times || [],
+      })),
     });
-    
+
     setSelectedListener(listener);
     setShowModal(true);
   };
-
-  
 
   // Pagination
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortBy(column);
-      setSortOrder('asc');
+      setSortOrder("asc");
     }
     setCurrentPage(1);
   };
 
   const indexOfLastListener = currentPage * listenersPerPage;
   const indexOfFirstListener = indexOfLastListener - listenersPerPage;
-  const currentListeners = Array.isArray(filteredListeners) 
+  const currentListeners = Array.isArray(filteredListeners)
     ? filteredListeners.slice(indexOfFirstListener, indexOfLastListener)
     : [];
 
@@ -533,17 +570,20 @@ const addTimeSlot = (dayOfWeek: string) => {
   };
 
   // Add new function to handle activation/deactivation
-  const handleActivationToggle = async (listenerId: string, currentStatus: boolean) => {
+  const handleActivationToggle = async (
+    listenerId: string,
+    currentStatus: boolean,
+  ) => {
     if (!validateToken()) return;
 
     // Show confirmation dialog for both activation and deactivation
-    const action = currentStatus ? 'deactivate' : 'activate';
+    const action = currentStatus ? "deactivate" : "activate";
     const confirmed = await confirm({
-      title: `${currentStatus ? 'Deactivate' : 'Activate'} Listener`,
+      title: `${currentStatus ? "Deactivate" : "Activate"} Listener`,
       description: currentStatus
-        ? 'Are you sure you want to deactivate this listener? This will prevent them from receiving new sessions.'
-        : 'Are you sure you want to activate this listener? This will allow them to receive new sessions.',
-      confirmText: currentStatus ? 'Deactivate' : 'Activate',
+        ? "Are you sure you want to deactivate this listener? This will prevent them from receiving new sessions."
+        : "Are you sure you want to activate this listener? This will allow them to receive new sessions.",
+      confirmText: currentStatus ? "Deactivate" : "Activate",
     });
 
     if (!confirmed) return;
@@ -552,10 +592,12 @@ const addTimeSlot = (dayOfWeek: string) => {
       setIsActivating(true);
       await activateDeactivateListener(listenerId, { active: !currentStatus });
       await fetchListeners(); // Refresh the list
-      alert(`Listener ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
+      alert(
+        `Listener ${!currentStatus ? "activated" : "deactivated"} successfully!`,
+      );
     } catch (error) {
-      console.error('Error toggling listener status:', error);
-      alert('Failed to update listener status. Please try again.');
+      console.error("Error toggling listener status:", error);
+      alert("Failed to update listener status. Please try again.");
     } finally {
       setIsActivating(false);
     }
@@ -566,19 +608,20 @@ const addTimeSlot = (dayOfWeek: string) => {
     if (!validateToken()) return;
 
     const confirmed = await confirm({
-      title: 'Delete Listener',
-      description: 'Are you sure you want to delete this listener? This action cannot be undone.',
-      confirmText: 'Delete',
+      title: "Delete Listener",
+      description:
+        "Are you sure you want to delete this listener? This action cannot be undone.",
+      confirmText: "Delete",
     });
     if (!confirmed) return;
 
     try {
       await deleteListener(listenerId);
       await fetchListeners();
-      alert('Listener deleted successfully!');
+      alert("Listener deleted successfully!");
     } catch (error) {
-      console.error('Error deleting listener:', error);
-      alert('Failed to delete listener. Please try again.');
+      console.error("Error deleting listener:", error);
+      alert("Failed to delete listener. Please try again.");
     }
   };
 
@@ -590,11 +633,11 @@ const addTimeSlot = (dayOfWeek: string) => {
       setIsSubmitting(true);
       await inviteListener(inviteForm);
       setShowInviteModal(false);
-      setInviteForm({ email: '' });
-      alert('Invitation sent successfully!');
+      setInviteForm({ email: "" });
+      alert("Invitation sent successfully!");
     } catch (error) {
-      console.error('Error sending invitation:', error);
-      alert('Failed to send invitation. Please try again.');
+      console.error("Error sending invitation:", error);
+      alert("Failed to send invitation. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -615,7 +658,7 @@ const addTimeSlot = (dayOfWeek: string) => {
               disabled={isLoading}
             >
               <RefreshCw
-                className={cn('mr-2 h-3.5 w-3.5', isLoading && 'animate-spin')}
+                className={cn("mr-2 h-3.5 w-3.5", isLoading && "animate-spin")}
               />
               Refresh
             </Button>
@@ -643,7 +686,7 @@ const addTimeSlot = (dayOfWeek: string) => {
       ) : (
         <TableCard
           title="All listeners"
-          description={`${filteredListeners.length} profile${filteredListeners.length === 1 ? '' : 's'}`}
+          description={`${filteredListeners.length} profile${filteredListeners.length === 1 ? "" : "s"}`}
           actions={
             <TableCardSearch
               value={searchTerm}
@@ -658,7 +701,7 @@ const addTimeSlot = (dayOfWeek: string) => {
             <TablePagination
               page={currentPage}
               totalPages={Math.ceil(
-                filteredListeners.length / listenersPerPage
+                filteredListeners.length / listenersPerPage,
               )}
               total={filteredListeners.length}
               itemLabel="listeners"
@@ -716,10 +759,10 @@ const addTimeSlot = (dayOfWeek: string) => {
                     <TableCell>
                       <StatusBadge
                         tone={statusToneFrom(
-                          listener.active ? 'active' : 'inactive'
+                          listener.active ? "active" : "inactive",
                         )}
                       >
-                        {listener.active ? 'Active' : 'Inactive'}
+                        {listener.active ? "Active" : "Inactive"}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
@@ -743,19 +786,19 @@ const addTimeSlot = (dayOfWeek: string) => {
                           onClick={() =>
                             handleActivationToggle(
                               listener._id!,
-                              listener.active || false
+                              listener.active || false,
                             )
                           }
                           disabled={isActivating}
                           title={
                             listener.active
-                              ? 'Deactivate listener'
-                              : 'Activate listener'
+                              ? "Deactivate listener"
+                              : "Activate listener"
                           }
                           aria-label={
                             listener.active
-                              ? 'Deactivate listener'
-                              : 'Activate listener'
+                              ? "Deactivate listener"
+                              : "Activate listener"
                           }
                         >
                           {listener.active ? (
@@ -798,7 +841,6 @@ const addTimeSlot = (dayOfWeek: string) => {
           </Table>
         </TableCard>
       )}
-
 
       <Modal
         open={showModal}
@@ -870,10 +912,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                 {enabled ? (
                   <div className="mt-2 space-y-1.5">
                     {day.times.map((time, timeIndex) => (
-                      <div
-                        key={timeIndex}
-                        className="flex items-center gap-2"
-                      >
+                      <div key={timeIndex} className="flex items-center gap-2">
                         <Input
                           type="time"
                           value={time.startTime}
@@ -882,7 +921,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                               day.dayOfWeek,
                               timeIndex,
                               "startTime",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           disabled={!time.isAvailable}
@@ -899,7 +938,7 @@ const addTimeSlot = (dayOfWeek: string) => {
                               day.dayOfWeek,
                               timeIndex,
                               "endTime",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           disabled={!time.isAvailable}
@@ -908,7 +947,10 @@ const addTimeSlot = (dayOfWeek: string) => {
                         <div className="flex w-20 shrink-0 items-center justify-end">
                           {!time.isAvailable ? (
                             <span title="Booked — cannot be modified">
-                              <StatusBadge tone="warning" className="px-1.5 py-0">
+                              <StatusBadge
+                                tone="warning"
+                                className="px-1.5 py-0"
+                              >
                                 Booked
                               </StatusBadge>
                             </span>

@@ -1,26 +1,35 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Send, Search, X, Users, Bell, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Badge } from './ui/badge';
+import React, { useEffect, useState, useRef } from "react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
-import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
-import { API_URL } from '@/config/api';
-import { confirm } from '@/lib/confirm';
+  Send,
+  Search,
+  X,
+  Bell,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { tableControlClassName } from "@/components/ui/table-search";
+import { cn } from "@/lib/utils";
+import { getAuthHeaders, handleUnauthorized, validateToken } from "../utils/api";
+import { API_URL } from "@/config/api";
+import { confirm } from "@/lib/confirm";
 
 // Listener targets ("all" and "listeners") are intentionally omitted:
 // the backend doesn't deliver to listeners yet — push/email lookups throw
 // and in-app rows are orphaned. Re-add once listener notifications are
 // supported end-to-end.
-type Target = 'users' | 'active_users' | 'inactive_users' | 'selected';
+type Target = "users" | "active_users" | "inactive_users" | "selected";
 
 interface SelectedUser {
   id: string;
@@ -33,30 +42,53 @@ interface NotificationChannelOptions {
   email: boolean;
 }
 
-const isTargetSelected = (t: Target | ''): t is Target => t !== '';
+const isTargetSelected = (t: Target | ""): t is Target => t !== "";
 
 const TARGET_LABELS: Record<Target, string> = {
-  users: 'All Users',
-  active_users: 'Active Users (sessions in last 30 days)',
-  inactive_users: 'Inactive Users (no sessions in 30 days)',
-  selected: 'Selected Users',
+  users: "All users",
+  active_users: "Active users (sessions in last 30 days)",
+  inactive_users: "Inactive users (no sessions in 30 days)",
+  selected: "Selected users",
 };
+
+const TITLE_MAX = 80;
+const MESSAGE_MAX = 500;
+
+const fieldLabelClass = "text-[11px] font-medium text-rs-text-muted";
+const checkboxClass =
+  "h-3.5 w-3.5 rounded border-rs-border text-rs-primary focus:ring-rs-primary";
+
+function formHint(
+  target: Target | "",
+  title: string,
+  message: string,
+  channels: NotificationChannelOptions,
+  selectedCount: number
+): string | null {
+  if (!target) return "Choose a target audience to continue.";
+  if (target === "selected" && selectedCount === 0)
+    return "Select at least one user.";
+  if (!title.trim()) return "Add a title.";
+  if (!message.trim()) return "Add a message.";
+  if (!channels.inApp && !channels.push && !channels.email)
+    return "Pick at least one delivery channel.";
+  return null;
+}
 
 const Notifications: React.FC = () => {
   useEffect(() => {
     validateToken();
   }, []);
 
-  const [target, setTarget] = useState<Target | ''>('');
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
+  const [target, setTarget] = useState<Target | "">("");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
   const [channels, setChannels] = useState<NotificationChannelOptions>({
     inApp: true,
     push: false,
     email: false,
   });
   const [isSending, setIsSending] = useState(false);
-
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const showError = (msg: string) => {
@@ -72,20 +104,18 @@ const Notifications: React.FC = () => {
   } | null>(null);
 
   const buildChannelsLabel = (c: NotificationChannelOptions) =>
-    [c.inApp && 'In-app', c.push && 'Push', c.email && 'Email']
+    [c.inApp && "In-app", c.push && "Push", c.email && "Email"]
       .filter(Boolean)
-      .join(', ');
+      .join(", ");
 
-  // User picker state
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<SelectedUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch initial users when "selected" target is chosen
   useEffect(() => {
-    if (target === 'selected') {
+    if (target === "selected") {
       fetchUsers();
     }
   }, [target]);
@@ -94,16 +124,17 @@ const Notifications: React.FC = () => {
     if (!validateToken()) return;
     try {
       setIsSearching(true);
-      const response = await fetch(`${API_URL}/users?skip=0&limit=20&sortBy=createdAt&sortOrder=desc`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_URL}/users?skip=0&limit=20&sortBy=createdAt&sortOrder=desc`,
+        { headers: getAuthHeaders() }
+      );
       if (response.status === 401) return handleUnauthorized(response);
       if (!response.ok) return;
       const data = await response.json();
       setSearchResults(
-        (data.users || []).map((u: any) => ({
+        (data.users || []).map((u: { id: string; anonymousName?: string }) => ({
           id: u.id,
-          anonymousName: u.anonymousName || 'Anonymous User',
+          anonymousName: u.anonymousName || "Anonymous User",
         }))
       );
     } catch {
@@ -133,12 +164,14 @@ const Notifications: React.FC = () => {
       if (!response.ok) return;
       const data = await response.json();
       const userData = data.users
-        ? Array.isArray(data.users) ? data.users : [data.users]
+        ? Array.isArray(data.users)
+          ? data.users
+          : [data.users]
         : [];
       setSearchResults(
-        userData.map((u: any) => ({
+        userData.map((u: { id: string; anonymousName?: string }) => ({
           id: u.id,
-          anonymousName: u.anonymousName || 'Anonymous User',
+          anonymousName: u.anonymousName || "Anonymous User",
         }))
       );
     } catch {
@@ -168,36 +201,51 @@ const Notifications: React.FC = () => {
   };
 
   const isFormValid =
-    target !== '' &&
+    target !== "" &&
     title.trim() &&
     message.trim() &&
     (channels.inApp || channels.push || channels.email) &&
-    (target !== 'selected' || selectedUsers.length > 0);
+    (target !== "selected" || selectedUsers.length > 0);
+
+  const hint = formHint(
+    target,
+    title,
+    message,
+    channels,
+    selectedUsers.length
+  );
 
   const handleSend = async () => {
     if (!validateToken() || !isFormValid || !isTargetSelected(target)) return;
 
-    const targetLabel = target === 'selected'
-      ? `${selectedUsers.length} selected user${selectedUsers.length > 1 ? 's' : ''}`
-      : TARGET_LABELS[target].toLowerCase();
+    const targetLabel =
+      target === "selected"
+        ? `${selectedUsers.length} selected user${selectedUsers.length > 1 ? "s" : ""}`
+        : TARGET_LABELS[target].toLowerCase();
 
     const confirmed = await confirm({
-      title: 'Send Bulk Notification',
+      title: "Send bulk notification",
       description: `Send this notification to ${targetLabel}?`,
-      confirmText: 'Send',
-      variant: 'default',
+      confirmText: "Send",
+      variant: "default",
     });
     if (!confirmed) return;
 
     setIsSending(true);
     try {
-      const body: any = { title, message, channels, target };
-      if (target === 'selected') {
+      const body: {
+        title: string;
+        message: string;
+        channels: NotificationChannelOptions;
+        target: Target;
+        userIds?: string[];
+      } = { title, message, channels, target };
+      if (target === "selected") {
         body.userIds = selectedUsers.map((u) => u.id);
       }
 
       const response = await fetch(`${API_URL}/notifications/send-bulk`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
@@ -206,14 +254,14 @@ const Notifications: React.FC = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to send notifications');
+        throw new Error(data.message || "Failed to send notifications");
       }
 
       const queuedCount =
-        typeof data?.queuedCount === 'number' ? data.queuedCount : 0;
+        typeof data?.queuedCount === "number" ? data.queuedCount : 0;
       const receiptTargetLabel =
-        target === 'selected'
-          ? `${selectedUsers.length} selected user${selectedUsers.length === 1 ? '' : 's'}`
+        target === "selected"
+          ? `${selectedUsers.length} selected user${selectedUsers.length === 1 ? "" : "s"}`
           : TARGET_LABELS[target];
 
       setSentReceipt({
@@ -223,11 +271,13 @@ const Notifications: React.FC = () => {
         channelsLabel: buildChannelsLabel(channels),
       });
 
-      setTitle('');
-      setMessage('');
+      setTitle("");
+      setMessage("");
       setSelectedUsers([]);
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to send notifications');
+      showError(
+        err instanceof Error ? err.message : "Failed to send notifications"
+      );
     } finally {
       setIsSending(false);
     }
@@ -235,240 +285,308 @@ const Notifications: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Bell className="h-6 w-6 text-gray-700" />
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Send Notification</h2>
-      </div>
+      <PageHeader
+        title="Notifications"
+        description="Send in-app, push, or email notices to platform users."
+        icon={<Bell strokeWidth={1.75} />}
+      />
 
-      {errorMessage && (
+      {errorMessage ? (
         <div
           role="alert"
-          className="mb-6 p-4 rounded-md bg-red-100 text-red-700 border border-red-400"
+          className="rounded-xl border border-rs-border bg-rs-surface px-4 py-3 text-sm text-rs-primary"
         >
           {errorMessage}
         </div>
-      )}
+      ) : null}
 
-      <div className="max-w-2xl space-y-6">
-        {/* Target audience */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Target Audience
-          </label>
-          <select
-            value={target}
-            onChange={(e) => setTarget(e.target.value as Target)}
-            className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-red-500 focus:border-red-500"
+      <Card className="max-w-2xl">
+        <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 sm:items-center">
+          <div className="min-w-0 space-y-1">
+            <CardTitle>Compose</CardTitle>
+            <CardDescription>
+              Audience, message, then channels — preview updates as you type.
+            </CardDescription>
+          </div>
+          <Button
+            onClick={handleSend}
+            disabled={isSending || !isFormValid}
+            size="sm"
+            className="shrink-0"
           >
-            <option value="" disabled>
-              Select target audience
-            </option>
-            {Object.entries(TARGET_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            {isSending ? "Sending…" : "Send"}
+          </Button>
+        </CardHeader>
 
-        {/* User picker — only when target is "selected" */}
-        {target === 'selected' && (
-          <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-white">
-            <label className="block text-sm font-medium text-gray-700">
-              Select Users ({selectedUsers.length} selected)
+        <CardContent className="space-y-5 p-0">
+          <div className="space-y-4 p-4">
+            <label className="block space-y-1.5">
+              <span className={fieldLabelClass}>Target audience</span>
+              <select
+                value={target}
+                onChange={(e) => setTarget(e.target.value as Target)}
+                className={cn(tableControlClassName, "h-9 w-full text-sm")}
+              >
+                <option value="" disabled>
+                  Select target audience
+                </option>
+                {Object.entries(TARGET_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
 
-            {/* Selected users as badges */}
-            {selectedUsers.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedUsers.map((user) => (
-                  <Badge
-                    key={user.id}
-                    variant="secondary"
-                    className="flex items-center gap-1 pr-1"
-                  >
-                    {user.anonymousName}
-                    <button
-                      onClick={() => removeUser(user.id)}
-                      className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
+            {target === "selected" ? (
+              <div className="space-y-3 rounded-lg border border-rs-border bg-rs-page/40 p-3">
+                <p className="text-xs font-medium text-rs-text">
+                  Select users
+                  <span className="ml-1 font-normal text-rs-text-muted">
+                    ({selectedUsers.length} selected)
+                  </span>
+                </p>
+
+                {selectedUsers.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedUsers.map((user) => (
+                      <Badge
+                        key={user.id}
+                        variant="secondary"
+                        className="flex items-center gap-1 pr-1"
+                      >
+                        {user.anonymousName}
+                        <button
+                          type="button"
+                          onClick={() => removeUser(user.id)}
+                          className="rounded-full p-0.5 text-rs-text-muted hover:bg-rs-surface hover:text-rs-text"
+                          aria-label={`Remove ${user.anonymousName}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-rs-text-muted" />
+                  <Input
+                    placeholder="Search by name…"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="h-8 pl-8 text-xs"
+                  />
+                </div>
+
+                <div className="max-h-52 overflow-y-auto rounded-md border border-rs-border bg-rs-surface divide-y divide-rs-border">
+                  {isSearching ? (
+                    <p className="p-3 text-center text-xs text-rs-text-muted">
+                      Searching…
+                    </p>
+                  ) : searchResults.length === 0 ? (
+                    <p className="p-3 text-center text-xs text-rs-text-muted">
+                      No users found
+                    </p>
+                  ) : (
+                    searchResults.map((user) => (
+                      <label
+                        key={user.id}
+                        className="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-rs-page"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.some((u) => u.id === user.id)}
+                          onChange={() => toggleUser(user)}
+                          className={checkboxClass}
+                        />
+                        <span className="text-sm text-rs-text">
+                          {user.anonymousName}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
-            )}
+            ) : null}
 
-            {/* Search input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <label className="block space-y-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={fieldLabelClass}>Title</span>
+                <span className="text-[11px] tabular-nums text-rs-text-muted">
+                  {title.length}/{TITLE_MAX}
+                </span>
+              </div>
               <Input
-                placeholder="Search users by name..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="pl-9 bg-white border-gray-300 text-gray-900"
+                value={title}
+                onChange={(e) =>
+                  setTitle(e.target.value.slice(0, TITLE_MAX))
+                }
+                placeholder="Notification title"
+                className="h-9 text-sm"
+                maxLength={TITLE_MAX}
               />
-            </div>
+            </label>
 
-            {/* Results list */}
-            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
-              {isSearching ? (
-                <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
-              ) : searchResults.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500">No users found</div>
+            <label className="block space-y-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={fieldLabelClass}>Message</span>
+                <span className="text-[11px] tabular-nums text-rs-text-muted">
+                  {message.length}/{MESSAGE_MAX}
+                </span>
+              </div>
+              <textarea
+                value={message}
+                onChange={(e) =>
+                  setMessage(e.target.value.slice(0, MESSAGE_MAX))
+                }
+                rows={4}
+                maxLength={MESSAGE_MAX}
+                placeholder="Write your notification message…"
+                className="w-full resize-y rounded-md border border-rs-border bg-rs-surface px-3 py-2 text-sm text-rs-text placeholder:text-rs-text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </label>
+
+            <fieldset className="space-y-2">
+              <legend className={fieldLabelClass}>Delivery channels</legend>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["inApp", "In-app"],
+                    ["push", "Push"],
+                    ["email", "Email"],
+                  ] as const
+                ).map(([key, label]) => {
+                  const active = channels[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() =>
+                        setChannels((prev) => ({
+                          ...prev,
+                          [key]: !prev[key],
+                        }))
+                      }
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-medium rs-transition",
+                        active
+                          ? "border-rs-text bg-rs-text text-rs-surface"
+                          : "border-rs-border bg-rs-surface text-rs-text-secondary hover:border-rs-text-muted hover:text-rs-text"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          </div>
+
+          <div className="border-t border-rs-border bg-rs-page/50 px-4 py-3">
+            <p className={cn(fieldLabelClass, "mb-2")}>Preview</p>
+            <div className="rounded-lg border border-rs-border bg-rs-surface px-3 py-3">
+              {title.trim() || message.trim() ? (
+                <>
+                  <p className="text-sm font-medium text-rs-text">
+                    {title.trim() || "Untitled"}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-rs-text-secondary">
+                    {message.trim() || "Message preview will appear here."}
+                  </p>
+                  <p className="mt-2 text-[11px] text-rs-text-muted">
+                    {buildChannelsLabel(channels) || "No channels selected"}
+                    {target
+                      ? ` · ${
+                          target === "selected"
+                            ? `${selectedUsers.length} user${
+                                selectedUsers.length === 1 ? "" : "s"
+                              }`
+                            : TARGET_LABELS[target]
+                        }`
+                      : ""}
+                  </p>
+                </>
               ) : (
-                searchResults.map((user) => (
-                  <label
-                    key={user.id}
-                    className="flex items-center p-2.5 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.some((u) => u.id === user.id)}
-                      onChange={() => toggleUser(user)}
-                      className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span className="ml-3 text-sm text-gray-900">{user.anonymousName}</span>
-                  </label>
-                ))
+                <p className="text-xs text-rs-text-muted">
+                  Start typing a title and message to preview the notification.
+                </p>
               )}
             </div>
-          </div>
-        )}
 
-        {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Notification title"
-            className="bg-white border-gray-300 text-gray-900"
-          />
-        </div>
-
-        {/* Message */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={4}
-            placeholder="Write your notification message..."
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
-          />
-        </div>
-
-        {/* Delivery channels */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Delivery Channels
-          </label>
-          <div className="flex flex-col space-y-2">
-            <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={channels.inApp}
-                onChange={(e) => setChannels((prev) => ({ ...prev, inApp: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-              />
-              <span className="text-sm font-medium text-gray-900">In-App Notification</span>
-            </label>
-            <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={channels.push}
-                onChange={(e) => setChannels((prev) => ({ ...prev, push: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-              />
-              <span className="text-sm font-medium text-gray-900">Push Notification</span>
-            </label>
-            <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={channels.email}
-                onChange={(e) => setChannels((prev) => ({ ...prev, email: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-              />
-              <span className="text-sm font-medium text-gray-900">Email Notification</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Send button */}
-        <Button
-          onClick={handleSend}
-          disabled={isSending || !isFormValid}
-          className="w-full bg-red-600 hover:bg-red-700 text-white"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          {isSending ? 'Sending...' : 'Send Notification'}
-        </Button>
-      </div>
-
-      <AlertDialog
-        open={!!sentReceipt}
-        onOpenChange={(isOpen) => { if (!isOpen) setSentReceipt(null); }}
-      >
-        {sentReceipt && (
-          <AlertDialogContent className="bg-white border border-gray-200 shadow-xl">
-            <AlertDialogHeader>
-              <div className="flex items-center gap-3">
-                {sentReceipt.queuedCount === 0 ? (
-                  <AlertTriangle className="h-7 w-7 text-yellow-500" />
-                ) : (
-                  <CheckCircle2 className="h-7 w-7 text-green-600" />
-                )}
-                <AlertDialogTitle className="text-gray-900">
-                  {sentReceipt.queuedCount === 0
-                    ? 'No recipients matched'
-                    : 'Notification sent'}
-                </AlertDialogTitle>
-              </div>
-              <AlertDialogDescription className="text-gray-700 pt-2">
-                {sentReceipt.queuedCount === 0 ? (
-                  <>
-                    The notification was not delivered to anyone — the audience filter
-                    matched <strong>0 users</strong>. Adjust your target audience and try
-                    again.
-                  </>
-                ) : (
-                  <>
-                    Queued for delivery to{' '}
-                    <strong>
-                      {sentReceipt.queuedCount.toLocaleString()} recipient
-                      {sentReceipt.queuedCount === 1 ? '' : 's'}
-                    </strong>
-                    .
-                  </>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-              <div>
-                <span className="text-gray-500">Audience:</span>{' '}
-                <span className="font-medium">{sentReceipt.targetLabel}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Title:</span>{' '}
-                <span className="font-medium">{sentReceipt.title}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Channels:</span>{' '}
-                <span className="font-medium">{sentReceipt.channelsLabel}</span>
-              </div>
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogAction
-                onClick={() => setSentReceipt(null)}
-                className="bg-red-600 hover:bg-red-700 text-white"
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-rs-text-muted">
+                {hint ?? "Ready to send."}
+              </p>
+              <Button
+                onClick={handleSend}
+                disabled={isSending || !isFormValid}
+                size="sm"
               >
-                Done
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        )}
-      </AlertDialog>
+                <Send className="mr-1.5 h-3.5 w-3.5" />
+                {isSending ? "Sending…" : "Send notification"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Modal
+        open={Boolean(sentReceipt)}
+        onClose={() => setSentReceipt(null)}
+        title={
+          sentReceipt?.queuedCount === 0
+            ? "No recipients matched"
+            : "Notification sent"
+        }
+        description={
+          sentReceipt?.queuedCount === 0
+            ? "The audience filter matched 0 users. Adjust the target and try again."
+            : `Queued for ${sentReceipt?.queuedCount.toLocaleString()} recipient${
+                sentReceipt?.queuedCount === 1 ? "" : "s"
+              }.`
+        }
+        footer={
+          <Button type="button" size="sm" onClick={() => setSentReceipt(null)}>
+            Done
+          </Button>
+        }
+      >
+        {sentReceipt ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-rs-text-muted">
+              {sentReceipt.queuedCount === 0 ? (
+                <AlertTriangle className="h-4 w-4 text-rs-warning" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-rs-success" />
+              )}
+              <span className="text-xs">Delivery summary</span>
+            </div>
+            <dl className="space-y-1.5 rounded-lg border border-rs-border px-3 py-2.5 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-rs-text-muted">Audience</dt>
+                <dd className="text-right font-medium text-rs-text">
+                  {sentReceipt.targetLabel}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-rs-text-muted">Title</dt>
+                <dd className="text-right font-medium text-rs-text">
+                  {sentReceipt.title}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-rs-text-muted">Channels</dt>
+                <dd className="text-right font-medium text-rs-text">
+                  {sentReceipt.channelsLabel}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 };

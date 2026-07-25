@@ -62,7 +62,6 @@ const formatNumber = (value: number | undefined) =>
 const formatDate = (value?: string) =>
   value ? new Date(value).toLocaleString() : "—";
 
-
 const Sparks: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -157,8 +156,15 @@ const OverviewTab: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={loadStats} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadStats}
+          disabled={loading}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
@@ -624,7 +630,9 @@ const WalletDetailModal: React.FC<WalletDetailModalProps> = ({
                   Recent transactions
                 </h3>
                 {recent.length === 0 ? (
-                  <p className="text-sm text-gray-500">No recent transactions.</p>
+                  <p className="text-sm text-gray-500">
+                    No recent transactions.
+                  </p>
                 ) : (
                   <ul className="space-y-2">
                     {recent.map((tx) => (
@@ -919,7 +927,9 @@ const ChangeStatusForm: React.FC<{
         </p>
 
         <div>
-          <label className="text-sm font-medium text-gray-700">New status</label>
+          <label className="text-sm font-medium text-gray-700">
+            New status
+          </label>
           <select
             className="mt-1 w-full h-9 rounded-md border border-input px-3 text-sm"
             value={status}
@@ -997,7 +1007,7 @@ const LedgerTab: React.FC = () => {
       setTotal(data.total || 0);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load transactions"
+        err instanceof Error ? err.message : "Failed to load transactions",
       );
     } finally {
       setLoading(false);
@@ -1250,7 +1260,9 @@ const LedgerTab: React.FC = () => {
                     {formatNumber(tx.amount)}
                   </span>
                 </div>
-                <p className="text-sm text-rs-text-secondary">{tx.description}</p>
+                <p className="text-sm text-rs-text-secondary">
+                  {tx.description}
+                </p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-rs-text-muted">
                   <StatusBadge tone={statusToneFrom(tx.status)}>
                     {tx.status}

@@ -21,6 +21,7 @@ import { TablePagination } from '@/components/ui/table-pagination';
 import { TableCardSearch } from '@/components/ui/table-search';
 import { StatusBadge, statusToneFrom } from '@/components/ui/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Modal } from '@/components/ui/modal';
 
 // --- ADJUSTED INTERFACE: Removed firstName, lastName as they are not part of the User object used for display ---
 interface User {
@@ -984,122 +985,92 @@ const Users: React.FC = () => {
         />
       )}
 
-      {showNotificationModal && selectedUserId && (
-        <div className="fixed inset-0 z-[1000] overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-              aria-hidden="true"
-            ></div>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Send Notification
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="notification-title"
-                      className="block text-sm font-semibold text-gray-700 mb-1"
-                    >
-                      Title
-                    </label>
-                    <input
-                      id="notification-title"
-                      type="text"
-                      value={notificationTitle}
-                      onChange={(e) => setNotificationTitle(e.target.value)}
-                      className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="Enter notification title"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="notification-message"
-                      className="block text-sm font-semibold text-gray-700 mb-1"
-                    >
-                      Message
-                    </label>
-                    <textarea
-                      id="notification-message"
-                      value={notificationMessage}
-                      onChange={(e) => setNotificationMessage(e.target.value)}
-                      rows={4}
-                      className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="Enter notification message"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Notification Options
-                    </label>
-                    <div className="flex flex-col space-y-2">
-                      <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={notificationChannels.inApp}
-                          onChange={(e) => setNotificationChannels(prev => ({
-                            ...prev,
-                            inApp: e.target.checked
-                          }))}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-900">
-                          In-App Notification
-                        </span>
-                      </label>
-                      <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={notificationChannels.push}
-                          onChange={(e) => setNotificationChannels(prev => ({
-                            ...prev,
-                            push: e.target.checked
-                          }))}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-900">
-                          Push Notification
-                        </span>
-                      </label>
-                      <label className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={notificationChannels.email}
-                          onChange={(e) => setNotificationChannels(prev => ({
-                            ...prev,
-                            email: e.target.checked
-                          }))}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-900">
-                          Email Notification
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  onClick={() => sendNotification(selectedUserId)}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+      {showNotificationModal && selectedUserId ? (
+        <Modal
+          open
+          onClose={handleCloseNotificationModal}
+          title="Send notification"
+          description="Deliver to this user through one or more channels."
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCloseNotificationModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => sendNotification(selectedUserId)}
+              >
+                Send
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="text-[11px] font-medium text-rs-text-muted">
+                Title
+              </span>
+              <Input
+                id="notification-title"
+                type="text"
+                value={notificationTitle}
+                onChange={(e) => setNotificationTitle(e.target.value)}
+                placeholder="Notification title"
+                className="h-9 text-sm"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-medium text-rs-text-muted">
+                Message
+              </span>
+              <textarea
+                id="notification-message"
+                value={notificationMessage}
+                onChange={(e) => setNotificationMessage(e.target.value)}
+                rows={4}
+                placeholder="Notification message"
+                className="w-full rounded-md border border-rs-border bg-rs-surface px-3 py-2 text-sm text-rs-text placeholder:text-rs-text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </label>
+            <fieldset className="space-y-2">
+              <legend className="text-[11px] font-medium text-rs-text-muted">
+                Channels
+              </legend>
+              {(
+                [
+                  ["inApp", "In-app"],
+                  ["push", "Push"],
+                  ["email", "Email"],
+                ] as const
+              ).map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1.5 hover:bg-rs-page"
                 >
-                  Send
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseNotificationModal}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationChannels[key]}
+                    onChange={(e) =>
+                      setNotificationChannels((prev) => ({
+                        ...prev,
+                        [key]: e.target.checked,
+                      }))
+                    }
+                    className="h-3.5 w-3.5 rounded border-rs-border text-rs-primary focus:ring-rs-primary"
+                  />
+                  <span className="text-sm text-rs-text">{label}</span>
+                </label>
+              ))}
+            </fieldset>
           </div>
-        </div>
-      )}
+        </Modal>
+      ) : null}
     </div>
   );
 };

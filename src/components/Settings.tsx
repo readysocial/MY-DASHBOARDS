@@ -1,10 +1,75 @@
-import React, { useEffect, useState } from 'react';
-import { Lock, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
-import { API_URL } from '@/config/api';
-import { confirm } from '@/lib/confirm';
+import React, { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { cn } from "@/lib/utils";
+import { getAuthHeaders, handleUnauthorized, validateToken } from "../utils/api";
+import { API_URL } from "@/config/api";
+import { confirm } from "@/lib/confirm";
+
+const fieldLabelClass = "text-[11px] font-medium text-rs-text-muted";
+
+function PasswordField({
+  id,
+  label,
+  value,
+  visible,
+  onChange,
+  onToggleVisible,
+  placeholder,
+  autoComplete,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  visible: boolean;
+  onChange: (value: string) => void;
+  onToggleVisible: () => void;
+  placeholder: string;
+  autoComplete: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className={fieldLabelClass}>
+        {label}
+      </label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="pr-9 focus-visible:border-rs-text-muted/40 focus-visible:ring-rs-text-muted/20"
+          required
+          minLength={id === "old-password" ? undefined : 6}
+        />
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-rs-text-muted hover:text-rs-text rs-transition"
+          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+        >
+          {visible ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const Settings: React.FC = () => {
   useEffect(() => {
@@ -12,34 +77,39 @@ const Settings: React.FC = () => {
   }, []);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<string | null>('security');
   const [loading, setLoading] = useState(false);
-  
-  // Add password visibility states
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
   const [passwordFormData, setPasswordFormData] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
+  const [alert, setAlert] = useState<{
+    type: "success" | "error" | null;
+    message: string;
+  }>({ type: null, message: "" });
 
-  const [alert, setAlert] = useState<{ type: 'success' | 'error' | null; message: string }>({
-    type: null,
-    message: ''
-  });
-
-  const showAlert = (type: 'success' | 'error', message: string) => {
+  const showAlert = (type: "success" | "error", message: string) => {
     setAlert({ type, message });
-    setTimeout(() => {
-      setAlert({ type: null, message: '' });
-    }, 5000);
+    setTimeout(() => setAlert({ type: null, message: "" }), 5000);
   };
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSection(expandedSection === sectionId ? null : sectionId);
+  const resetForm = () => {
+    setPasswordFormData({
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    setShowOldPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  const closeModal = () => {
+    setShowChangePassword(false);
+    resetForm();
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -47,24 +117,24 @@ const Settings: React.FC = () => {
     if (!validateToken()) return;
 
     if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
-      showAlert('error', 'New passwords do not match');
+      showAlert("error", "New passwords do not match");
       return;
     }
 
     if (passwordFormData.newPassword.length < 6) {
-      showAlert('error', 'New password must be at least 6 characters long');
+      showAlert("error", "New password must be at least 6 characters long");
       return;
     }
 
     if (!passwordFormData.oldPassword) {
-      showAlert('error', 'Please enter your current password');
+      showAlert("error", "Please enter your current password");
       return;
     }
 
     const confirmed = await confirm({
-      title: 'Change Password',
-      description: 'Are you sure you want to change your admin password?',
-      confirmText: 'Change Password',
+      title: "Change password",
+      description: "Are you sure you want to change your admin password?",
+      confirmText: "Change password",
     });
     if (!confirmed) return;
 
@@ -72,211 +142,155 @@ const Settings: React.FC = () => {
 
     try {
       const response = await fetch(`${API_URL}/admin/change-password`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           oldPassword: passwordFormData.oldPassword,
-          newPassword: passwordFormData.newPassword
+          newPassword: passwordFormData.newPassword,
         }),
       });
 
       if (response.status === 401) {
         return handleUnauthorized(response);
       }
-      
+
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to change password');
+        throw new Error(data.message || "Failed to change password");
       }
 
-      showAlert('success', 'Password changed successfully');
-      setShowChangePassword(false);
-      setPasswordFormData({ oldPassword: '', newPassword: '', confirmPassword: '' });
-      // Reset password visibility states
-      setShowOldPassword(false);
-      setShowNewPassword(false);
-      setShowConfirmPassword(false);
+      showAlert("success", "Password changed successfully");
+      closeModal();
     } catch (err) {
-      showAlert('error', err instanceof Error ? err.message : 'Failed to change password');
+      showAlert(
+        "error",
+        err instanceof Error ? err.message : "Failed to change password",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Security Settings</h2>
-      </div>
+    <div className="max-w-3xl space-y-6">
+      <PageHeader
+        title="Security Settings"
+        description="Manage credentials for this admin account."
+      />
 
-      {alert.type && (
-        <div className={`mb-6 p-4 rounded-md ${
-          alert.type === 'success' 
-            ? 'bg-green-100 text-green-700 border border-green-400' 
-            : 'bg-red-100 text-red-700 border border-red-400'
-        }`}>
-          {alert.message}
-        </div>
-      )}
-
-      <div className="space-y-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <button
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
-            onClick={() => toggleSection('security')}
-          >
-            <div className="flex items-center space-x-3">
-              <Lock className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-800">Password Security</span>
-            </div>
-            {expandedSection === 'security' ? (
-              <ChevronUp className="h-5 w-5 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
-            )}
-          </button>
-
-          {expandedSection === 'security' && (
-            <div className="p-4 border-t border-gray-200">
-              <div className="max-w-md mx-auto">
-                <p className="text-sm text-gray-600 mb-4">
-                  It's recommended to use a strong password that you don't use for other accounts.
-                  Your password should be at least 6 characters long and include a mix of letters,
-                  numbers, and symbols.
-                </p>
-
-                {showChangePassword ? (
-                  <form onSubmit={handlePasswordChange} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Current Password
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type={showOldPassword ? "text" : "password"}
-                          value={passwordFormData.oldPassword}
-                          onChange={(e) => setPasswordFormData({ 
-                            ...passwordFormData, 
-                            oldPassword: e.target.value 
-                          })}
-                          placeholder="Enter your current password"
-                          className="bg-white border-gray-300 text-gray-900 pr-10"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowOldPassword(!showOldPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        >
-                          {showOldPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        New Password
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type={showNewPassword ? "text" : "password"}
-                          value={passwordFormData.newPassword}
-                          onChange={(e) => setPasswordFormData({ 
-                            ...passwordFormData, 
-                            newPassword: e.target.value 
-                          })}
-                          placeholder="Enter new password"
-                          className="bg-white border-gray-300 text-gray-900 pr-10"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        >
-                          {showNewPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Confirm New Password
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type={showConfirmPassword ? "text" : "password"}
-                          value={passwordFormData.confirmPassword}
-                          onChange={(e) => setPasswordFormData({ 
-                            ...passwordFormData, 
-                            confirmPassword: e.target.value 
-                          })}
-                          placeholder="Confirm new password"
-                          className="bg-white border-gray-300 text-gray-900 pr-10"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-4 pt-2">
-                      <Button 
-                        type="submit" 
-                        disabled={loading}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                      >
-                        {loading ? 'Changing...' : 'Change Password'}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        onClick={() => {
-                          setShowChangePassword(false);
-                          setPasswordFormData({ oldPassword: '', newPassword: '', confirmPassword: '' });
-                          setShowOldPassword(false);
-                          setShowNewPassword(false);
-                          setShowConfirmPassword(false);
-                        }}
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <Button
-                    onClick={() => setShowChangePassword(true)}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    Change Password
-                  </Button>
-                )}
-              </div>
-            </div>
+      {alert.type ? (
+        <div
+          className={cn(
+            "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm",
+            alert.type === "success"
+              ? "border-rs-border bg-rs-surface text-rs-text"
+              : "border-rs-primary/20 bg-rs-primary-tint text-rs-text",
           )}
+          role="status"
+        >
+          {alert.type === "success" ? (
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-rs-success" />
+          ) : (
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rs-primary" />
+          )}
+          <span className="text-rs-text-secondary">{alert.message}</span>
         </div>
-      </div>
+      ) : null}
+
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
+          <Lock className="h-4 w-4 text-rs-text-muted" />
+          <CardTitle>Password</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-medium text-rs-text">
+                Account password
+              </p>
+              <CardDescription className="max-w-md">
+                Use a strong password you don&apos;t reuse elsewhere. At least 6
+                characters, with a mix of letters, numbers, and symbols.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start sm:self-center"
+              onClick={() => setShowChangePassword(true)}
+            >
+              Change password
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Modal
+        open={showChangePassword}
+        onClose={closeModal}
+        title="Change password"
+        description="Enter your current password, then choose a new one."
+        footer={
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="change-password-form"
+              size="sm"
+              disabled={loading}
+            >
+              {loading ? "Saving…" : "Update password"}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="change-password-form"
+          onSubmit={handlePasswordChange}
+          className="space-y-4"
+        >
+          <PasswordField
+            id="old-password"
+            label="Current password"
+            value={passwordFormData.oldPassword}
+            visible={showOldPassword}
+            onChange={(oldPassword) =>
+              setPasswordFormData((prev) => ({ ...prev, oldPassword }))
+            }
+            onToggleVisible={() => setShowOldPassword((v) => !v)}
+            placeholder="Current password"
+            autoComplete="current-password"
+          />
+          <PasswordField
+            id="new-password"
+            label="New password"
+            value={passwordFormData.newPassword}
+            visible={showNewPassword}
+            onChange={(newPassword) =>
+              setPasswordFormData((prev) => ({ ...prev, newPassword }))
+            }
+            onToggleVisible={() => setShowNewPassword((v) => !v)}
+            placeholder="At least 6 characters"
+            autoComplete="new-password"
+          />
+          <PasswordField
+            id="confirm-password"
+            label="Confirm new password"
+            value={passwordFormData.confirmPassword}
+            visible={showConfirmPassword}
+            onChange={(confirmPassword) =>
+              setPasswordFormData((prev) => ({ ...prev, confirmPassword }))
+            }
+            onToggleVisible={() => setShowConfirmPassword((v) => !v)}
+            placeholder="Repeat new password"
+            autoComplete="new-password"
+          />
+        </form>
+      </Modal>
     </div>
   );
 };

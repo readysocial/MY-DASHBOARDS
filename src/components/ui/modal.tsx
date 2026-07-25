@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export interface ModalProps {
 
 /**
  * Lightweight modal shell matching TableCard / Cloudflare chrome.
+ * Renders in a portal so the dimmed overlay always covers the full viewport.
  */
 export function Modal({
   open,
@@ -42,13 +44,14 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[2000] flex items-end justify-center p-4 sm:items-center">
+      {/* Use black/α — CSS-variable colors like bg-rs-text/40 don't get opacity in Tailwind */}
       <button
         type="button"
-        className="absolute inset-0 bg-rs-text/40"
+        className="absolute inset-0 bg-black/40"
         aria-label="Close dialog"
         onClick={onClose}
       />
@@ -58,9 +61,9 @@ export function Modal({
         aria-labelledby="rs-modal-title"
         className={cn(
           "relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden",
-          "rounded-xl border border-rs-border bg-rs-surface shadow-sm",
+          "rounded-xl border border-rs-border bg-rs-surface shadow-lg",
           "max-w-lg",
-          className
+          className,
         )}
       >
         <div className="flex items-start justify-between gap-3 border-b border-rs-border px-4 py-3">
@@ -88,10 +91,7 @@ export function Modal({
         </div>
 
         <div
-          className={cn(
-            "flex-1 overflow-y-auto px-4 py-4",
-            contentClassName
-          )}
+          className={cn("flex-1 overflow-y-auto px-4 py-4", contentClassName)}
         >
           {children}
         </div>
@@ -102,6 +102,7 @@ export function Modal({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

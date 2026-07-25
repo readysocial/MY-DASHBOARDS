@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Home,
   Users,
@@ -57,10 +57,34 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+const COLLAPSED_KEY = "adminSidebarCollapsed";
+
+function readCollapsedPreference(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 const Sidebar: React.FC = () => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    setIsCollapsed(readCollapsedPreference());
+  }, []);
+
+  const setCollapsed = (collapsed: boolean) => {
+    setIsCollapsed(collapsed);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // ignore quota / private mode
+    }
+  };
 
   const handleNavigation = (path: string) => {
     router.push(path);
@@ -90,7 +114,7 @@ const Sidebar: React.FC = () => {
 
       {isMobileMenuOpen ? (
         <div
-          className="fixed inset-0 z-40 bg-rs-text/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden
         />
@@ -105,7 +129,6 @@ const Sidebar: React.FC = () => {
           isCollapsed ? "w-[52px]" : "w-60",
         )}
       >
-        {/* Brand row — collapsed: mark only; toggle lives at the foot */}
         <div
           className={cn(
             "flex h-14 shrink-0 items-center",
@@ -113,12 +136,15 @@ const Sidebar: React.FC = () => {
           )}
         >
           {isCollapsed ? (
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
-              aria-hidden
+            <button
+              type="button"
+              className="hidden h-8 w-8 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text lg:flex"
+              onClick={() => setCollapsed(false)}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
             >
-              R
-            </span>
+              <PanelLeft size={16} strokeWidth={1.75} />
+            </button>
           ) : (
             <>
               <div className="flex min-w-0 items-center gap-2.5">
@@ -140,7 +166,7 @@ const Sidebar: React.FC = () => {
               <button
                 type="button"
                 className="hidden h-8 w-8 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text lg:flex"
-                onClick={() => setIsCollapsed(true)}
+                onClick={() => setCollapsed(true)}
                 aria-label="Collapse sidebar"
               >
                 <PanelLeftClose size={16} strokeWidth={1.75} />
@@ -155,6 +181,16 @@ const Sidebar: React.FC = () => {
             isCollapsed ? "px-1.5" : "px-2",
           )}
         >
+          {isCollapsed ? (
+            <div className="mb-1 flex justify-center pb-1 lg:hidden">
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
+                aria-hidden
+              >
+                R
+              </span>
+            </div>
+          ) : null}
           {NAV_GROUPS.map((group, groupIndex) => (
             <div
               key={group.label}
@@ -170,7 +206,7 @@ const Sidebar: React.FC = () => {
                   {group.label}
                 </p>
               ) : null}
-              <ul className={cn(isCollapsed ? "space-y-0.5" : "space-y-0.5")}>
+              <ul className="space-y-0.5">
                 {group.items.map((item) => (
                   <NavItem
                     key={item.path}
@@ -187,16 +223,10 @@ const Sidebar: React.FC = () => {
         </nav>
 
         {isCollapsed ? (
-          <div className="shrink-0 border-t border-rs-border p-1.5">
-            <button
-              type="button"
-              className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text"
-              onClick={() => setIsCollapsed(false)}
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
-            >
-              <PanelLeft size={16} strokeWidth={1.75} />
-            </button>
+          <div className="hidden shrink-0 border-t border-rs-border p-1.5 lg:block">
+            <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white">
+              R
+            </div>
           </div>
         ) : null}
       </aside>

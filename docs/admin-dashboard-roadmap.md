@@ -26,6 +26,23 @@ Visual chrome cleanup (duplicate header icon, fake Documentation / Download Repo
 
 Related: Phase 3 “Replace mock home dashboard with live metrics”.
 
+### Architecture backlog (do later)
+
+**Note:** Defer a proper shell/auth restructure to a later **pages-router migration** (persistent admin layout via `_app` + `getLayout`, or equivalent). Don’t keep patching remount symptoms (e.g. sidebar `localStorage`) indefinitely. Listener portal can adopt the same pattern afterward.
+
+| # | Todo | Severity | Notes |
+|---|------|----------|--------|
+| 1 | **Persistent admin layout** | High | Today every page wraps its own `<Layout>`, so Sidebar/Navbar remount on each nav. Own the shell once in `_app` / `getLayout`. |
+| 2 | **Single auth gate** | High | Auth is split across `Layout`, home-only checks, and per-page `validateToken()`. One gate; no flash of protected UI. |
+| 3 | **Fix admin session detail route** | High | `/sessions/[sessionId]/details` uses `ListenerLayout` + listener auth. Should use admin shell (listener twin is under `/listener/...`). |
+| 4 | **Unify admin token keys** | Medium | Login writes both `accessToken` and `adminToken`; readers disagree. One key; clear it everywhere on logout/401. |
+| 5 | **Collapse `/` vs `/dashboard`** | Medium | Two homes with different gates; sidebar points at `/`. Pick one canonical route. |
+| 6 | **Shared admin API client** | Medium | Sparks uses modules; most screens inline `fetch`. Align headers, base URL, and 401 handling. |
+| 7 | **Consistent auth redirects** | Medium | Mix of `router.push` and `window.location` on expired token. Prefer one client navigation path. |
+| 8 | **Untangle admin vs listener components** | Low | Admin session widgets live under `components/listener/`, which encourages wrong imports. |
+| 9 | **Stub / orphan pages** | Low | `/analytics` has no real API; `FansPage` / `test` lack admin wiring. Remove, hide, or wire. |
+| 10 | **`_app` blank-until-ready** | Low | Returns `null` until client ready → hard-refresh blank flash. Render shell/skeleton instead. |
+
 ### Backend ready, UI missing
 
 - `GET /admin/dashboard/spark-stats`

@@ -10,6 +10,7 @@ import {
   Bell,
   Video,
   Zap,
+  CreditCard,
   PanelLeftClose,
   PanelLeft,
   LucideIcon,
@@ -40,6 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { icon: Users, text: "Users", path: "/users" },
       { icon: Zap, text: "Sparks", path: "/sparks" },
+      { icon: CreditCard, text: "Payments", path: "/payments" },
       { icon: UserCheck, text: "Listeners", path: "/listeners" },
       { icon: Video, text: "Sessions", path: "/sessions" },
     ],

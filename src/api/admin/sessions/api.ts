@@ -7,7 +7,7 @@ import type {
   } from './types';
 
 const getAdminToken = () => {
-  const token = localStorage.getItem('adminToken');
+  const token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
   if (!token) throw new Error('No admin authentication token found');
   return token;
 };
@@ -35,14 +35,35 @@ export const updateSessionStatus = async (
   return response.json();
 };
 
+export const refundSessionPayment = async (
+  sessionId: string,
+  reason: string
+): Promise<{ message: string; data: { refundTransaction: unknown } }> => {
+  const token = getAdminToken();
+
+  const response = await fetch(API_ENDPOINTS.admin.sessions.refund(sessionId), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to refund session payment');
+  }
+
+  return response.json();
+};
+
 export const addMeetingLink = async (
   sessionId: string,
   data: AddMeetingLinkRequest
 ): Promise<AddMeetingLinkResponse> => {
   const token = getAdminToken();
-  console.log('🔐 adminToken:', token);                         // 1
   const url = API_ENDPOINTS.admin.sessions.addMeetingLink(sessionId);
-  console.log('🌐 PATCH ➜', url);                               // 2
 
   const response = await fetch(url, {
     method: 'PATCH',
@@ -52,7 +73,6 @@ export const addMeetingLink = async (
     },
     body: JSON.stringify(data),
   });
-  console.log('📡 response status:', response.status);          // 3
 
   if (!response.ok) {
     const error = await response.json();

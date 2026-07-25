@@ -14,6 +14,7 @@ Source of truth for Ready Social admin management features in **MY-DASHBOARDS**,
 | Settings | Yes | Admin password change |
 | Home Dashboard | Mock | Sample analytics charts, not live data |
 | Sparks / Wallets | Yes | Wallets + ledger UI; more ops polish TBD |
+| Payments | Yes | Top-up list/detail/verify; session refunds in Sessions |
 | Analytics nav | Stubbed | Page exists; sidebar commented out; no real API |
 
 ### Home dashboard polish backlog (do later)
@@ -80,12 +81,18 @@ Related: Phase 3 “Replace mock home dashboard with live metrics”.
 
 ---
 
-## Phase 2 — Payments & refunds
+## Phase 2 — Payments oversight + session refunds
 
-- Failed / pending / abandoned top-ups (Paystack / RevenueCat)
-- Reconcile spark credit mismatches
-- Session refund / dispute actions (backend has `SESSION_REFUNDED` + refund endpoint)
-- Payment reference lookup for support
+| Capability | Backend | Dashboard |
+|------------|---------|-----------|
+| List/filter top-ups globally | `GET /admin/dashboard/payments` | Payments page |
+| Payment detail + spark credit link | `GET /admin/dashboard/payments/:id` | Detail modal (`sparkCredited`) |
+| Reconcile stuck pending | `POST /admin/dashboard/payments/:reference/verify` | Verify action |
+| Session refund trigger | `POST /sessions/:sessionId/refund` + `issueRefund` on status update | Sessions UI |
+| Refund reason / clear errors | Reason on body; 4xx when unpaid/already refunded | Confirm + error surfacing |
+| Payment reference lookup | Filter `reference` / `providerReference` | Search on Payments page |
+
+**Out of scope:** RevenueCat provider factory fix, partial refunds, auto-refund on user cancel, mismatch job queue, pricing config (Phase 3).
 
 ---
 

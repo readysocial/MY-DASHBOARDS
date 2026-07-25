@@ -84,6 +84,8 @@ interface Session {
   time: string; // This is the ISO 8601 string from the backend
   meetingLink?: string;
   status: SessionStatus;
+  paymentStatus?: string;
+  sessionCost?: number;
   reflectData?: ReflectData;
   repeats?: Repeats;
   repeatSessionId?: string; // Indicates this session is a repeat
@@ -537,10 +539,19 @@ const Sessions: React.FC = () => {
             sessionId={session._id}
             currentStatus={session.status}
             sessionTime={session.time}
-            onStatusUpdated={(newStatus) => {
+            paymentStatus={session.paymentStatus}
+            onStatusUpdated={(newStatus, nextPaymentStatus) => {
               setSessions((prev) =>
                 prev.map((s) =>
-                  s._id === session._id ? { ...s, status: newStatus } : s
+                  s._id === session._id
+                    ? {
+                        ...s,
+                        status: newStatus,
+                        ...(nextPaymentStatus
+                          ? { paymentStatus: nextPaymentStatus }
+                          : {}),
+                      }
+                    : s
                 )
               );
             }}
@@ -610,12 +621,13 @@ const Sessions: React.FC = () => {
                   Topic
                 </SortableTableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead>Meeting</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
-                <TableEmpty colSpan={5}>No sessions found</TableEmpty>
+                <TableEmpty colSpan={6}>No sessions found</TableEmpty>
               ) : (
                 rows.map((session) => {
                   const { formattedDate, formattedTime } = formatDateDisplay(
@@ -664,16 +676,38 @@ const Sessions: React.FC = () => {
                           sessionId={session._id}
                           currentStatus={session.status}
                           sessionTime={session.time}
-                          onStatusUpdated={(newStatus) => {
+                          paymentStatus={session.paymentStatus}
+                          onStatusUpdated={(newStatus, nextPaymentStatus) => {
                             setSessions((prev) =>
                               prev.map((s) =>
                                 s._id === session._id
-                                  ? { ...s, status: newStatus }
+                                  ? {
+                                      ...s,
+                                      status: newStatus,
+                                      ...(nextPaymentStatus
+                                        ? {
+                                            paymentStatus: nextPaymentStatus,
+                                          }
+                                        : {}),
+                                    }
                                   : s
                               )
                             );
                           }}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            session.paymentStatus === 'paid'
+                              ? 'bg-blue-100 text-blue-800'
+                              : session.paymentStatus === 'refunded'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {session.paymentStatus || 'unpaid'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <SessionMeetingLink

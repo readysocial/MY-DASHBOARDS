@@ -31,7 +31,7 @@ import { TableCard } from '@/components/ui/table-card';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { TableCardSearch } from '@/components/ui/table-search';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SessionStatusUpdate } from '@/components/listener/SessionStatusUpdate';
+import { SessionStatusUpdate, SessionPaymentCell } from '@/components/listener/SessionStatusUpdate';
 import { confirm } from '@/lib/confirm';
 import { cn } from '@/lib/utils';
 
@@ -522,7 +522,7 @@ const Sessions: React.FC = () => {
             {topic}
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-rs-border pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rs-border pt-3">
           <SessionMeetingLink
             sessionId={session._id}
             initialMeetingLink={session.meetingLink}
@@ -535,27 +535,43 @@ const Sessions: React.FC = () => {
             }}
             isEditable={true}
           />
-          <SessionStatusUpdate
-            sessionId={session._id}
-            currentStatus={session.status}
-            sessionTime={session.time}
-            paymentStatus={session.paymentStatus}
-            onStatusUpdated={(newStatus, nextPaymentStatus) => {
-              setSessions((prev) =>
-                prev.map((s) =>
-                  s._id === session._id
-                    ? {
-                        ...s,
-                        status: newStatus,
-                        ...(nextPaymentStatus
-                          ? { paymentStatus: nextPaymentStatus }
-                          : {}),
-                      }
-                    : s
-                )
-              );
-            }}
-          />
+          <div className="flex flex-wrap items-start gap-3">
+            <SessionStatusUpdate
+              sessionId={session._id}
+              currentStatus={session.status}
+              sessionTime={session.time}
+              paymentStatus={session.paymentStatus}
+              onStatusUpdated={(newStatus, nextPaymentStatus) => {
+                setSessions((prev) =>
+                  prev.map((s) =>
+                    s._id === session._id
+                      ? {
+                          ...s,
+                          status: newStatus,
+                          ...(nextPaymentStatus
+                            ? { paymentStatus: nextPaymentStatus }
+                            : {}),
+                        }
+                      : s
+                  )
+                );
+              }}
+            />
+            <SessionPaymentCell
+              sessionId={session._id}
+              currentStatus={session.status}
+              paymentStatus={session.paymentStatus}
+              onPaymentUpdated={(nextPaymentStatus) => {
+                setSessions((prev) =>
+                  prev.map((s) =>
+                    s._id === session._id
+                      ? { ...s, paymentStatus: nextPaymentStatus }
+                      : s
+                  )
+                );
+              }}
+            />
+          </div>
         </div>
       </div>
     );
@@ -697,17 +713,20 @@ const Sessions: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                            session.paymentStatus === 'paid'
-                              ? 'bg-blue-100 text-blue-800'
-                              : session.paymentStatus === 'refunded'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {session.paymentStatus || 'unpaid'}
-                        </span>
+                        <SessionPaymentCell
+                          sessionId={session._id}
+                          currentStatus={session.status}
+                          paymentStatus={session.paymentStatus}
+                          onPaymentUpdated={(nextPaymentStatus) => {
+                            setSessions((prev) =>
+                              prev.map((s) =>
+                                s._id === session._id
+                                  ? { ...s, paymentStatus: nextPaymentStatus }
+                                  : s
+                              )
+                            );
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <SessionMeetingLink

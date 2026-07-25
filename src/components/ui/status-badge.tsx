@@ -26,7 +26,8 @@ export function statusToneFrom(status: string): StatusTone {
     value === "completed" ||
     value === "verified" ||
     value === "success" ||
-    value === "successful"
+    value === "successful" ||
+    value === "refunded"
   ) {
     return "success";
   }
@@ -34,7 +35,8 @@ export function statusToneFrom(status: string): StatusTone {
     value === "in progress" ||
     value === "pending" ||
     value === "processing" ||
-    value === "ongoing"
+    value === "ongoing" ||
+    value === "paid"
   ) {
     return "info";
   }

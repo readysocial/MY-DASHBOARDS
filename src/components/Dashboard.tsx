@@ -1,19 +1,15 @@
-import React, { useState } from "react";
-import {
-  ArrowUp,
-  ArrowDown,
-  User,
-  Headphones,
-  Video,
-} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { RefreshCw, Zap, Users, Wallet } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import {
   Card,
@@ -23,414 +19,303 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  TableEmpty,
 } from "@/components/ui/table";
 import { TableCard } from "@/components/ui/table-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
+import { Button } from "@/components/ui/button";
 import { colors } from "@/styles/tokens";
-import { cn } from "@/lib/utils";
+import { API_URL } from "@/config/api";
+import { getAuthHeaders, handleUnauthorized, validateToken } from "@/utils/api";
+import { getDashboardAnalytics } from "@/api/admin/analytics/api";
+import type {
+  AnalyticsOverview,
+  AnalyticsSeriesPoint,
+} from "@/api/admin/analytics/types";
 
-const chartData = [
-  { name: "Jan", totalSessions: 150, activeUsers: 800, activeListeners: 50 },
-  { name: "Feb", totalSessions: 170, activeUsers: 1600, activeListeners: 55 },
-  { name: "Mar", totalSessions: 140, activeUsers: 1500, activeListeners: 45 },
-  { name: "Apr", totalSessions: 160, activeUsers: 1550, activeListeners: 60 },
-  { name: "May", totalSessions: 140, activeUsers: 1700, activeListeners: 52 },
-  { name: "Jun", totalSessions: 120, activeUsers: 1400, activeListeners: 48 },
-];
-
-interface ActiveUserItemProps {
-  label: string;
-  value: string;
-  change: number;
-}
-
-interface SessionRowProps {
-  id: string;
-  date: string;
-  user: string;
-  listener: string;
-  duration: string;
+interface RecentSession {
+  _id: string;
+  user?: { anonymousName?: string | null };
+  listener?: { name?: string | null } | null;
+  topic?: string;
+  topicRef?: { topic?: string };
+  time: string;
   status: string;
 }
 
-interface ListenerStatsProps {
-  name: string;
-  specialties: string;
-  rating: number;
-  sessionsCompleted: number;
-}
+const formatNumber = (n: number | undefined) =>
+  (n ?? 0).toLocaleString();
 
-const ActiveUserItem: React.FC<ActiveUserItemProps> = ({ label, value, change }) => (
-  <div className="flex items-center justify-between border-b border-rs-border py-3 last:border-0 last:pb-0 first:pt-0">
-    <span className="text-sm text-rs-text">{label}</span>
-    <div className="text-right">
-      <p className="text-sm font-medium text-rs-text tabular-nums">{value}</p>
-      <p
-        className={cn(
-          "mt-0.5 flex items-center justify-end text-xs",
-          change >= 0 ? "text-rs-success" : "text-rs-text-muted"
-        )}
-      >
-        {change >= 0 ? (
-          <ArrowUp className="mr-0.5 h-3 w-3" strokeWidth={1.75} />
-        ) : (
-          <ArrowDown className="mr-0.5 h-3 w-3" strokeWidth={1.75} />
-        )}
-        {Math.abs(change)}%
-      </p>
-    </div>
-  </div>
-);
-
-const SessionRow: React.FC<SessionRowProps> = ({
-  id,
-  date,
-  user,
-  listener,
-  duration,
-  status,
-}) => (
-  <TableRow>
-    <TableCell className="font-medium text-rs-text">{id}</TableCell>
-    <TableCell>{date}</TableCell>
-    <TableCell>{user}</TableCell>
-    <TableCell>{listener}</TableCell>
-    <TableCell>{duration}</TableCell>
-    <TableCell>
-      <StatusBadge tone={statusToneFrom(status)}>{status}</StatusBadge>
-    </TableCell>
-  </TableRow>
-);
-
-const ListenerStats: React.FC<ListenerStatsProps> = ({
-  name,
-  specialties,
-  rating,
-  sessionsCompleted,
-}) => (
-  <div className="flex items-center justify-between border-b border-rs-border py-3 last:border-0 last:pb-0 first:pt-0">
-    <div className="min-w-0">
-      <p className="truncate text-sm font-medium text-rs-text">{name}</p>
-      <p className="truncate text-xs text-rs-text-muted">{specialties}</p>
-    </div>
-    <div className="shrink-0 pl-4 text-right">
-      <p className="text-sm font-medium text-rs-text tabular-nums">{rating.toFixed(1)}</p>
-      <p className="text-xs text-rs-text-muted">{sessionsCompleted} sessions</p>
-    </div>
-  </div>
-);
-
-const Notification: React.FC<{
-  text: string;
-  time: string;
-  type: "user" | "listener" | "session";
-}> = ({ text, time, type }) => {
-  const icons = {
-    user: <User className="h-4 w-4 text-rs-text-muted" strokeWidth={1.75} />,
-    listener: <Headphones className="h-4 w-4 text-rs-text-muted" strokeWidth={1.75} />,
-    session: <Video className="h-4 w-4 text-rs-text-muted" strokeWidth={1.75} />,
-  };
-
-  return (
-    <div className="flex items-start gap-3 border-b border-rs-border py-3 last:border-0 last:pb-0 first:pt-0">
-      <div className="mt-0.5 shrink-0">{icons[type]}</div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-rs-text">{text}</p>
-        <p className="mt-0.5 text-xs text-rs-text-muted">{time}</p>
-      </div>
-    </div>
-  );
-};
-
-const chartTooltipStyle = {
-  backgroundColor: colors.surface,
-  border: `1px solid ${colors.border}`,
-  borderRadius: 8,
-  fontSize: 12,
-  color: colors.text,
-  boxShadow: "none",
+const formatPeriodLabel = (period: string) => {
+  const [y, m] = period.split("-");
+  const date = new Date(Number(y), Number(m) - 1, 1);
+  return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
 };
 
 const Dashboard: React.FC = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState("2024");
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [series, setSeries] = useState<AnalyticsSeriesPoint[]>([]);
+  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    validateToken();
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [analytics, sessionsRes] = await Promise.all([
+        getDashboardAnalytics(6),
+        fetch(`${API_URL}/sessions/platform/all?limit=10&sortBy=createdAt&sortOrder=desc`, {
+          headers: getAuthHeaders(),
+        }),
+      ]);
+
+      setOverview(analytics.overview);
+      setSeries(analytics.series || []);
+
+      if (sessionsRes.status === 401) {
+        handleUnauthorized(sessionsRes);
+        return;
+      }
+      if (sessionsRes.ok) {
+        const sessionsData = await sessionsRes.json();
+        const list: RecentSession[] = Array.isArray(sessionsData)
+          ? sessionsData
+          : sessionsData.sessions || sessionsData.data || [];
+        setRecentSessions(list.slice(0, 8));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const chartData = series.map((row) => ({
+    name: formatPeriodLabel(row.period),
+    sessions: row.sessions,
+    purchased: row.sparksPurchased,
+    redeemed: row.sparksRedeemed,
+  }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 p-4 md:p-6">
       <PageHeader
-        description="Overview of users, listeners, and sessions across the platform."
+        title="Dashboard"
+        description="Live platform overview — last 6 months."
         actions={
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[120px] border-rs-border bg-rs-surface shadow-none">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {["2021", "2022", "2023", "2024"].map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
         }
       />
 
-      {/* Stat cards — label + value only, no colored icons */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total Users"
-          value="25,431"
-          trend={{ value: 12, label: "this week" }}
-          hint="All registered users"
+          label="Sparks not redeemed"
+          value={loading ? "…" : formatNumber(overview?.totalSparksNotRedeemed)}
+          hint="Balance across active wallets"
         />
         <StatCard
-          label="Active Listeners"
-          value="142"
-          trend={{ value: 8, label: "this week" }}
-          hint="Listeners available in the last 7 days"
+          label="Sparks purchased"
+          value={loading ? "…" : formatNumber(overview?.totalPurchased)}
+          hint="Lifetime completed top-ups"
         />
         <StatCard
-          label="Total Sessions"
-          value="1,893"
-          trend={{ value: 15, label: "this week" }}
+          label="Total sessions"
+          value={loading ? "…" : formatNumber(overview?.totalSessions)}
         />
         <StatCard
-          label="Completion Rate"
-          value="89%"
-          trend={{ value: 5, label: "this week" }}
+          label="Active users (30d)"
+          value={loading ? "…" : formatNumber(overview?.activeUsers30d)}
+          hint="Users with a session in the last 30 days"
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Platform Analytics</CardTitle>
+            <CardTitle className="text-base">Activity</CardTitle>
             <CardDescription>
-              Users, listeners, and sessions by month
+              Sessions booked and sparks purchased / redeemed by month
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="users">Users</TabsTrigger>
-                <TabsTrigger value="listeners">Listeners</TabsTrigger>
-                <TabsTrigger value="sessions">Sessions</TabsTrigger>
-              </TabsList>
-              <TabsContent value="overview">
-                <div className="h-[280px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} barGap={4} barCategoryGap="28%">
-                      <CartesianGrid
-                        stroke={colors.chart.grid}
-                        strokeDasharray="0"
-                        vertical={false}
-                        strokeOpacity={0.8}
-                      />
-                      <XAxis
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: colors.chart.axis, fontSize: 12 }}
-                        dy={8}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: colors.chart.axis, fontSize: 12 }}
-                        width={40}
-                      />
-                      <Tooltip
-                        cursor={{ fill: colors.page }}
-                        contentStyle={chartTooltipStyle}
-                      />
-                      <Bar
-                        dataKey="totalSessions"
-                        fill={colors.chart.primary}
-                        radius={[2, 2, 0, 0]}
-                        maxBarSize={16}
-                      />
-                      <Bar
-                        dataKey="activeUsers"
-                        fill={colors.chart.tertiary}
-                        radius={[2, 2, 0, 0]}
-                        maxBarSize={16}
-                      />
-                      <Bar
-                        dataKey="activeListeners"
-                        fill={colors.chart.secondary}
-                        radius={[2, 2, 0, 0]}
-                        maxBarSize={16}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-4 text-xs text-rs-text-muted">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-2 w-2 rounded-sm"
-                      style={{ background: colors.chart.primary }}
-                    />
-                    Sessions
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-2 w-2 rounded-sm"
-                      style={{ background: colors.chart.tertiary }}
-                    />
-                    Users
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-2 w-2 rounded-sm"
-                      style={{ background: colors.chart.secondary }}
-                    />
-                    Listeners
-                  </span>
-                </div>
-              </TabsContent>
-              <TabsContent value="users">
-                <p className="py-12 text-center text-sm text-rs-text-muted">
-                  User analytics for {selectedPeriod} will appear here.
-                </p>
-              </TabsContent>
-              <TabsContent value="listeners">
-                <p className="py-12 text-center text-sm text-rs-text-muted">
-                  Listener analytics for {selectedPeriod} will appear here.
-                </p>
-              </TabsContent>
-              <TabsContent value="sessions">
-                <p className="py-12 text-center text-sm text-rs-text-muted">
-                  Session analytics for {selectedPeriod} will appear here.
-                </p>
-              </TabsContent>
-            </Tabs>
+          <CardContent className="h-[280px] pt-0">
+            {loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-rs-text-muted">
+                Loading chart…
+              </div>
+            ) : chartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-rs-text-muted">
+                No activity in this period.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar
+                    dataKey="sessions"
+                    name="Sessions"
+                    fill={colors.chart.primary}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="purchased"
+                    name="Purchased"
+                    fill={colors.chart.secondary}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="redeemed"
+                    name="Redeemed"
+                    fill={colors.chart.tertiary}
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>User Statistics</CardTitle>
+            <CardTitle className="text-base">Spark inventory</CardTitle>
+            <CardDescription>Wallet and ledger totals</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ActiveUserItem label="New Users" value="1,245" change={20} />
-            <ActiveUserItem label="Active Users" value="18,556" change={12} />
-            <ActiveUserItem label="Returning Users" value="8,126" change={5} />
-            <ActiveUserItem label="Premium Users" value="2,854" change={15} />
+          <CardContent className="space-y-3 text-sm">
+            <InventoryRow
+              icon={<Wallet className="h-4 w-4" />}
+              label="Total wallets"
+              value={formatNumber(overview?.totalWalletsCount)}
+              loading={loading}
+            />
+            <InventoryRow
+              icon={<Zap className="h-4 w-4" />}
+              label="Active wallets"
+              value={formatNumber(overview?.activeWalletsCount)}
+              loading={loading}
+            />
+            <InventoryRow
+              icon={<Zap className="h-4 w-4" />}
+              label="Redeemed (sessions)"
+              value={formatNumber(overview?.totalRedeemed)}
+              loading={loading}
+            />
+            <InventoryRow
+              icon={<Users className="h-4 w-4" />}
+              label="Gifted"
+              value={formatNumber(overview?.totalGifted)}
+              loading={loading}
+            />
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-        <TableCard title="Recent Sessions" className="lg:col-span-2">
-          <Table variant="plain">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Listener</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <SessionRow
-                id="S-1234"
-                date="Mar 15, 2024"
-                user="John Doe"
-                listener="Sarah Smith"
-                duration="45 mins"
-                status="Completed"
-              />
-              <SessionRow
-                id="S-1235"
-                date="Mar 15, 2024"
-                user="Alice Johnson"
-                listener="Mike Brown"
-                duration="30 mins"
-                status="In Progress"
-              />
-              <SessionRow
-                id="S-1236"
-                date="Mar 14, 2024"
-                user="Emma Wilson"
-                listener="David Lee"
-                duration="60 mins"
-                status="Completed"
-              />
-            </TableBody>
-          </Table>
-        </TableCard>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Listeners</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ListenerStats
-                name="Sarah Smith"
-                specialties="Anxiety, Depression"
-                rating={4.9}
-                sessionsCompleted={156}
-              />
-              <ListenerStats
-                name="Mike Brown"
-                specialties="Stress Management"
-                rating={4.8}
-                sessionsCompleted={142}
-              />
-              <ListenerStats
-                name="David Lee"
-                specialties="Relationship Counseling"
-                rating={4.7}
-                sessionsCompleted={128}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Notification
-                text="New user registration: Emma Wilson"
-                time="2 hours ago"
-                type="user"
-              />
-              <Notification
-                text="Session completed with Sarah Smith"
-                time="3 hours ago"
-                type="session"
-              />
-              <Notification
-                text="New listener approved: James Chen"
-                time="5 hours ago"
-                type="listener"
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <TableCard
+        title="Recent sessions"
+        description="Latest bookings across the platform"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/sessions">View all</Link>
+          </Button>
+        }
+      >
+        <Table variant="plain">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>User</TableHead>
+              <TableHead>Listener</TableHead>
+              <TableHead>Topic</TableHead>
+              <TableHead>When</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableEmpty colSpan={5}>Loading sessions…</TableEmpty>
+            ) : recentSessions.length === 0 ? (
+              <TableEmpty colSpan={5}>No sessions yet</TableEmpty>
+            ) : (
+              recentSessions.map((session) => (
+                <TableRow key={session._id}>
+                  <TableCell className="font-medium">
+                    {session.user?.anonymousName || "Anonymous"}
+                  </TableCell>
+                  <TableCell>
+                    {session.listener?.name || "—"}
+                  </TableCell>
+                  <TableCell className="max-w-[10rem] truncate">
+                    {session.topicRef?.topic || session.topic || "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-rs-text-muted">
+                    {new Date(session.time).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge tone={statusToneFrom(session.status)}>
+                      {session.status}
+                    </StatusBadge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableCard>
     </div>
   );
 };
+
+const InventoryRow: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  loading: boolean;
+}> = ({ icon, label, value, loading }) => (
+  <div className="flex items-center justify-between border-b border-rs-border pb-2 last:border-0 last:pb-0">
+    <div className="flex items-center gap-2 text-rs-text-secondary">
+      <span className="text-rs-text-muted">{icon}</span>
+      <span>{label}</span>
+    </div>
+    <span className="font-semibold tabular-nums text-rs-text">
+      {loading ? "…" : value}
+    </span>
+  </div>
+);
 
 export default Dashboard;

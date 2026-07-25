@@ -96,12 +96,18 @@ Related: Phase 3 “Replace mock home dashboard with live metrics”.
 
 ---
 
-## Phase 3 — Analytics & pricing
+## Phase 3 — Live analytics + pricing
 
-- Replace mock home dashboard with live metrics (sessions, active users, spark burn/top-up, listener utilization)
-- Admin-editable spark conversion rate (currently hardcoded `NGN: 1500`)
-- Admin-editable session cost (currently `SESSION_COST = 1`)
-- Read-only spark bundle overview (RevenueCat offerings)
+| Capability | Backend | Dashboard |
+|------------|---------|-----------|
+| Home Dashboard metrics | `GET /admin/dashboard/analytics` + existing spark-stats | Live KPIs + recent sessions |
+| Overview chart | Monthly series (sessions, purchased, redeemed) | Recharts last 6 months |
+| Spark conversion rate | Mongo `PlatformConfig` + `GET/PATCH /admin/pricing-config` | Pricing page |
+| Session cost | Same PlatformConfig | Pricing page |
+
+**Out of scope:** Spark bundles / RevenueCat offerings (not in use), per-tab Users/Listeners/Sessions charts, Top Listeners, Recent Activities, Premium/Returning stats, `/analytics` stub, Redis pricing, Phase 4 audit log.
+
+Home polish backlog (mock charts / filler panels) is addressed by the live Dashboard rewrite.
 
 ---
 
@@ -123,11 +129,10 @@ Related: Phase 3 “Replace mock home dashboard with live metrics”.
 3. Transaction ledger (Phase 1)
 4. Session refunds / disputes (Phase 2)
 5. Spark pricing controls (Phase 3)
-6. Bundle overview (Phase 3)
-7. Real analytics home (Phase 3)
-8. Topics management (Phase 4)
-9. User account actions (Phase 4)
-10. Listener performance (Phase 4)
-11. Notification history + listener targets (Phase 4)
-12. Admin audit log (Phase 4)
-13. Support tools / unified lookup (Phase 4)
+6. Real analytics home (Phase 3)
+7. Topics management (Phase 4)
+8. User account actions (Phase 4)
+9. Listener performance (Phase 4)
+10. Notification history + listener targets (Phase 4)
+11. Admin audit log (Phase 4)
+12. Support tools / unified lookup (Phase 4)

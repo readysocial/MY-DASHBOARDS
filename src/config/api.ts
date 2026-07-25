@@ -42,6 +42,8 @@ export const API_ENDPOINTS = {
       verify: (reference: string) =>
         `${API_URL}/admin/dashboard/payments/${encodeURIComponent(reference)}/verify`,
     },
+    pricing: `${API_URL}/admin/pricing-config`,
+    analytics: `${API_URL}/admin/dashboard/analytics`,
   },
 
   listeners: {

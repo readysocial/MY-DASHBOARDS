@@ -11,6 +11,7 @@ import {
   Video,
   Zap,
   CreditCard,
+  Tag,
   PanelLeftClose,
   PanelLeft,
   LucideIcon,
@@ -53,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "System",
     items: [
+      { icon: Tag, text: "Pricing", path: "/pricing" },
       { icon: Smartphone, text: "App Version", path: "/app-version" },
       { icon: Settings, text: "Settings", path: "/settings" },
     ],

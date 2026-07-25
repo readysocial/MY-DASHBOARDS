@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  ArrowUp, 
-  ArrowDown, 
-  Users, 
-  UserCheck, 
-  Calendar,
-  BarChart2,
-  Clock,
+import React, { useState } from "react";
+import {
+  ArrowUp,
+  ArrowDown,
+  Home,
   User,
   Headphones,
-  Video
+  Video,
 } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import {
   Card,
   CardContent,
@@ -29,26 +32,27 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { StatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { colors } from "@/styles/tokens";
+import { cn } from "@/lib/utils";
 
-// Sample data for the analytics chart
 const chartData = [
-  { name: 'Jan', totalSessions: 150, activeUsers: 800, activeListeners: 50 },
-  { name: 'Feb', totalSessions: 170, activeUsers: 1600, activeListeners: 55 },
-  { name: 'Mar', totalSessions: 140, activeUsers: 1500, activeListeners: 45 },
-  { name: 'Apr', totalSessions: 160, activeUsers: 1550, activeListeners: 60 },
-  { name: 'May', totalSessions: 140, activeUsers: 1700, activeListeners: 52 },
-  { name: 'Jun', totalSessions: 120, activeUsers: 1400, activeListeners: 48 },
-  // ... continue with remaining months
+  { name: "Jan", totalSessions: 150, activeUsers: 800, activeListeners: 50 },
+  { name: "Feb", totalSessions: 170, activeUsers: 1600, activeListeners: 55 },
+  { name: "Mar", totalSessions: 140, activeUsers: 1500, activeListeners: 45 },
+  { name: "Apr", totalSessions: 160, activeUsers: 1550, activeListeners: 60 },
+  { name: "May", totalSessions: 140, activeUsers: 1700, activeListeners: 52 },
+  { name: "Jun", totalSessions: 120, activeUsers: 1400, activeListeners: 48 },
 ];
-
-// Interfaces
-interface MetricCardProps {
-  title: string;
-  value: string;
-  change: number;
-  icon: React.ReactNode;
-}
 
 interface ActiveUserItemProps {
   label: string;
@@ -72,206 +76,283 @@ interface ListenerStatsProps {
   sessionsCompleted: number;
 }
 
-interface NotificationProps {
-  text: string;
-  time: string;
-  type: 'user' | 'listener' | 'session';
-}
-
-// Component Definitions (same structure, updated content)
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, change, icon }) => (
-  <Card className="transition-all hover:shadow-lg">
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <div className="w-8 h-8 bg-[#F3F4F6] rounded-full flex items-center justify-center">
-        {icon}
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="text-xl sm:text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground flex items-center mt-1">
-        <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
-        <span className="text-green-500">{change}% This week</span>
-      </p>
-    </CardContent>
-  </Card>
-);
-
 const ActiveUserItem: React.FC<ActiveUserItemProps> = ({ label, value, change }) => (
-  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-    <span className="font-semibold text-sm sm:text-base">{label}</span>
+  <div className="flex items-center justify-between border-b border-rs-border py-3 last:border-0 last:pb-0 first:pt-0">
+    <span className="text-sm text-rs-text">{label}</span>
     <div className="text-right">
-      <p className="font-bold text-sm sm:text-base">{value}</p>
-      <p className={`text-xs sm:text-sm ${change >= 0 ? 'text-green-500' : 'text-red-500'} flex items-center justify-end`}>
-        {change >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+      <p className="text-sm font-medium text-rs-text tabular-nums">{value}</p>
+      <p
+        className={cn(
+          "mt-0.5 flex items-center justify-end text-xs",
+          change >= 0 ? "text-rs-success" : "text-rs-text-muted"
+        )}
+      >
+        {change >= 0 ? (
+          <ArrowUp className="mr-0.5 h-3 w-3" strokeWidth={1.75} />
+        ) : (
+          <ArrowDown className="mr-0.5 h-3 w-3" strokeWidth={1.75} />
+        )}
         {Math.abs(change)}%
       </p>
     </div>
   </div>
 );
 
-const SessionRow: React.FC<SessionRowProps> = ({ id, date, user, listener, duration, status }) => (
+const SessionRow: React.FC<SessionRowProps> = ({
+  id,
+  date,
+  user,
+  listener,
+  duration,
+  status,
+}) => (
   <TableRow>
-    <TableCell className="font-medium">{id}</TableCell>
+    <TableCell className="font-medium text-rs-text">{id}</TableCell>
     <TableCell>{date}</TableCell>
     <TableCell>{user}</TableCell>
     <TableCell>{listener}</TableCell>
     <TableCell>{duration}</TableCell>
     <TableCell>
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        status === 'Completed' ? 'bg-green-100 text-green-800' :
-        status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-        'bg-yellow-100 text-yellow-800'
-      }`}>
+      <span className="inline-flex items-center rounded-full border border-rs-border bg-rs-surface px-2 py-0.5 text-xs font-medium text-rs-text">
         {status}
       </span>
     </TableCell>
   </TableRow>
 );
 
-const ListenerStats: React.FC<ListenerStatsProps> = ({ name, specialties, rating, sessionsCompleted }) => (
-  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-    <div>
-      <p className="font-semibold text-sm sm:text-base">{name}</p>
-      <p className="text-xs sm:text-sm text-muted-foreground">{specialties}</p>
+const ListenerStats: React.FC<ListenerStatsProps> = ({
+  name,
+  specialties,
+  rating,
+  sessionsCompleted,
+}) => (
+  <div className="flex items-center justify-between border-b border-rs-border py-3 last:border-0 last:pb-0 first:pt-0">
+    <div className="min-w-0">
+      <p className="truncate text-sm font-medium text-rs-text">{name}</p>
+      <p className="truncate text-xs text-rs-text-muted">{specialties}</p>
     </div>
-    <div className="text-right">
-      <p className="text-sm font-semibold">⭐ {rating.toFixed(1)}</p>
-      <p className="text-xs text-muted-foreground">{sessionsCompleted} sessions</p>
+    <div className="shrink-0 pl-4 text-right">
+      <p className="text-sm font-medium text-rs-text tabular-nums">{rating.toFixed(1)}</p>
+      <p className="text-xs text-rs-text-muted">{sessionsCompleted} sessions</p>
     </div>
   </div>
 );
 
-const Notification: React.FC<{ text: string; time: string; type: 'user' | 'listener' | 'session' }> = ({ text, time, type }) => {
+const Notification: React.FC<{
+  text: string;
+  time: string;
+  type: "user" | "listener" | "session";
+}> = ({ text, time, type }) => {
   const icons = {
-    user: <User className="h-4 w-4 text-red-500" />,
-    listener: <Headphones className="h-4 w-4 text-green-500" />,
-    session: <Video className="h-4 w-4 text-purple-500" />
+    user: <User className="h-4 w-4 text-rs-text-muted" strokeWidth={1.75} />,
+    listener: <Headphones className="h-4 w-4 text-rs-text-muted" strokeWidth={1.75} />,
+    session: <Video className="h-4 w-4 text-rs-text-muted" strokeWidth={1.75} />,
   };
 
   return (
-    <div className="flex items-center py-2 border-b border-gray-100 last:border-0">
-      <div className="mr-3">{icons[type]}</div>
-      <div className="flex-1">
-        <p className="text-sm">{text}</p>
-        <p className="text-xs text-muted-foreground">{time}</p>
+    <div className="flex items-start gap-3 border-b border-rs-border py-3 last:border-0 last:pb-0 first:pt-0">
+      <div className="mt-0.5 shrink-0">{icons[type]}</div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-rs-text">{text}</p>
+        <p className="mt-0.5 text-xs text-rs-text-muted">{time}</p>
       </div>
     </div>
   );
 };
 
+const chartTooltipStyle = {
+  backgroundColor: colors.surface,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 8,
+  fontSize: 12,
+  color: colors.text,
+  boxShadow: "none",
+};
+
 const Dashboard: React.FC = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('2024');
+  const [selectedPeriod, setSelectedPeriod] = useState("2024");
 
   return (
-    <div className="p-2 sm:p-6 bg-white min-h-screen">
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <MetricCard 
-          title="Total Users" 
-          value="25,431" 
-          change={12} 
-          icon={<Users className="text-red-500" />} 
+    <div className="space-y-8">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of users, listeners, and sessions across the platform."
+        icon={<Home strokeWidth={1.75} />}
+        actions={
+          <>
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-[120px] border-rs-border bg-rs-surface shadow-none">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {["2021", "2022", "2023", "2024"].map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline">Documentation</Button>
+            <Button>Download Report</Button>
+          </>
+        }
+      />
+
+      {/* Stat cards — label + value only, no colored icons */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Users"
+          value="25,431"
+          trend={{ value: 12, label: "this week" }}
+          hint="All registered users"
         />
-        <MetricCard 
-          title="Active Listeners" 
-          value="142" 
-          change={8} 
-          icon={<UserCheck className="text-green-500" />} 
+        <StatCard
+          label="Active Listeners"
+          value="142"
+          trend={{ value: 8, label: "this week" }}
+          hint="Listeners available in the last 7 days"
         />
-        <MetricCard 
-          title="Total Sessions" 
-          value="1,893" 
-          change={15} 
-          icon={<Calendar className="text-purple-500" />} 
+        <StatCard
+          label="Total Sessions"
+          value="1,893"
+          trend={{ value: 15, label: "this week" }}
         />
-        <MetricCard 
-          title="Completion Rate" 
-          value="89%" 
-          change={5} 
-          icon={<BarChart2 className="text-orange-500" />} 
+        <StatCard
+          label="Completion Rate"
+          value="89%"
+          trend={{ value: 5, label: "this week" }}
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="mt-4 sm:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Main Chart Card */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-              <div>
-                <CardTitle className="text-lg sm:text-xl">Platform Analytics</CardTitle>
-                <CardDescription className="text-sm">Overview of users, listeners, and sessions</CardDescription>
-              </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Select period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['2021', '2022', '2023', '2024'].map(year => (
-                      <SelectItem key={year} value={year}>{year}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button>Download Report</Button>
-              </div>
-            </div>
+            <CardTitle>Platform Analytics</CardTitle>
+            <CardDescription>
+              Users, listeners, and sessions by month
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full sm:w-auto flex justify-start overflow-x-auto">
+              <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="users">Users</TabsTrigger>
                 <TabsTrigger value="listeners">Listeners</TabsTrigger>
                 <TabsTrigger value="sessions">Sessions</TabsTrigger>
               </TabsList>
-              <TabsContent value="overview" className="mt-4">
-                <div className="h-[300px] w-full">
+              <TabsContent value="overview">
+                <div className="h-[280px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="totalSessions" fill="#EF4444" />
-                      <Bar dataKey="activeUsers" fill="#FCA5A5"  />
-                      <Bar dataKey="activeListeners" fill="#22C55E" />
+                    <BarChart data={chartData} barGap={4} barCategoryGap="28%">
+                      <CartesianGrid
+                        stroke={colors.chart.grid}
+                        strokeDasharray="0"
+                        vertical={false}
+                        strokeOpacity={0.8}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: colors.chart.axis, fontSize: 12 }}
+                        dy={8}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: colors.chart.axis, fontSize: 12 }}
+                        width={40}
+                      />
+                      <Tooltip
+                        cursor={{ fill: colors.page }}
+                        contentStyle={chartTooltipStyle}
+                      />
+                      <Bar
+                        dataKey="totalSessions"
+                        fill={colors.chart.primary}
+                        radius={[2, 2, 0, 0]}
+                        maxBarSize={16}
+                      />
+                      <Bar
+                        dataKey="activeUsers"
+                        fill={colors.chart.tertiary}
+                        radius={[2, 2, 0, 0]}
+                        maxBarSize={16}
+                      />
+                      <Bar
+                        dataKey="activeListeners"
+                        fill={colors.chart.secondary}
+                        radius={[2, 2, 0, 0]}
+                        maxBarSize={16}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                <div className="mt-4 flex flex-wrap gap-4 text-xs text-rs-text-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-sm"
+                      style={{ background: colors.chart.primary }}
+                    />
+                    Sessions
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-sm"
+                      style={{ background: colors.chart.tertiary }}
+                    />
+                    Users
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-sm"
+                      style={{ background: colors.chart.secondary }}
+                    />
+                    Listeners
+                  </span>
+                </div>
+              </TabsContent>
+              <TabsContent value="users">
+                <p className="py-12 text-center text-sm text-rs-text-muted">
+                  User analytics for {selectedPeriod} will appear here.
+                </p>
+              </TabsContent>
+              <TabsContent value="listeners">
+                <p className="py-12 text-center text-sm text-rs-text-muted">
+                  Listener analytics for {selectedPeriod} will appear here.
+                </p>
+              </TabsContent>
+              <TabsContent value="sessions">
+                <p className="py-12 text-center text-sm text-rs-text-muted">
+                  Session analytics for {selectedPeriod} will appear here.
+                </p>
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
 
-        {/* Active Users Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">User Statistics</CardTitle>
+            <CardTitle>User Statistics</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <ActiveUserItem label="New Users" value="1,245" change={20} />
-              <ActiveUserItem label="Active Users" value="18,556" change={12} />
-              <ActiveUserItem label="Returning Users" value="8,126" change={5} />
-              <ActiveUserItem label="Premium Users" value="2,854" change={15} />
-            </div>
+          <CardContent>
+            <ActiveUserItem label="New Users" value="1,245" change={20} />
+            <ActiveUserItem label="Active Users" value="18,556" change={12} />
+            <ActiveUserItem label="Returning Users" value="8,126" change={5} />
+            <ActiveUserItem label="Premium Users" value="2,854" change={15} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Sessions and Top Listeners Section */}
-      <div className="mt-4 sm:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Recent Sessions Table */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Recent Sessions</CardTitle>
+            <CardTitle>Recent Sessions</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-auto">
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableHead>ID</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>User</TableHead>
@@ -281,7 +362,7 @@ const Dashboard: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <SessionRow 
+                <SessionRow
                   id="S-1234"
                   date="Mar 15, 2024"
                   user="John Doe"
@@ -289,7 +370,7 @@ const Dashboard: React.FC = () => {
                   duration="45 mins"
                   status="Completed"
                 />
-                <SessionRow 
+                <SessionRow
                   id="S-1235"
                   date="Mar 15, 2024"
                   user="Alice Johnson"
@@ -297,7 +378,7 @@ const Dashboard: React.FC = () => {
                   duration="30 mins"
                   status="In Progress"
                 />
-                <SessionRow 
+                <SessionRow
                   id="S-1236"
                   date="Mar 14, 2024"
                   user="Emma Wilson"
@@ -310,55 +391,56 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Top Listeners and Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Top Listeners</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <ListenerStats 
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Listeners</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ListenerStats
                 name="Sarah Smith"
                 specialties="Anxiety, Depression"
                 rating={4.9}
                 sessionsCompleted={156}
               />
-              <ListenerStats 
+              <ListenerStats
                 name="Mike Brown"
                 specialties="Stress Management"
                 rating={4.8}
                 sessionsCompleted={142}
               />
-              <ListenerStats 
+              <ListenerStats
                 name="David Lee"
                 specialties="Relationship Counseling"
                 rating={4.7}
                 sessionsCompleted={128}
               />
-            </div>
+            </CardContent>
+          </Card>
 
-            <div>
-              <h4 className="text-md font-semibold mb-4">Recent Activities</h4>
-              <div className="space-y-2">
-                <Notification 
-                  text="New user registration: Emma Wilson"
-                  time="2 hours ago"
-                  type="user"
-                />
-                <Notification 
-                  text="Session completed with Sarah Smith"
-                  time="3 hours ago"
-                  type="session"
-                />
-                <Notification 
-                  text="New listener approved: James Chen"
-                  time="5 hours ago"
-                  type="listener"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Notification
+                text="New user registration: Emma Wilson"
+                time="2 hours ago"
+                type="user"
+              />
+              <Notification
+                text="Session completed with Sarah Smith"
+                time="3 hours ago"
+                type="session"
+              />
+              <Notification
+                text="New listener approved: James Chen"
+                time="5 hours ago"
+                type="listener"
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

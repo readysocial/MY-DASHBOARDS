@@ -983,15 +983,15 @@ const Sessions: React.FC = () => {
   );
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="sm:flex sm:items-center justify-between">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Sessions</h1>
+          <h1 className="rs-page-title">Sessions</h1>
         </div>
         <div className="mt-4 sm:mt-0 sm:flex items-center space-x-4">
           <button
-            className="flex items-center justify-center bg-red-500 text-white
-              px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+            className="flex items-center justify-center bg-rs-primary text-white
+              px-4 py-2 rounded-md text-sm font-medium hover:bg-rs-primary/90 rs-transition"
             onClick={() => {
               setEditingTopicId(null);
               setShowTopicModal(true);

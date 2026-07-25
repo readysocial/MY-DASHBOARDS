@@ -108,9 +108,9 @@ const AppVersionControl: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">App Version Control</h2>
+    <div className="max-w-4xl space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="rs-page-title">App Version Control</h2>
       </div>
 
       {alert.type && (

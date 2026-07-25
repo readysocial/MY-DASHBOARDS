@@ -24,6 +24,16 @@ export const API_ENDPOINTS = {
       addMeetingLink: (sessionId: string) =>
         `${API_URL}/sessions/${sessionId}/add-link`,
     },
+    sparks: {
+      stats: `${API_URL}/admin/dashboard/spark-stats`,
+      wallets: `${API_URL}/admin/dashboard/wallets`,
+      walletDetails: (userId: string) =>
+        `${API_URL}/admin/dashboard/wallets/${userId}`,
+      walletStatus: (userId: string) =>
+        `${API_URL}/admin/dashboard/wallets/${userId}/status`,
+      adjustSparks: `${API_URL}/admin/dashboard/adjust-sparks`,
+      transactions: `${API_URL}/admin/dashboard/transactions`,
+    },
   },
 
   listeners: {

@@ -234,7 +234,7 @@ const Notifications: React.FC = () => {
   };
 
   return (
-    <div className="p-2 sm:p-4 md:p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3 mb-6">
         <Bell className="h-6 w-6 text-gray-700" />
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Send Notification</h2>

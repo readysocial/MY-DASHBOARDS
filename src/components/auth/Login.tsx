@@ -51,6 +51,7 @@ export default function Login({ onSuccess }: LoginProps) {
 
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('adminToken', data.accessToken);
+      localStorage.setItem('adminEmail', formData.email);
       showAlert('success', 'Login successful!');
       onSuccess();
     } catch (err) {

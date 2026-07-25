@@ -16,6 +16,8 @@ export const getAuthHeaders = () => {
 export const handleUnauthorized = (error: any) => {
   if (error.status === 401) {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminEmail');
     window.location.href = '/auth';
   }
   return error;

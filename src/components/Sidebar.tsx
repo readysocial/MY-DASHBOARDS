@@ -4,7 +4,6 @@ import {
   Users,
   UserCheck,
   Settings,
-  LogOut,
   Menu,
   X,
   Smartphone,
@@ -31,50 +30,46 @@ interface NavGroup {
   items: { icon: LucideIcon; text: string; path: string }[];
 }
 
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Overview",
+    items: [{ icon: Home, text: "Dashboard", path: "/" }],
+  },
+  {
+    label: "Manage",
+    items: [
+      { icon: Users, text: "Users", path: "/users" },
+      { icon: Zap, text: "Sparks", path: "/sparks" },
+      { icon: UserCheck, text: "Listeners", path: "/listeners" },
+      { icon: Video, text: "Sessions", path: "/sessions" },
+    ],
+  },
+  {
+    label: "Engage",
+    items: [{ icon: Bell, text: "Notifications", path: "/notifications" }],
+  },
+  {
+    label: "System",
+    items: [
+      { icon: Smartphone, text: "App Version", path: "/app-version" },
+      { icon: Settings, text: "Settings", path: "/settings" },
+    ],
+  },
+];
+
 const Sidebar: React.FC = () => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-
-  const navGroups: NavGroup[] = [
-    {
-      label: "Overview",
-      items: [{ icon: Home, text: "Dashboard", path: "/" }],
-    },
-    {
-      label: "Manage",
-      items: [
-        { icon: Users, text: "Users", path: "/users" },
-        { icon: Zap, text: "Sparks", path: "/sparks" },
-        { icon: UserCheck, text: "Listeners", path: "/listeners" },
-        { icon: Video, text: "Sessions", path: "/sessions" },
-      ],
-    },
-    {
-      label: "Engage",
-      items: [{ icon: Bell, text: "Notifications", path: "/notifications" }],
-    },
-    {
-      label: "System",
-      items: [
-        { icon: Smartphone, text: "App Version", path: "/app-version" },
-        { icon: Settings, text: "Settings", path: "/settings" },
-      ],
-    },
-  ];
 
   const handleNavigation = (path: string) => {
     router.push(path);
     setIsMobileMenuOpen(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    router.push("/auth");
-  };
-
   const isActive = (path: string) => {
-    if (path === "/") return router.pathname === "/" || router.pathname === "/dashboard";
+    if (path === "/")
+      return router.pathname === "/" || router.pathname === "/dashboard";
     return router.pathname === path || router.pathname.startsWith(`${path}/`);
   };
 
@@ -83,74 +78,102 @@ const Sidebar: React.FC = () => {
       <button
         type="button"
         aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-        className="lg:hidden fixed top-4 left-4 z-50 flex h-10 w-10 items-center justify-center rounded-md border border-rs-border bg-rs-surface text-rs-text-secondary rs-transition hover:bg-rs-page"
+        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-md border border-rs-border bg-rs-surface text-rs-text-secondary rs-transition hover:bg-rs-page lg:hidden"
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       >
-        {isMobileMenuOpen ? <X size={20} strokeWidth={1.75} /> : <Menu size={20} strokeWidth={1.75} />}
+        {isMobileMenuOpen ? (
+          <X size={20} strokeWidth={1.75} />
+        ) : (
+          <Menu size={20} strokeWidth={1.75} />
+        )}
       </button>
 
-      {isMobileMenuOpen && (
+      {isMobileMenuOpen ? (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-rs-text/40"
+          className="fixed inset-0 z-40 bg-rs-text/40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden
         />
-      )}
+      ) : null}
 
       <aside
         className={cn(
-          "fixed lg:static z-50 flex h-screen flex-col border-r border-rs-border bg-rs-sidebar rs-transition",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          isCollapsed ? "w-16" : "w-60"
+          "fixed z-50 flex h-screen flex-col border-r border-rs-border bg-rs-sidebar-muted rs-transition lg:static",
+          isMobileMenuOpen
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0",
+          isCollapsed ? "w-[52px]" : "w-60",
         )}
       >
-        {/* Brand — no color block */}
+        {/* Brand row — collapsed: mark only; toggle lives at the foot */}
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center border-b border-rs-border",
-            isCollapsed ? "justify-center px-2" : "justify-between px-4"
+            "flex h-14 shrink-0 items-center",
+            isCollapsed ? "justify-center" : "justify-between gap-2 px-3",
           )}
         >
-          {!isCollapsed && (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-rs-text tracking-tight">
-                Ready Social
-              </p>
-              <p className="truncate text-xs text-rs-text-muted">Admin</p>
-            </div>
-          )}
-          {isCollapsed && (
+          {isCollapsed ? (
             <span
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-rs-primary-tint text-xs font-semibold text-rs-primary"
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
               aria-hidden
             >
               R
             </span>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
+                  aria-hidden
+                >
+                  R
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold tracking-tight text-rs-text">
+                    Ready Social
+                  </p>
+                  <p className="truncate text-[11px] text-rs-text-muted">
+                    Admin
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="hidden h-8 w-8 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text lg:flex"
+                onClick={() => setIsCollapsed(true)}
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose size={16} strokeWidth={1.75} />
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            className="hidden lg:flex h-8 w-8 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-page hover:text-rs-text"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? (
-              <PanelLeft size={16} strokeWidth={1.75} />
-            ) : (
-              <PanelLeftClose size={16} strokeWidth={1.75} />
-            )}
-          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
-          {navGroups.map((group) => (
-            <div key={group.label} className="mb-4">
-              {!isCollapsed && (
-                <p className="rs-section-label mb-1 px-3">{group.label}</p>
+        <nav
+          className={cn(
+            "flex-1 overflow-y-auto pb-2",
+            isCollapsed ? "px-1.5" : "px-2",
+          )}
+        >
+          {NAV_GROUPS.map((group, groupIndex) => (
+            <div
+              key={group.label}
+              className={cn(
+                isCollapsed ? "mb-1" : "mb-3",
+                isCollapsed &&
+                  groupIndex > 0 &&
+                  "mt-1 border-t border-rs-border/80 pt-1",
               )}
-              <ul className="space-y-0.5">
+            >
+              {!isCollapsed ? (
+                <p className="mb-1 px-2.5 text-[11px] font-medium text-rs-text-muted">
+                  {group.label}
+                </p>
+              ) : null}
+              <ul className={cn(isCollapsed ? "space-y-0.5" : "space-y-0.5")}>
                 {group.items.map((item) => (
                   <NavItem
-                    key={item.text}
+                    key={item.path}
                     Icon={item.icon}
                     text={item.text}
                     active={isActive(item.path)}
@@ -163,45 +186,57 @@ const Sidebar: React.FC = () => {
           ))}
         </nav>
 
-        <div className="shrink-0 border-t border-rs-border p-2">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className={cn(
-              "flex w-full items-center rounded-md px-3 py-2 text-sm text-rs-text-secondary rs-transition hover:bg-rs-page hover:text-rs-text",
-              isCollapsed && "justify-center px-0"
-            )}
-          >
-            <LogOut size={16} strokeWidth={1.75} className="shrink-0" />
-            {!isCollapsed && <span className="ml-3">Logout</span>}
-          </button>
-        </div>
+        {isCollapsed ? (
+          <div className="shrink-0 border-t border-rs-border p-1.5">
+            <button
+              type="button"
+              className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text"
+              onClick={() => setIsCollapsed(false)}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <PanelLeft size={16} strokeWidth={1.75} />
+            </button>
+          </div>
+        ) : null}
       </aside>
     </>
   );
 };
 
-const NavItem: React.FC<NavItemProps> = ({ Icon, text, active, onClick, collapsed }) => {
+const NavItem: React.FC<NavItemProps> = ({
+  Icon,
+  text,
+  active,
+  onClick,
+  collapsed,
+}) => {
   return (
-    <li>
+    <li className={cn(collapsed && "flex justify-center")}>
       <button
         type="button"
         onClick={onClick}
         title={collapsed ? text : undefined}
+        aria-label={collapsed ? text : undefined}
         className={cn(
-          "relative flex w-full items-center rounded-md px-3 py-2 text-sm rs-transition",
-          collapsed && "justify-center px-0",
+          "flex items-center rounded-md text-sm rs-transition",
+          collapsed
+            ? "h-9 w-9 justify-center"
+            : "w-full px-2.5 py-2",
           active
-            ? "bg-rs-page text-rs-text font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-rs-primary"
-            : "text-rs-text-secondary hover:bg-rs-page hover:text-rs-text"
+            ? "bg-rs-surface font-medium text-rs-text shadow-[inset_0_0_0_1px_var(--rs-border)]"
+            : "text-rs-text-secondary hover:bg-rs-surface/70 hover:text-rs-text",
         )}
       >
         <Icon
           size={16}
           strokeWidth={1.75}
-          className={cn("shrink-0", active ? "text-rs-text" : "text-rs-text-muted")}
+          className={cn(
+            "shrink-0",
+            active ? "text-rs-primary" : "text-rs-text-muted",
+          )}
         />
-        {!collapsed && <span className="ml-3 truncate">{text}</span>}
+        {!collapsed ? <span className="ml-2.5 truncate">{text}</span> : null}
       </button>
     </li>
   );

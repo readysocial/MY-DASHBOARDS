@@ -3,11 +3,30 @@ import { cn } from "@/lib/utils";
 
 export type StatusTone = "success" | "info" | "neutral" | "warning";
 
-const toneDot: Record<StatusTone, string> = {
-  success: "bg-rs-success",
-  info: "bg-rs-blue",
-  warning: "bg-rs-warning",
-  neutral: "bg-rs-text-muted",
+const toneStyles: Record<
+  StatusTone,
+  { shell: string; dot: string; label: string }
+> = {
+  success: {
+    shell: "border-[#3D9B6E]/25 bg-[#3D9B6E]/10",
+    dot: "bg-rs-success",
+    label: "text-[#2F7A56]",
+  },
+  info: {
+    shell: "border-rs-blue/25 bg-rs-blue-tint",
+    dot: "bg-rs-blue",
+    label: "text-[#1580AB]",
+  },
+  warning: {
+    shell: "border-[#C4922E]/30 bg-[#C4922E]/12",
+    dot: "bg-rs-warning",
+    label: "text-[#8F6C1F]",
+  },
+  neutral: {
+    shell: "border-rs-border bg-[#F4F4F4]",
+    dot: "bg-rs-text-muted",
+    label: "text-rs-text-secondary",
+  },
 };
 
 interface StatusBadgeProps {
@@ -52,22 +71,26 @@ export function statusToneFrom(status: string): StatusTone {
 }
 
 /**
- * Cloudflare-style status pill: outline + small status dot.
+ * Compact status chip: soft tint fill, modest radius (not a capsule).
  */
 export function StatusBadge({
   children,
   tone = "neutral",
   className,
 }: StatusBadgeProps) {
+  const styles = toneStyles[tone];
+
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-rs-border bg-rs-surface px-2.5 py-0.5 text-xs font-medium text-rs-text",
-        className
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium capitalize",
+        styles.shell,
+        styles.label,
+        className,
       )}
     >
       <span
-        className={cn("h-1.5 w-1.5 shrink-0 rounded-full", toneDot[tone])}
+        className={cn("h-1.5 w-1.5 shrink-0 rounded-sm", styles.dot)}
         aria-hidden
       />
       {children}

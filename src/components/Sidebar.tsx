@@ -58,6 +58,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { icon: Tag, text: "Pricing", path: "/pricing" },
       { icon: Smartphone, text: "App Version", path: "/app-version" },
+      // Audit UI hidden for now — API + /audit page remain; re-enable when ready
+      // { icon: ScrollText, text: "Audit", path: "/audit" },
       { icon: Settings, text: "Settings", path: "/settings" },
     ],
   },

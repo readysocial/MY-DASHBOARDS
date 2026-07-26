@@ -121,7 +121,7 @@ Home polish backlog (mock charts / filler panels) is addressed by the live Dashb
 
 Topics catalog CRUD is already available via Sessions → Manage Topics.
 
-### Slice 2 (active) — Listener performance
+### Slice 2 — Listener performance (done)
 
 | Capability | Backend | Dashboard |
 |------------|---------|-----------|
@@ -129,11 +129,17 @@ Topics catalog CRUD is already available via Sessions → Manage Topics.
 
 Unsuccessful stands in for no-show until a dedicated status exists. Rates use settled sessions only.
 
+### Slice 3 (active) — Admin audit log
+
+| Capability | Backend | Dashboard |
+|------------|---------|-----------|
+| Who did what (sparks, wallet, refund, pricing, app version) | `AdminAuditLog` + `GET /admin/audit-log` | Page at `/audit` (nav **hidden** for now) |
+
 ### Later slices
 
 - User account actions: verify, deactivate, flag abuse (**heavily deferred**)
 - Notification history + listener delivery targets
-- Dedicated admin audit log (who adjusted sparks, refunded, changed version, etc.)
+- Extend audit instrumentation (listener status, payment verify, session status)
 
 ---
 
@@ -148,6 +154,6 @@ Unsuccessful stands in for no-show until a dedicated status exists. Rates use se
 7. Support tools / unified lookup (Phase 4 slice 1)
 8. Topics management (Phase 4 — done in Sessions)
 9. Listener performance (Phase 4 slice 2)
-10. User account actions (Phase 4 — heavily deferred)
-11. Notification history + listener targets (Phase 4)
-12. Admin audit log (Phase 4)
+10. Admin audit log (Phase 4 slice 3)
+11. User account actions (Phase 4 — heavily deferred)
+12. Notification history + listener targets (Phase 4)

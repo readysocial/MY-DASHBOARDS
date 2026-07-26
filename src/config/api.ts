@@ -46,6 +46,7 @@ export const API_ENDPOINTS = {
     analytics: `${API_URL}/admin/dashboard/analytics`,
     supportLookup: `${API_URL}/admin/support/lookup`,
     listenersPerformance: `${API_URL}/admin/listeners/performance`,
+    auditLog: `${API_URL}/admin/audit-log`,
   },
 
   listeners: {

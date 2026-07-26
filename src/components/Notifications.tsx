@@ -3,7 +3,6 @@ import {
   Send,
   Search,
   X,
-  Bell,
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
@@ -11,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Card,
   CardContent,
@@ -288,16 +289,12 @@ const Notifications: React.FC = () => {
       <PageHeader
         title="Notifications"
         description="Send in-app, push, or email notices to platform users."
-        icon={<Bell strokeWidth={1.75} />}
       />
 
       {errorMessage ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-rs-border bg-rs-surface px-4 py-3 text-sm text-rs-primary"
-        >
+        <InlineAlert variant="error" onDismiss={() => setErrorMessage(null)}>
           {errorMessage}
-        </div>
+        </InlineAlert>
       ) : null}
 
       <Card className="max-w-2xl">
@@ -386,9 +383,11 @@ const Notifications: React.FC = () => {
                       Searching…
                     </p>
                   ) : searchResults.length === 0 ? (
-                    <p className="p-3 text-center text-xs text-rs-text-muted">
-                      No users found
-                    </p>
+                    <EmptyState
+                      className="py-6"
+                      title="No users found"
+                      description="Try a different search term."
+                    />
                   ) : (
                     searchResults.map((user) => (
                       <label

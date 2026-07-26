@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import {
   Table,
   TableBody,
@@ -178,9 +179,9 @@ const Payments: React.FC = () => {
       />
 
       {error ? (
-        <div className="rounded-lg border border-rs-primary/20 bg-rs-primary-tint px-3 py-2.5 text-sm text-rs-text-secondary">
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
+        </InlineAlert>
       ) : null}
 
       <TableCard
@@ -484,9 +485,7 @@ const PaymentDetailModal: React.FC<{
           <Skeleton className="h-4 w-3/4" />
         </div>
       ) : error ? (
-        <div className="rounded-lg border border-rs-primary/20 bg-rs-primary-tint px-3 py-2.5 text-sm text-rs-text-secondary">
-          {error}
-        </div>
+        <InlineAlert variant="error">{error}</InlineAlert>
       ) : payment ? (
         <div className="space-y-4">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">

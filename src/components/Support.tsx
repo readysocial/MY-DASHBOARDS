@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
 import { validateToken } from "@/utils/api";
 import { supportLookup } from "@/api/admin/support/api";
@@ -49,11 +50,10 @@ const Support: React.FC = () => {
       result.payments.length > 0);
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Support"
         description="Look up a user by Spark ID, anonymous name, or payment reference."
-        icon={<Search strokeWidth={1.75} />}
       />
 
       <form
@@ -72,16 +72,17 @@ const Support: React.FC = () => {
         </Button>
       </form>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
-      )}
+        </InlineAlert>
+      ) : null}
 
       {searched && !loading && !error && !hasAny && (
-        <p className="text-sm text-rs-text-muted">
-          No matches for “{result?.query ?? query}”.
-        </p>
+        <EmptyState
+          title="No matches"
+          description={`Nothing found for “${result?.query ?? query}”.`}
+        />
       )}
 
       {result && hasAny && (

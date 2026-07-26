@@ -9,7 +9,7 @@ import type { RelatedSessionsResponse } from '@/api/listener/repeatsession/types
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   Calendar,
@@ -212,11 +212,11 @@ const SessionCardWithNotes: React.FC<CardProps> = ({ session, title, onSave }) =
     setSaving(true);
     try {
       await addSessionComment(session._id, { comment });
-      toast({ description: 'Note saved!' });
+      toast.success('Note saved!');
       setEditing(false);
       onSave();
     } catch (e: any) {
-      toast({ description: e.message || 'Save failed', variant: 'destructive' });
+      toast.error(e.message || 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -225,8 +225,8 @@ const SessionCardWithNotes: React.FC<CardProps> = ({ session, title, onSave }) =
   const copyToClipboard = (text: string) =>
     navigator.clipboard
       .writeText(text)
-      .then(() => toast({ description: 'Copied!' }))
-      .catch(() => toast({ description: 'Copy failed', variant: 'destructive' }));
+      .then(() => toast.success('Copied!'))
+      .catch(() => toast.error('Copy failed'));
 
   return (
     <div className="border rounded-xl p-6 shadow-sm bg-white">

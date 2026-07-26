@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Tag } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { confirm } from "@/lib/confirm";
 import { validateToken } from "@/utils/api";
 import {
@@ -19,7 +20,6 @@ const Pricing: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     validateToken();
@@ -78,7 +78,6 @@ const Pricing: React.FC = () => {
     try {
       setSaving(true);
       setError(null);
-      setSuccess(null);
       const result = await updatePricingConfig({
         pricePerSpark: price,
         currency: currency.trim().toUpperCase(),
@@ -88,8 +87,7 @@ const Pricing: React.FC = () => {
       setPricePerSpark(String(result.config.pricePerSpark));
       setCurrency(result.config.currency);
       setSessionCost(String(result.config.sessionCost));
-      setSuccess("Pricing updated.");
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success("Pricing updated.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -98,23 +96,17 @@ const Pricing: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Pricing"
         description="Spark conversion rate and session cost."
-        icon={<Tag strokeWidth={1.75} />}
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {success}
-        </div>
-      )}
+        </InlineAlert>
+      ) : null}
 
       <div className="max-w-lg rounded-xl border border-rs-border bg-rs-surface p-5 space-y-4">
         <div>

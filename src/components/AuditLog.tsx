@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, ScrollText } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import {
   Table,
   TableBody,
@@ -128,11 +129,10 @@ const AuditLog: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Audit"
         description="Who changed sparks, wallets, refunds, pricing, and app version."
-        icon={<ScrollText strokeWidth={1.75} />}
         actions={
           <Button
             type="button"
@@ -149,11 +149,11 @@ const AuditLog: React.FC = () => {
         }
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
-      )}
+        </InlineAlert>
+      ) : null}
 
       <TableCard
         title="Activity"

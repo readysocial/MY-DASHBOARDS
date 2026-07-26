@@ -3,7 +3,6 @@ import {
   Plus,
   X,
   Edit2,
-  Video,
   RefreshCw,
   Tag,
   Check,
@@ -16,6 +15,7 @@ import { SessionMeetingLink } from '@/components/listener/SessionMeetingLink';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import { PageError } from '@/components/ui/page-error';
 import { Modal } from '@/components/ui/modal';
 import {
   Table,
@@ -33,6 +33,7 @@ import { TableCardSearch } from '@/components/ui/table-search';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SessionStatusUpdate, SessionPaymentCell } from '@/components/listener/SessionStatusUpdate';
 import { confirm } from '@/lib/confirm';
+import { toast } from "sonner";
 import { cn } from '@/lib/utils';
 
 interface User {
@@ -382,7 +383,7 @@ const Sessions: React.FC = () => {
       }
       setNewTopic('');
       fetchTopics();
-      alert('Topic created successfully!');
+      toast.success('Topic created successfully!');
     } catch (error) {
       console.error('Error creating topic:', error);
       setTopicError(error instanceof Error ? error.message : 'Failed to create topic');
@@ -482,7 +483,7 @@ const Sessions: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting sessions:', error);
-      alert('Failed to export sessions. Please try again.');
+      toast.error('Failed to export sessions. Please try again.');
     }
   };
 
@@ -971,7 +972,6 @@ const Sessions: React.FC = () => {
       <PageHeader
         title="Sessions"
         description="Review bookings, meeting links, and session outcomes."
-        icon={<Video strokeWidth={1.75} />}
         actions={
           <>
             <Button
@@ -1012,9 +1012,7 @@ const Sessions: React.FC = () => {
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-8 text-center text-sm text-rs-text">
-          {error}
-        </div>
+        <PageError message={error} onRetry={() => void fetchSessions()} />
       ) : (
         renderSessionsPanel()
       )}

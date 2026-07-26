@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import { InlineAlert } from '../ui/inline-alert';
 import { Eye, EyeOff } from 'lucide-react';
 import { API_URL } from '@/config/api';
 
@@ -8,33 +9,19 @@ interface LoginProps {
   onSuccess: () => void;
 }
 
-type AlertType = 'success' | 'error' | null;
-
-interface AlertMessage {
-  type: AlertType;
-  text: string;
-}
-
 export default function Login({ onSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [alert, setAlert] = useState<AlertMessage>({ type: null, text: '' });
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const showAlert = (type: AlertType, text: string) => {
-    setAlert({ type, text });
-    setTimeout(() => {
-      setAlert({ type: null, text: '' });
-    }, 5000);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setAlert({ type: null, text: '' });
+    setError(null);
 
     try {
       const response = await fetch(`${API_URL}/admin/auth`, {
@@ -52,28 +39,12 @@ export default function Login({ onSuccess }: LoginProps) {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('adminToken', data.accessToken);
       localStorage.setItem('adminEmail', formData.email);
-      showAlert('success', 'Login successful!');
       onSuccess();
     } catch (err) {
-      showAlert('error', err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
-  };
-
-  const Alert = ({ type, text }: { type: AlertType; text: string }) => {
-    if (!type || !text) return null;
-
-    const alertClasses = {
-      success: 'bg-transparent text-rs-success border-rs-border',
-      error: 'bg-rs-primary-tint text-rs-text border-rs-border',
-    };
-
-    return (
-      <div className={`p-4 rounded-md border text-sm ${type ? alertClasses[type] : ''} mb-4`}>
-        {text}
-      </div>
-    );
   };
 
   return (
@@ -82,9 +53,13 @@ export default function Login({ onSuccess }: LoginProps) {
         <h2 className="text-xl font-semibold text-rs-text">Ready Social</h2>
         <p className="text-sm text-rs-text-muted mt-2">Sign in to the admin dashboard</p>
       </div>
-      
-      <Alert type={alert.type} text={alert.text} />
-      
+
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
+          {error}
+        </InlineAlert>
+      ) : null}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <div className="space-y-2">
@@ -100,7 +75,7 @@ export default function Login({ onSuccess }: LoginProps) {
               required
             />
           </div>
-          
+
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium text-rs-text-secondary">
               Password
@@ -118,27 +93,19 @@ export default function Login({ onSuccess }: LoginProps) {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-rs-text-muted hover:text-rs-text"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-rs-text-muted hover:text-rs-text"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
         </div>
-        
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? 'Signing in...' : 'Sign In'}
+
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
-
-      <div className="text-xs text-center text-rs-text-muted">
-        <p>Having trouble signing in? Contact your system administrator</p>
-      </div>
     </div>
   );
 }

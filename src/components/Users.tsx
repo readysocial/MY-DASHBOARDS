@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Eye, MessageCircle, Users as UsersIcon } from 'lucide-react';
+import { Download, Eye, MessageCircle } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 import { confirm } from '@/lib/confirm';
+import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import { PageError } from '@/components/ui/page-error';
+import { InlineAlert } from '@/components/ui/inline-alert';
 import {
   Table,
   TableBody,
@@ -182,9 +185,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
-        <div className="bg-white p-6 rounded-lg w-full max-w-lg">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto" />
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40">
+        <div className="w-full max-w-lg space-y-3 rounded-xl border border-rs-border bg-rs-surface p-6">
+          <Skeleton className="h-6 w-1/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-24 w-full" />
         </div>
       </div>
     );
@@ -192,17 +198,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
   if (error || !user) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
-        <div className="bg-white p-6 rounded-lg w-full max-w-lg">
-          <p className="text-red-500 text-center">
-            {error || "User not found"}
-          </p>
-          <button
-            onClick={onClose}
-            className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600"
-          >
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4">
+        <div className="w-full max-w-lg space-y-4 rounded-xl border border-rs-border bg-rs-surface p-6">
+          <InlineAlert variant="error">{error || "User not found"}</InlineAlert>
+          <Button type="button" variant="outline" size="sm" className="w-full" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -579,12 +580,12 @@ const Users: React.FC = () => {
       }
       const result = await response.json();
       console.log("[Users] Notification sent successfully:", result);
-      alert("Notification sent successfully!");
+      toast.success("Notification sent successfully!");
       setShowNotificationModal(false);
       resetNotificationForm();
     } catch (error) {
       console.error("[Users] Error sending notification:", error);
-      alert("Failed to send notification. Please try again.");
+      toast.error("Failed to send notification. Please try again.");
     }
   };
 
@@ -682,7 +683,7 @@ const Users: React.FC = () => {
       console.log("[Users] Users exported successfully");
     } catch (error) {
       console.error("[Users] Error exporting users:", error);
-      alert("Failed to export users. Please try again.");
+      toast.error("Failed to export users. Please try again.");
     }
   };
 
@@ -772,7 +773,6 @@ const Users: React.FC = () => {
       <PageHeader
         title="Users"
         description="Browse and manage registered platform users."
-        icon={<UsersIcon strokeWidth={1.75} />}
         actions={
           <Button variant="outline" size="sm" onClick={exportUsers}>
             <Download className="mr-2 h-3.5 w-3.5" />
@@ -787,9 +787,7 @@ const Users: React.FC = () => {
           <Skeleton className="h-48 w-full rounded-xl" />
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-8 text-center text-sm text-rs-text">
-          Error: {error}
-        </div>
+        <PageError message={error} onRetry={() => void fetchUsers()} />
       ) : (
         <>
           <div className="space-y-3 sm:hidden">

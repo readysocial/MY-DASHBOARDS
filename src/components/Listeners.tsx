@@ -8,7 +8,6 @@ import {
   MessageCircle,
   CheckCircle,
   PowerOff,
-  UserCheck,
   X,
   Mail,
   Download,
@@ -35,9 +34,11 @@ import {
   updateListenerAvailability,
 } from "../api/listener/api";
 import { confirm } from "@/lib/confirm";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageError } from "@/components/ui/page-error";
 import {
   Table,
   TableBody,
@@ -227,7 +228,7 @@ const Listeners: React.FC = (): JSX.Element => {
       // setShowDetailsModal(true); // Removed as per edit hint
     } catch (error) {
       console.error("Error fetching listener details:", error);
-      alert("Failed to fetch listener details. Please try again.");
+      toast.error("Failed to fetch listener details. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -258,7 +259,7 @@ const Listeners: React.FC = (): JSX.Element => {
       setMessages(data.messages);
     } catch (error) {
       console.error("Error fetching messages:", error);
-      alert("Failed to fetch messages. Please try again.");
+      toast.error("Failed to fetch messages. Please try again.");
     }
   };
 
@@ -298,14 +299,14 @@ const Listeners: React.FC = (): JSX.Element => {
         throw new Error(data.message || "Failed to send message");
       }
 
-      alert("Message sent successfully!");
+      toast.success("Message sent successfully!");
       setMessageSubject("");
       setMessageContent("");
       setMessagePriority("normal");
       setShowMessageModal(false);
     } catch (error) {
       console.error("Error sending message:", error);
-      alert("Failed to send message. Please try again.");
+      toast.error("Failed to send message. Please try again.");
     }
   };
 
@@ -338,7 +339,7 @@ const Listeners: React.FC = (): JSX.Element => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error exporting listeners:", error);
-      alert("Failed to export listeners. Please try again.");
+      toast.error("Failed to export listeners. Please try again.");
     }
   };
 
@@ -404,10 +405,10 @@ const Listeners: React.FC = (): JSX.Element => {
       await fetchListeners();
       setShowModal(false);
       resetForm();
-      alert("Availability updated successfully!");
+      toast.success("Availability updated successfully!");
     } catch (error) {
       console.error("Error updating availability:", error);
-      alert("Failed to update availability. Please try again.");
+      toast.error("Failed to update availability. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -508,7 +509,7 @@ const Listeners: React.FC = (): JSX.Element => {
       );
     } catch (error) {
       console.error("Error updating availability:", error);
-      alert("Failed to update availability. Please try again.");
+      toast.error("Failed to update availability. Please try again.");
     }
   };
 
@@ -634,12 +635,10 @@ const Listeners: React.FC = (): JSX.Element => {
       setIsActivating(true);
       await activateDeactivateListener(listenerId, { active: !currentStatus });
       await fetchListeners(); // Refresh the list
-      alert(
-        `Listener ${!currentStatus ? "activated" : "deactivated"} successfully!`,
-      );
+      toast.success(`Listener ${!currentStatus ? "activated" : "deactivated"} successfully!`);
     } catch (error) {
       console.error("Error toggling listener status:", error);
-      alert("Failed to update listener status. Please try again.");
+      toast.error("Failed to update listener status. Please try again.");
     } finally {
       setIsActivating(false);
     }
@@ -660,10 +659,10 @@ const Listeners: React.FC = (): JSX.Element => {
     try {
       await deleteListener(listenerId);
       await fetchListeners();
-      alert("Listener deleted successfully!");
+      toast.success("Listener deleted successfully!");
     } catch (error) {
       console.error("Error deleting listener:", error);
-      alert("Failed to delete listener. Please try again.");
+      toast.error("Failed to delete listener. Please try again.");
     }
   };
 
@@ -676,10 +675,10 @@ const Listeners: React.FC = (): JSX.Element => {
       await inviteListener(inviteForm);
       setShowInviteModal(false);
       setInviteForm({ email: "" });
-      alert("Invitation sent successfully!");
+      toast.success("Invitation sent successfully!");
     } catch (error) {
       console.error("Error sending invitation:", error);
-      alert("Failed to send invitation. Please try again.");
+      toast.error("Failed to send invitation. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -690,7 +689,6 @@ const Listeners: React.FC = (): JSX.Element => {
       <PageHeader
         title="Listeners"
         description="Manage listener profiles, availability, and invitations."
-        icon={<UserCheck strokeWidth={1.75} />}
         actions={
           <>
             <Button
@@ -722,9 +720,7 @@ const Listeners: React.FC = (): JSX.Element => {
           <Skeleton className="h-48 w-full rounded-xl" />
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-8 text-center text-sm text-rs-text">
-          {error}
-        </div>
+        <PageError message={error} onRetry={() => void fetchListeners()} />
       ) : (
         <TableCard
           title="All listeners"

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Zap, RefreshCw, X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -74,7 +76,6 @@ const Sparks: React.FC = () => {
       <PageHeader
         title="Sparks"
         description="Manage wallets, balances, and the transaction ledger."
-        icon={<Zap strokeWidth={1.75} />}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -169,11 +170,11 @@ const OverviewTab: React.FC = () => {
         </Button>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-rs-border bg-rs-primary-tint px-4 py-3 text-sm text-rs-text">
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
-      )}
+        </InlineAlert>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
@@ -308,9 +309,9 @@ const WalletsTab: React.FC = () => {
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-3 text-sm text-rs-text">
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
+        </InlineAlert>
       ) : null}
 
       <TableCard
@@ -425,7 +426,15 @@ const WalletsTab: React.FC = () => {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableEmpty colSpan={5}>Loading wallets…</TableEmpty>
+                <TableRow>
+                  <TableCell colSpan={5} className="px-4 py-8">
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-3/4" />
+                    </div>
+                  </TableCell>
+                </TableRow>
               ) : wallets.length === 0 ? (
                 <TableEmpty colSpan={5}>No wallets found</TableEmpty>
               ) : (
@@ -461,9 +470,11 @@ const WalletsTab: React.FC = () => {
 
         <div className="divide-y divide-rs-border md:hidden">
           {loading ? (
-            <p className="p-4 text-center text-sm text-rs-text-muted">
-              Loading wallets…
-            </p>
+            <div className="space-y-2 p-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-3/4" />
+            </div>
           ) : wallets.length === 0 ? (
             <p className="p-4 text-center text-sm text-rs-text-muted">
               No wallets found
@@ -568,9 +579,7 @@ const WalletDetailModal: React.FC<WalletDetailModalProps> = ({
           {loading ? (
             <p className="text-gray-500">Loading…</p>
           ) : error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
+            <InlineAlert variant="error">{error}</InlineAlert>
           ) : wallet ? (
             <>
               <div className="grid grid-cols-2 gap-4">
@@ -800,9 +809,7 @@ const AdjustSparksForm: React.FC<{
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
+          <InlineAlert variant="error">{error}</InlineAlert>
         )}
 
         <div>
@@ -916,9 +923,7 @@ const ChangeStatusForm: React.FC<{
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
+          <InlineAlert variant="error">{error}</InlineAlert>
         )}
 
         <p className="text-sm text-gray-500">
@@ -1064,9 +1069,9 @@ const LedgerTab: React.FC = () => {
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-xl border border-rs-border bg-rs-surface px-4 py-3 text-sm text-rs-text">
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
+        </InlineAlert>
       ) : null}
 
       <TableCard
@@ -1189,7 +1194,15 @@ const LedgerTab: React.FC = () => {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableEmpty colSpan={7}>Loading transactions…</TableEmpty>
+                <TableRow>
+                  <TableCell colSpan={7} className="px-4 py-8">
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-3/4" />
+                    </div>
+                  </TableCell>
+                </TableRow>
               ) : transactions.length === 0 ? (
                 <TableEmpty colSpan={7}>No transactions found</TableEmpty>
               ) : (
@@ -1235,9 +1248,11 @@ const LedgerTab: React.FC = () => {
 
         <div className="divide-y divide-rs-border md:hidden">
           {loading ? (
-            <p className="p-4 text-center text-sm text-rs-text-muted">
-              Loading transactions…
-            </p>
+            <div className="space-y-2 p-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-3/4" />
+            </div>
           ) : transactions.length === 0 ? (
             <p className="p-4 text-center text-sm text-rs-text-muted">
               No transactions found

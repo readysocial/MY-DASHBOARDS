@@ -43,6 +43,7 @@ Related: Phase 3 “Replace mock home dashboard with live metrics”.
 | 8 | **Untangle admin vs listener components** | Low | Admin session widgets live under `components/listener/`, which encourages wrong imports. |
 | 9 | **Stub / orphan pages** | Low | `/analytics` has no real API; `FansPage` / `test` lack admin wiring. Remove, hide, or wire. |
 | 10 | **`_app` blank-until-ready** | Low | Returns `null` until client ready → hard-refresh blank flash. Render shell/skeleton instead. |
+| 11 | **Adopt TanStack Query** | Medium | **Gate: after Next.js 16 upgrade** (and related layout/auth cleanup). Replace per-page `useEffect` + `useState` fetch/loading/error with QueryClient, shared query keys, retries, and cache invalidation after mutations (sparks adjust, pricing save, refunds, etc.). Complements shared API client (#6) and persistent layout (#1). Do not introduce React Query before the Next 16 migration. |
 
 ### Backend ready, UI missing
 

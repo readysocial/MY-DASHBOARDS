@@ -29,7 +29,9 @@ import {
 } from "@/components/ui/table";
 import { TableCard } from "@/components/ui/table-card";
 import { StatCard } from "@/components/ui/stat-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { colors } from "@/styles/tokens";
@@ -40,6 +42,8 @@ import type {
   AnalyticsOverview,
   AnalyticsSeriesPoint,
 } from "@/api/admin/analytics/types";
+import { getPricingConfig } from "@/api/admin/pricing/api";
+import type { PricingConfig } from "@/api/admin/pricing/types";
 
 interface RecentSession {
   _id: string;
@@ -53,6 +57,15 @@ interface RecentSession {
 
 const formatNumber = (n: number | undefined) => (n ?? 0).toLocaleString();
 
+const formatMoney = (
+  sparks: number | undefined,
+  pricing: PricingConfig | null,
+) => {
+  if (!pricing || sparks == null) return undefined;
+  const amount = sparks * pricing.pricePerSpark;
+  return `≈ ${amount.toLocaleString()} ${pricing.currency}`;
+};
+
 const formatPeriodLabel = (period: string) => {
   const [y, m] = period.split("-");
   const date = new Date(Number(y), Number(m) - 1, 1);
@@ -65,6 +78,7 @@ const formatPeriodLabel = (period: string) => {
 const Dashboard: React.FC = () => {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [series, setSeries] = useState<AnalyticsSeriesPoint[]>([]);
+  const [pricing, setPricing] = useState<PricingConfig | null>(null);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,8 +92,9 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [analytics, sessionsRes] = await Promise.all([
+      const [analytics, pricingConfig, sessionsRes] = await Promise.all([
         getDashboardAnalytics(6),
+        getPricingConfig().catch(() => null),
         fetch(
           `${API_URL}/sessions/platform/all?limit=10&sortBy=createdAt&sortOrder=desc`,
           {
@@ -90,6 +105,7 @@ const Dashboard: React.FC = () => {
 
       setOverview(analytics.overview);
       setSeries(analytics.series || []);
+      setPricing(pricingConfig);
 
       if (sessionsRes.status === 401) {
         handleUnauthorized(sessionsRes);
@@ -120,11 +136,19 @@ const Dashboard: React.FC = () => {
     redeemed: row.sparksRedeemed,
   }));
 
+  const rateHint = pricing
+    ? `1 spark = ${pricing.pricePerSpark.toLocaleString()} ${pricing.currency}`
+    : undefined;
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description="Live platform overview — last 6 months."
+        description={
+          rateHint
+            ? `Live platform overview — last 6 months. ${rateHint}.`
+            : "Live platform overview — last 6 months."
+        }
         actions={
           <Button
             type="button"
@@ -141,26 +165,35 @@ const Dashboard: React.FC = () => {
         }
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
-      )}
+        </InlineAlert>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Sparks not redeemed"
+          label="Unspent sparks"
           value={loading ? "…" : formatNumber(overview?.totalSparksNotRedeemed)}
-          hint="Balance across active wallets"
+          secondary={
+            loading
+              ? undefined
+              : formatMoney(overview?.totalSparksNotRedeemed, pricing)
+          }
+          hint="Balance held in active wallets (fiat at current rate)"
         />
         <StatCard
           label="Sparks purchased"
           value={loading ? "…" : formatNumber(overview?.totalPurchased)}
-          hint="Lifetime completed top-ups"
+          secondary={
+            loading ? undefined : formatMoney(overview?.totalPurchased, pricing)
+          }
+          hint="Lifetime completed top-ups (fiat at current rate)"
         />
         <StatCard
           label="Total sessions"
           value={loading ? "…" : formatNumber(overview?.totalSessions)}
+          hint="All booked sessions on the platform"
         />
         <StatCard
           label="Active users (30d)"
@@ -175,6 +208,7 @@ const Dashboard: React.FC = () => {
             <CardTitle className="text-base">Activity</CardTitle>
             <CardDescription>
               Sessions booked and sparks purchased / redeemed by month
+              {rateHint ? ` · ${rateHint}` : ""}
             </CardDescription>
           </CardHeader>
           <CardContent className="h-[280px] pt-0">
@@ -243,12 +277,14 @@ const Dashboard: React.FC = () => {
               icon={<Zap className="h-4 w-4" />}
               label="Redeemed (sessions)"
               value={formatNumber(overview?.totalRedeemed)}
+              secondary={formatMoney(overview?.totalRedeemed, pricing)}
               loading={loading}
             />
             <InventoryRow
               icon={<Users className="h-4 w-4" />}
               label="Gifted"
               value={formatNumber(overview?.totalGifted)}
+              secondary={formatMoney(overview?.totalGifted, pricing)}
               loading={loading}
             />
           </CardContent>
@@ -276,7 +312,15 @@ const Dashboard: React.FC = () => {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableEmpty colSpan={5}>Loading sessions…</TableEmpty>
+              <TableRow>
+                <TableCell colSpan={5} className="px-4 py-8">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-3/4" />
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : recentSessions.length === 0 ? (
               <TableEmpty colSpan={5}>No sessions yet</TableEmpty>
             ) : (
@@ -311,16 +355,22 @@ const InventoryRow: React.FC<{
   icon: React.ReactNode;
   label: string;
   value: string;
+  secondary?: string;
   loading: boolean;
-}> = ({ icon, label, value, loading }) => (
-  <div className="flex items-center justify-between border-b border-rs-border pb-2 last:border-0 last:pb-0">
-    <div className="flex items-center gap-2 text-rs-text-secondary">
-      <span className="text-rs-text-muted">{icon}</span>
-      <span>{label}</span>
+}> = ({ icon, label, value, secondary, loading }) => (
+  <div className="flex items-center justify-between gap-3 border-b border-rs-border pb-2 last:border-0 last:pb-0">
+    <div className="flex min-w-0 items-center gap-2 text-rs-text-secondary">
+      <span className="shrink-0 text-rs-text-muted">{icon}</span>
+      <span className="truncate">{label}</span>
     </div>
-    <span className="font-semibold tabular-nums text-rs-text">
-      {loading ? "…" : value}
-    </span>
+    <div className="shrink-0 text-right">
+      <p className="font-semibold tabular-nums text-rs-text">
+        {loading ? "…" : value}
+      </p>
+      {secondary && !loading ? (
+        <p className="text-[11px] tabular-nums text-rs-text-muted">{secondary}</p>
+      ) : null}
+    </div>
   </div>
 );
 

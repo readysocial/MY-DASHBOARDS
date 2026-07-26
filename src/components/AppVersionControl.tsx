@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { cn } from "@/lib/utils";
 import { getAuthHeaders, handleUnauthorized, validateToken } from "../utils/api";
 import { API_URL } from "@/config/api";
@@ -147,15 +149,7 @@ const AppVersionControl: React.FC = () => {
   const [iosInput, setIosInput] = useState("");
   const [androidLoading, setAndroidLoading] = useState(false);
   const [iosLoading, setIosLoading] = useState(false);
-  const [alert, setAlert] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
-
-  const showAlert = (type: "success" | "error", message: string) => {
-    setAlert({ type, message });
-    setTimeout(() => setAlert({ type: null, message: "" }), 5000);
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchVersions = async () => {
@@ -194,7 +188,7 @@ const AppVersionControl: React.FC = () => {
     const platformLabel = platform === "android" ? "Android" : "iOS";
 
     if (!isValidVersion(version.trim())) {
-      showAlert("error", "Invalid version format. Use x.y.z (e.g., 1.2.0)");
+      setError("Invalid version format. Use x.y.z (e.g., 1.2.0)");
       return;
     }
 
@@ -206,6 +200,7 @@ const AppVersionControl: React.FC = () => {
     if (!confirmed) return;
 
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`${API_URL}/admin/minimum-app-version`, {
         method: "POST",
@@ -226,13 +221,11 @@ const AppVersionControl: React.FC = () => {
       if (platform === "android") setAndroidVersion(version.trim());
       else setIosVersion(version.trim());
 
-      showAlert(
-        "success",
+      toast.success(
         `${platformLabel} minimum version updated to ${version.trim()}`,
       );
     } catch (err) {
-      showAlert(
-        "error",
+      setError(
         err instanceof Error ? err.message : "Failed to update version",
       );
     } finally {
@@ -247,23 +240,10 @@ const AppVersionControl: React.FC = () => {
         description="Set the minimum Android and iOS builds allowed to use the app. Older clients are forced to update."
       />
 
-      {alert.type ? (
-        <div
-          className={cn(
-            "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm",
-            alert.type === "success"
-              ? "border-rs-border bg-rs-surface text-rs-text"
-              : "border-rs-primary/20 bg-rs-primary-tint text-rs-text",
-          )}
-          role="status"
-        >
-          {alert.type === "success" ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-rs-success" />
-          ) : (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rs-primary" />
-          )}
-          <span className="text-rs-text-secondary">{alert.message}</span>
-        </div>
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
+          {error}
+        </InlineAlert>
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

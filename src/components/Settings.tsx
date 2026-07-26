@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -11,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
-import { cn } from "@/lib/utils";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { getAuthHeaders, handleUnauthorized, validateToken } from "../utils/api";
 import { API_URL } from "@/config/api";
 import { confirm } from "@/lib/confirm";
@@ -86,17 +87,10 @@ const Settings: React.FC = () => {
     newPassword: "",
     confirmPassword: "",
   });
-  const [alert, setAlert] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
-
-  const showAlert = (type: "success" | "error", message: string) => {
-    setAlert({ type, message });
-    setTimeout(() => setAlert({ type: null, message: "" }), 5000);
-  };
+  const [formError, setFormError] = useState<string | null>(null);
 
   const resetForm = () => {
+    setFormError(null);
     setPasswordFormData({
       oldPassword: "",
       newPassword: "",
@@ -117,17 +111,17 @@ const Settings: React.FC = () => {
     if (!validateToken()) return;
 
     if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
-      showAlert("error", "New passwords do not match");
+      setFormError("New passwords do not match");
       return;
     }
 
     if (passwordFormData.newPassword.length < 6) {
-      showAlert("error", "New password must be at least 6 characters long");
+      setFormError("New password must be at least 6 characters long");
       return;
     }
 
     if (!passwordFormData.oldPassword) {
-      showAlert("error", "Please enter your current password");
+      setFormError("Please enter your current password");
       return;
     }
 
@@ -139,6 +133,7 @@ const Settings: React.FC = () => {
     if (!confirmed) return;
 
     setLoading(true);
+    setFormError(null);
 
     try {
       const response = await fetch(`${API_URL}/admin/change-password`, {
@@ -160,11 +155,10 @@ const Settings: React.FC = () => {
         throw new Error(data.message || "Failed to change password");
       }
 
-      showAlert("success", "Password changed successfully");
+      toast.success("Password changed successfully");
       closeModal();
     } catch (err) {
-      showAlert(
-        "error",
+      setFormError(
         err instanceof Error ? err.message : "Failed to change password",
       );
     } finally {
@@ -178,25 +172,6 @@ const Settings: React.FC = () => {
         title="Security Settings"
         description="Manage credentials for this admin account."
       />
-
-      {alert.type ? (
-        <div
-          className={cn(
-            "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm",
-            alert.type === "success"
-              ? "border-rs-border bg-rs-surface text-rs-text"
-              : "border-rs-primary/20 bg-rs-primary-tint text-rs-text",
-          )}
-          role="status"
-        >
-          {alert.type === "success" ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-rs-success" />
-          ) : (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rs-primary" />
-          )}
-          <span className="text-rs-text-secondary">{alert.message}</span>
-        </div>
-      ) : null}
 
       <Card>
         <CardHeader className="flex-row items-center gap-2 space-y-0">
@@ -253,6 +228,11 @@ const Settings: React.FC = () => {
           onSubmit={handlePasswordChange}
           className="space-y-4"
         >
+          {formError ? (
+            <InlineAlert variant="error" onDismiss={() => setFormError(null)}>
+              {formError}
+            </InlineAlert>
+          ) : null}
           <PasswordField
             id="old-password"
             label="Current password"

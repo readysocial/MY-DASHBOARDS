@@ -113,18 +113,25 @@ Home polish backlog (mock charts / filler panels) is addressed by the live Dashb
 
 ## Phase 4 — Product ops & hygiene
 
-### Slice 1 (active) — Support lookup
+### Slice 1 — Support lookup (done)
 
 | Capability | Backend | Dashboard |
 |------------|---------|-----------|
-| Unified support lookup | `GET /admin/support/lookup?q=` | Support page (`/support`) — Spark ID, anonymous name, payment reference |
+| Unified support lookup | `GET /admin/support/lookup?q=` | Support page (`/support`) |
 
-Topics catalog CRUD is already available via Sessions → Manage Topics (not extracted to its own page).
+Topics catalog CRUD is already available via Sessions → Manage Topics.
+
+### Slice 2 (active) — Listener performance
+
+| Capability | Backend | Dashboard |
+|------------|---------|-----------|
+| Per-listener completion / cancel / unsuccessful rates | `GET /admin/listeners/performance` | Columns on Listeners page (30/90d) |
+
+Unsuccessful stands in for no-show until a dedicated status exists. Rates use settled sessions only.
 
 ### Later slices
 
 - User account actions: verify, deactivate, flag abuse (**heavily deferred**)
-- Listener performance (completion, cancellations, no-shows)
 - Notification history + listener delivery targets
 - Dedicated admin audit log (who adjusted sparks, refunded, changed version, etc.)
 
@@ -140,7 +147,7 @@ Topics catalog CRUD is already available via Sessions → Manage Topics (not ext
 6. Real analytics home (Phase 3)
 7. Support tools / unified lookup (Phase 4 slice 1)
 8. Topics management (Phase 4 — done in Sessions)
-9. User account actions (Phase 4 — deferred)
-10. Listener performance (Phase 4)
+9. Listener performance (Phase 4 slice 2)
+10. User account actions (Phase 4 — heavily deferred)
 11. Notification history + listener targets (Phase 4)
 12. Admin audit log (Phase 4)

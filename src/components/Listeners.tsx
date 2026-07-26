@@ -58,6 +58,21 @@ import {
 } from "@/components/ui/table-search";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { getListenerPerformance } from "@/api/admin/listeners/api";
+import type { ListenerPerformanceRow } from "@/api/admin/listeners/types";
+
+type PerfRangeDays = 30 | 90;
+
+const formatRate = (rate: number | null | undefined, settled?: number) => {
+  if (settled === 0 || rate == null) return "—";
+  return `${Math.round(rate * 100)}%`;
+};
+
+const rangeBounds = (days: PerfRangeDays) => {
+  const to = new Date();
+  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+  return { from: from.toISOString(), to: to.toISOString() };
+};
 
 const Listeners: React.FC = (): JSX.Element => {
   useEffect(() => {
@@ -100,6 +115,13 @@ const Listeners: React.FC = (): JSX.Element => {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
 
+  // Performance (settled rates in date window)
+  const [perfRangeDays, setPerfRangeDays] = useState<PerfRangeDays>(90);
+  const [performanceById, setPerformanceById] = useState<
+    Record<string, ListenerPerformanceRow>
+  >({});
+  const [perfLoading, setPerfLoading] = useState(false);
+
   // Initialize new listener state
   const [newListener, setNewListener] = useState<Listener>({
     name: "",
@@ -137,6 +159,25 @@ const Listeners: React.FC = (): JSX.Element => {
   const [inviteForm, setInviteForm] = useState({ email: "" });
 
   // Fetch Listeners
+  const fetchPerformance = async (days: PerfRangeDays = perfRangeDays) => {
+    if (!validateToken()) return;
+    try {
+      setPerfLoading(true);
+      const { from, to } = rangeBounds(days);
+      const data = await getListenerPerformance({ from, to });
+      const map: Record<string, ListenerPerformanceRow> = {};
+      for (const row of data.listeners) {
+        map[row.listenerId] = row;
+      }
+      setPerformanceById(map);
+    } catch (err) {
+      console.error("Error fetching listener performance:", err);
+      setPerformanceById({});
+    } finally {
+      setPerfLoading(false);
+    }
+  };
+
   const fetchListeners = async () => {
     if (!validateToken()) return;
 
@@ -164,6 +205,7 @@ const Listeners: React.FC = (): JSX.Element => {
       setListeners(listenersArray);
       setFilteredListeners(listenersArray);
       setError(null);
+      void fetchPerformance(perfRangeDays);
     } catch (error) {
       console.error("Error fetching listeners:", error);
       setError("Failed to fetch listeners");
@@ -686,16 +728,38 @@ const Listeners: React.FC = (): JSX.Element => {
       ) : (
         <TableCard
           title="All listeners"
-          description={`${filteredListeners.length} profile${filteredListeners.length === 1 ? "" : "s"}`}
+          description={`${filteredListeners.length} profile${filteredListeners.length === 1 ? "" : "s"} · rates for last ${perfRangeDays} days${perfLoading ? " (updating…)" : ""}`}
           actions={
-            <TableCardSearch
-              value={searchTerm}
-              onChange={(value) => {
-                setSearchTerm(value);
-                setCurrentPage(1);
-              }}
-              aria-label="Search listeners"
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-lg border border-rs-border p-0.5">
+                {([30, 90] as PerfRangeDays[]).map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      perfRangeDays === days
+                        ? "bg-rs-text text-white"
+                        : "text-rs-text-secondary hover:text-rs-text",
+                    )}
+                    onClick={() => {
+                      setPerfRangeDays(days);
+                      void fetchPerformance(days);
+                    }}
+                  >
+                    {days}d
+                  </button>
+                ))}
+              </div>
+              <TableCardSearch
+                value={searchTerm}
+                onChange={(value) => {
+                  setSearchTerm(value);
+                  setCurrentPage(1);
+                }}
+                aria-label="Search listeners"
+              />
+            </div>
           }
           footer={
             <TablePagination
@@ -730,13 +794,40 @@ const Listeners: React.FC = (): JSX.Element => {
                   Gender
                 </SortableTableHead>
                 <TableHead>Status</TableHead>
+                <TableHead
+                  className="hidden text-right tabular-nums lg:table-cell"
+                  title="Settled sessions in range (excludes pending)"
+                >
+                  Sessions
+                </TableHead>
+                <TableHead
+                  className="hidden text-right tabular-nums lg:table-cell"
+                  title="Successful / settled"
+                >
+                  Completion
+                </TableHead>
+                <TableHead
+                  className="hidden text-right tabular-nums lg:table-cell"
+                  title="Cancelled / settled"
+                >
+                  Cancel
+                </TableHead>
+                <TableHead
+                  className="hidden text-right tabular-nums xl:table-cell"
+                  title="Unsuccessful / settled (no-show proxy)"
+                >
+                  Unsuccessful
+                </TableHead>
                 <TableHead className="w-[1%] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentListeners.length > 0 ? (
-                currentListeners.map((listener) => (
-                  <TableRow key={listener._id}>
+                currentListeners.map((listener) => {
+                  const id = listener._id;
+                  const perf = id ? performanceById[id] : undefined;
+                  return (
+                  <TableRow key={id}>
                     <TableCell className="max-w-[18rem]">
                       <p className="truncate font-medium text-rs-text">
                         {listener.name}
@@ -764,6 +855,18 @@ const Listeners: React.FC = (): JSX.Element => {
                       >
                         {listener.active ? "Active" : "Inactive"}
                       </StatusBadge>
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-rs-text-secondary lg:table-cell">
+                      {perf ? perf.settled : "—"}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-rs-text-secondary lg:table-cell">
+                      {formatRate(perf?.completionRate, perf?.settled)}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-rs-text-secondary lg:table-cell">
+                      {formatRate(perf?.cancellationRate, perf?.settled)}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-rs-text-secondary xl:table-cell">
+                      {formatRate(perf?.unsuccessfulRate, perf?.settled)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-0.5">
@@ -833,9 +936,10 @@ const Listeners: React.FC = (): JSX.Element => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               ) : (
-                <TableEmpty colSpan={4}>No listeners found</TableEmpty>
+                <TableEmpty colSpan={8}>No listeners found</TableEmpty>
               )}
             </TableBody>
           </Table>

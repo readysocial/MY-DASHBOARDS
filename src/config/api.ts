@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
     },
     pricing: `${API_URL}/admin/pricing-config`,
     analytics: `${API_URL}/admin/dashboard/analytics`,
+    supportLookup: `${API_URL}/admin/support/lookup`,
   },
 
   listeners: {

@@ -51,13 +51,15 @@ interface RecentSession {
   status: string;
 }
 
-const formatNumber = (n: number | undefined) =>
-  (n ?? 0).toLocaleString();
+const formatNumber = (n: number | undefined) => (n ?? 0).toLocaleString();
 
 const formatPeriodLabel = (period: string) => {
   const [y, m] = period.split("-");
   const date = new Date(Number(y), Number(m) - 1, 1);
-  return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    year: "2-digit",
+  });
 };
 
 const Dashboard: React.FC = () => {
@@ -78,9 +80,12 @@ const Dashboard: React.FC = () => {
 
       const [analytics, sessionsRes] = await Promise.all([
         getDashboardAnalytics(6),
-        fetch(`${API_URL}/sessions/platform/all?limit=10&sortBy=createdAt&sortOrder=desc`, {
-          headers: getAuthHeaders(),
-        }),
+        fetch(
+          `${API_URL}/sessions/platform/all?limit=10&sortBy=createdAt&sortOrder=desc`,
+          {
+            headers: getAuthHeaders(),
+          },
+        ),
       ]);
 
       setOverview(analytics.overview);
@@ -183,7 +188,10 @@ const Dashboard: React.FC = () => {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
@@ -277,9 +285,7 @@ const Dashboard: React.FC = () => {
                   <TableCell className="font-medium">
                     {session.user?.anonymousName || "Anonymous"}
                   </TableCell>
-                  <TableCell>
-                    {session.listener?.name || "—"}
-                  </TableCell>
+                  <TableCell>{session.listener?.name || "—"}</TableCell>
                   <TableCell className="max-w-[10rem] truncate">
                     {session.topicRef?.topic || session.topic || "—"}
                   </TableCell>

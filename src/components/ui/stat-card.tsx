@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 interface StatCardProps {
   label: string;
   value: string;
+  /** Muted line under the value (e.g. fiat equivalent). */
+  secondary?: string;
   trend?: {
     value: number;
     label?: string;
@@ -19,7 +21,14 @@ interface StatCardProps {
  * gray shell → label in the shell → nested white body with rounded
  * corners so gray wraps around the top of the content panel.
  */
-export function StatCard({ label, value, trend, hint, className }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  secondary,
+  trend,
+  hint,
+  className,
+}: StatCardProps) {
   const positive = trend == null || trend.value >= 0;
 
   return (
@@ -40,6 +49,11 @@ export function StatCard({ label, value, trend, hint, className }: StatCardProps
       </CardHeader>
       <CardContent className="px-4 py-4">
         <p className="rs-stat-value">{value}</p>
+        {secondary ? (
+          <p className="mt-1 text-xs tabular-nums text-rs-text-muted">
+            {secondary}
+          </p>
+        ) : null}
         {trend ? (
           <p className="mt-2 flex items-center gap-1 text-xs">
             {positive ? (

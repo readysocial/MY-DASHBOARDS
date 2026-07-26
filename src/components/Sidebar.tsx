@@ -12,6 +12,7 @@ import {
   Zap,
   CreditCard,
   Tag,
+  Search,
   PanelLeftClose,
   PanelLeft,
   LucideIcon,
@@ -45,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: CreditCard, text: "Payments", path: "/payments" },
       { icon: UserCheck, text: "Listeners", path: "/listeners" },
       { icon: Video, text: "Sessions", path: "/sessions" },
+      { icon: Search, text: "Support", path: "/support" },
     ],
   },
   {

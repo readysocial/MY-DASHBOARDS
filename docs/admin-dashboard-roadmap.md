@@ -113,12 +113,20 @@ Home polish backlog (mock charts / filler panels) is addressed by the live Dashb
 
 ## Phase 4 — Product ops & hygiene
 
-- Topics catalog CRUD (platform-wide)
-- User account actions: verify, deactivate, flag abuse (export already exists)
+### Slice 1 (active) — Support lookup
+
+| Capability | Backend | Dashboard |
+|------------|---------|-----------|
+| Unified support lookup | `GET /admin/support/lookup?q=` | Support page (`/support`) — Spark ID, anonymous name, payment reference |
+
+Topics catalog CRUD is already available via Sessions → Manage Topics (not extracted to its own page).
+
+### Later slices
+
+- User account actions: verify, deactivate, flag abuse (**heavily deferred**)
 - Listener performance (completion, cancellations, no-shows)
 - Notification history + listener delivery targets
 - Dedicated admin audit log (who adjusted sparks, refunded, changed version, etc.)
-- Unified support lookup (Spark ID / anonymous name / payment reference)
 
 ---
 
@@ -130,9 +138,9 @@ Home polish backlog (mock charts / filler panels) is addressed by the live Dashb
 4. Session refunds / disputes (Phase 2)
 5. Spark pricing controls (Phase 3)
 6. Real analytics home (Phase 3)
-7. Topics management (Phase 4)
-8. User account actions (Phase 4)
-9. Listener performance (Phase 4)
-10. Notification history + listener targets (Phase 4)
-11. Admin audit log (Phase 4)
-12. Support tools / unified lookup (Phase 4)
+7. Support tools / unified lookup (Phase 4 slice 1)
+8. Topics management (Phase 4 — done in Sessions)
+9. User account actions (Phase 4 — deferred)
+10. Listener performance (Phase 4)
+11. Notification history + listener targets (Phase 4)
+12. Admin audit log (Phase 4)

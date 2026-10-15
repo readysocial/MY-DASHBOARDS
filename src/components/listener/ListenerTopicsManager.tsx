@@ -62,19 +62,19 @@ export const ListenerTopicsManager = ({ listenerId, onUpdateSuccess }: ListenerT
   };
 
   if (isLoading) {
-    return <div className="text-gray-500">Loading your topics...</div>;
+    return <div className="text-rs-text-muted">Loading your topics...</div>;
   }
 
   return (
     <Card className="p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Your Topics</h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+          <h2 className="text-base sm:text-lg font-semibold text-rs-text">Your Topics</h2>
+          <p className="text-xs sm:text-sm text-rs-text-muted mt-1">
             These are the topics you're currently assigned to
           </p>
         </div>
-        <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+        <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-rs-text-muted" />
       </div>
 
       {error && (
@@ -92,7 +92,7 @@ export const ListenerTopicsManager = ({ listenerId, onUpdateSuccess }: ListenerT
       )}
 
       {topics.length === 0 ? (
-        <div className="text-center py-6 sm:py-8 text-gray-500">
+        <div className="text-center py-6 sm:py-8 text-rs-text-muted">
           <p className="text-sm sm:text-base">You haven't been assigned any topics yet.</p>
           <p className="text-xs sm:text-sm mt-1">Visit the Topics page to select your interests.</p>
         </div>
@@ -101,17 +101,17 @@ export const ListenerTopicsManager = ({ listenerId, onUpdateSuccess }: ListenerT
           {topics.map((topicAssignment) => (
             <div
               key={topicAssignment._id}
-              className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg"
+              className="flex items-center justify-between p-3 sm:p-4 bg-rs-page rounded-lg"
             >
               <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="h-8 w-8 sm:h-10 sm:w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                <div className="h-8 w-8 sm:h-10 sm:w-10 bg-rs-primary-tint rounded-full flex items-center justify-center">
+                  <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-rs-primary" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-medium text-gray-900 capitalize">
+                  <h3 className="text-sm sm:text-base font-medium text-rs-text capitalize">
                     {topicAssignment.topic.topic}
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-rs-text-muted">
                     {topicAssignment.topic.count} sessions available
                   </p>
                 </div>

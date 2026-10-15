@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
@@ -9,6 +9,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -19,9 +20,12 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="flex h-screen bg-rs-page">
-      <Sidebar />
+      <Sidebar
+        mobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Navbar />
+        <Navbar onMenuClick={() => setIsMobileMenuOpen((o) => !o)} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-rs-page">
           <div className="mx-auto w-full max-w-content px-4 py-6 sm:px-6 sm:py-8">
             {children}

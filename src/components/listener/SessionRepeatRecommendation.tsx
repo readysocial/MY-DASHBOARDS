@@ -39,25 +39,25 @@ export const SessionRepeatRecommendation: React.FC<SessionRepeatRecommendationPr
   }
 
   return (
-    <div className="mt-3 sm:mt-4 space-y-2">
+    <div>
       {isRecommended ? (
-        <div className="flex items-center gap-1 sm:gap-2 text-green-600">
-          <Repeat className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="text-xs sm:text-sm">Repeat session recommended</span>
+        <div className="flex items-center gap-1.5 text-xs text-rs-success">
+          <Repeat size={14} strokeWidth={1.75} />
+          <span>Recommended</span>
         </div>
       ) : (
         <div>
           <Button
             size="sm"
-            variant="outline"
-            className="flex items-center gap-1 sm:gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 text-xs sm:text-sm py-1.5 sm:py-2"
+            variant="ghost"
+            className="whitespace-nowrap"
             onClick={handleRecommendRepeat}
             disabled={isLoading}
           >
-            <Repeat className="h-3 w-3 sm:h-4 sm:w-4" />
-            Recommend Repeat Session
+            <Repeat size={14} strokeWidth={1.75} className="mr-1.5" />
+            {isLoading ? 'Saving…' : 'Repeat'}
           </Button>
-          {error && <p className="text-xs sm:text-sm text-red-600 mt-1">{error}</p>}
+          {error && <p className="mt-1 text-xs text-rs-primary">{error}</p>}
         </div>
       )}
     </div>

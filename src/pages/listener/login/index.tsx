@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import ListenerLogin from '@/components/listener/ListenerLogin';
 import { Card } from '@/components/ui/card';
+import { InlineAlert } from '@/components/ui/inline-alert';
 
 export default function ListenerLoginPage() {
   const router = useRouter();
@@ -21,15 +22,15 @@ export default function ListenerLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
+    <div className="flex min-h-screen items-center justify-center bg-rs-page px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
         <Card className="p-8">
-          {banner && (
-            <div className="mb-4 p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-sm">
-              {banner}
-            </div>
-          )}
-          <ListenerLogin onSuccess={handleLoginSuccess} />
+          <div className="space-y-6">
+            {banner && (
+              <InlineAlert variant="info">{banner}</InlineAlert>
+            )}
+            <ListenerLogin onSuccess={handleLoginSuccess} />
+          </div>
         </Card>
       </div>
     </div>

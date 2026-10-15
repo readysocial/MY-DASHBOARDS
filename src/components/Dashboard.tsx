@@ -144,11 +144,6 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description={
-          rateHint
-            ? `Live platform overview — last 6 months. ${rateHint}.`
-            : "Live platform overview — last 6 months."
-        }
         actions={
           <Button
             type="button"

@@ -25,6 +25,7 @@ import { TableCardSearch } from '@/components/ui/table-search';
 import { StatusBadge, statusToneFrom } from '@/components/ui/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/components/ui/modal';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // --- ADJUSTED INTERFACE: Removed firstName, lastName as they are not part of the User object used for display ---
 interface User {
@@ -185,188 +186,131 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40">
-        <div className="w-full max-w-lg space-y-3 rounded-xl border border-rs-border bg-rs-surface p-6">
+      <Modal open onClose={onClose} title="User Details" description="Loading user…">
+        <div className="space-y-3">
           <Skeleton className="h-6 w-1/3" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-24 w-full" />
         </div>
-      </div>
+      </Modal>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-lg space-y-4 rounded-xl border border-rs-border bg-rs-surface p-6">
-          <InlineAlert variant="error">{error || "User not found"}</InlineAlert>
-          <Button type="button" variant="outline" size="sm" className="w-full" onClick={onClose}>
+      <Modal
+        open
+        onClose={onClose}
+        title="User Details"
+        footer={
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
-        </div>
-      </div>
+        }
+      >
+        <InlineAlert variant="error">{error || "User not found"}</InlineAlert>
+      </Modal>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto z-[1000]">
-      <div className="bg-white rounded-lg w-full max-w-lg my-8">
-        <div className="max-h-[80vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white z-10 p-6 border-b">
-            <div className="flex justify-between items-start">
-              <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500"
-                aria-label="Close"
-              >
-                <span className="h-6 w-6">✖</span>
-              </button>
-            </div>
+    <Modal
+      open
+      onClose={onClose}
+      title="User Details"
+      description={user.anonymousName || "Anonymous User"}
+      footer={
+        <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rs-border bg-rs-border">
+          <div className="bg-rs-surface px-3 py-2.5">
+            <dt className="text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">Name</dt>
+            <dd className="mt-1 truncate text-sm font-medium text-rs-text" title={user.anonymousName || "Anonymous User"}>
+              {user.anonymousName || "Anonymous User"}
+            </dd>
           </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">
-                    Name
-                  </label>
-                  {/* --- HANDLE EDGE CASE: anonymousName null/undefined --- */}
-                  <p className="text-black font-medium text-base">
-                    {user.anonymousName || "Anonymous User"}
+          <div className="bg-rs-surface px-3 py-2.5">
+            <dt className="text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">Status</dt>
+            <dd className="mt-1">
+              <StatusBadge tone={statusToneFrom(user.verified ? "verified" : "unverified")}>
+                {user.verified ? "Verified" : "Unverified"}
+              </StatusBadge>
+            </dd>
+          </div>
+          {user.contact && (
+            <div className="bg-rs-surface px-3 py-2.5">
+              <dt className="text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">Phone</dt>
+              <dd className="mt-1 text-sm tabular-nums text-rs-text">{user.contact}</dd>
+            </div>
+          )}
+          {user.createdAt && (
+            <div className="bg-rs-surface px-3 py-2.5">
+              <dt className="text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">Joined</dt>
+              <dd className="mt-1 text-sm tabular-nums text-rs-text">
+                {new Date(user.createdAt).toLocaleDateString()}
+              </dd>
+            </div>
+          )}
+          {user.updatedAt && (
+            <div className="bg-rs-surface px-3 py-2.5">
+              <dt className="text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">Last Updated</dt>
+              <dd className="mt-1 text-sm tabular-nums text-rs-text">
+                {new Date(user.updatedAt).toLocaleDateString()}
+              </dd>
+            </div>
+          )}
+        </dl>
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-rs-text">
+            User Sessions
+          </h3>
+          {sessions.length > 0 ? (
+            <ul className="space-y-2">
+              {sessions.map((session) => (
+                <li
+                  key={session._id}
+                  className="rounded-lg border border-rs-border bg-rs-surface p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium text-rs-text">
+                      {session.listener ? session.listener.name : "Unknown Listener"}
+                    </p>
+                    <StatusBadge tone={statusToneFrom(session.status)}>
+                      {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                    </StatusBadge>
+                  </div>
+                  <p className="mt-1 text-xs tabular-nums text-rs-text-muted">
+                    {new Date(session.time).toLocaleString()}
                   </p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">
-                    Status
-                  </label>
-                  <span
-                    className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
-                      user.verified
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {user.verified ? "Verified" : "Unverified"}
-                  </span>
-                </div>
-                {/* --- HANDLE EDGE CASE: contact null/undefined --- */}
-                {user.contact && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">
-                      Phone
-                    </label>
-                    <p className="text-black font-medium text-base">
-                      {user.contact}
-                    </p>
-                  </div>
-                )}
-                {/* --- HANDLE EDGE CASE: createdAt null/undefined --- */}
-                {user.createdAt && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">
-                      Joined
-                    </label>
-                    <p className="text-black font-medium text-base">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {/* --- HANDLE EDGE CASE: updatedAt null/undefined --- */}
-                {user.updatedAt && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">
-                      Last Updated
-                    </label>
-                    <p className="text-black font-medium text-base">
-                      {new Date(user.updatedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4">
-                <h3 className="text-lg font-bold text-gray-900 mb-3">
-                  User Sessions
-                </h3>
-                {sessions.length > 0 ? (
-                  <ul className="mt-2 space-y-3">
-                    {sessions.map((session) => (
-                      <li
-                        key={session._id}
-                        className="border p-4 rounded-lg bg-gray-50 shadow-sm"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <span className="text-gray-700 font-semibold w-20">
-                              Listener:
-                            </span>
-                            {/* --- FIXED: Check if listener exists before accessing name --- */}
-                            <span className="text-black font-medium">
-                              {session.listener
-                                ? session.listener.name
-                                : "Unknown Listener"}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <span className="text-gray-700 font-semibold w-20">
-                              Status:
-                            </span>
-                            <span
-                              className={`font-medium px-2 py-1 rounded-full text-sm ${
-                                session.status === "completed"
-                                  ? "bg-green-100 text-green-800"
-                                  : session.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : session.status === "cancelled"
-                                      ? "bg-red-100 text-red-800"
-                                      : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {session.status.charAt(0).toUpperCase() +
-                                session.status.slice(1)}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <span className="text-gray-700 font-semibold w-20">
-                              Time:
-                            </span>
-                            <span className="text-black font-medium">
-                              {new Date(session.time).toLocaleString()}
-                            </span>
-                          </div>
-                          {session.meetingLink && (
-                            <div className="flex items-center">
-                              <span className="text-gray-700 font-semibold w-20">
-                                Meeting:
-                              </span>
-                              <a
-                                href={session.meetingLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                Join Meeting
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="mt-2 p-4 rounded-lg bg-gray-50 border">
-                    <p className="text-black font-medium text-base text-center">
-                      No sessions found for this user.
-                    </p>
-                  </div>
-                )}
-              </div>
+                  {session.meetingLink && (
+                    <a
+                      href={session.meetingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-block text-xs text-rs-blue hover:underline"
+                    >
+                      Join Meeting
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="rounded-lg border border-rs-border">
+              <EmptyState
+                title="No sessions"
+                description="No sessions found for this user."
+              />
             </div>
-          </div>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

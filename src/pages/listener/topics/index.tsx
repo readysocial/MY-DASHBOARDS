@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ListenerLayout } from '@/components/listener/ListenerLayout';
 import { ListenerTopicsSelector } from '@/components/listener/ListenerTopicsSelector';
 import { ListenerTopicsManager } from '@/components/listener/ListenerTopicsManager';
+import { PageHeader } from '@/components/ui/page-header';
 import { useRouter } from 'next/router';
 
 const TopicsPage = () => {
@@ -40,13 +41,11 @@ const TopicsPage = () => {
 
   return (
     <ListenerLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manage Your Topics</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Select topics you're interested in and manage your current assignments.
-          </p>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="Manage Your Topics"
+          description="Select topics you're interested in and manage your current assignments."
+        />
 
         {listenerId && (
           <>
@@ -65,7 +64,7 @@ const TopicsPage = () => {
         )}
 
         {!listenerId && (
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-sm text-rs-text-muted">Loading...</div>
         )}
       </div>
     </ListenerLayout>

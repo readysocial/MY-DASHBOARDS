@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ListenerLayout } from '@/components/listener/ListenerLayout';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { TableCard } from '@/components/ui/table-card';
 import {
-  Users,
-  Clock,
-  Star,
   Calendar,
   TrendingUp,
   MessageSquare,
@@ -45,20 +45,17 @@ const ListenerDashboard = () => {
     {
       label: 'Total Sessions',
       value: '156',
-      icon: Users,
-      trend: '+12% from last month'
+      hint: '+12% from last month',
     },
     {
       label: 'Hours Listened',
       value: '483',
-      icon: Clock,
-      trend: '+8% from last month'
+      hint: '+8% from last month',
     },
     {
       label: 'Average Rating',
       value: '4.8',
-      icon: Star,
-      trend: 'Based on 142 reviews'
+      hint: 'Based on 142 reviews',
     }
   ];
 
@@ -88,26 +85,22 @@ const ListenerDashboard = () => {
 
   return (
     <ListenerLayout>
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-6">
+        <PageHeader
+          title="Dashboard"
+          description="Your listening activity at a glance."
+        />
+
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={index} className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
-                    <p className="text-xs sm:text-sm text-gray-500 mt-1">{stat.trend}</p>
-                  </div>
-                  <div className="h-10 w-10 sm:h-12 sm:w-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {stats.map((stat) => (
+            <StatCard
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+              hint={stat.hint}
+            />
+          ))}
         </div>
 
         {/* Topics Selector */}
@@ -122,107 +115,104 @@ const ListenerDashboard = () => {
         )}
 
         {/* Topics Overview */}
-        <Card className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Available Topics</h2>
-            <Tag className="h-5 w-5 text-gray-400" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+            <div className="min-w-0 space-y-1">
+              <CardTitle>Available Topics</CardTitle>
+              <CardDescription>Topics you listen to</CardDescription>
+            </div>
+            <Tag size={16} strokeWidth={1.75} className="shrink-0 text-rs-text-muted" />
+          </CardHeader>
+          <CardContent>
             {isLoading ? (
-              <p className="text-gray-500">Loading topics...</p>
+              <p className="text-sm text-rs-text-muted">Loading topics...</p>
             ) : topics.length === 0 ? (
-              <p className="text-gray-500">No topics available</p>
+              <p className="text-sm text-rs-text-muted">No topics available</p>
             ) : (
-              topics.map((topic) => (
-                <div
-                  key={topic._id}
-                  className="flex items-center p-3 sm:p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3 sm:space-x-4">
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Tag className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm sm:text-base font-medium text-gray-900 capitalize">{topic.topic}</h3>
-                      <p className="text-xs sm:text-sm text-gray-500">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {topics.map((topic) => (
+                  <div
+                    key={topic._id}
+                    className="flex items-center gap-3 rounded-lg border border-rs-border bg-rs-surface p-3"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rs-primary-tint">
+                      <Tag size={16} strokeWidth={1.75} className="text-rs-primary" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-medium capitalize text-rs-text">{topic.topic}</h3>
+                      <p className="text-xs tabular-nums text-rs-text-muted">
                         {topic.count} sessions
                       </p>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
-          </div>
+          </CardContent>
         </Card>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Upcoming Sessions */}
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Upcoming Sessions</h2>
-              <Calendar className="h-5 w-5 text-gray-400" />
-            </div>
-            <div className="space-y-3 sm:space-y-4">
+          <TableCard
+            title="Upcoming Sessions"
+            description="Your next scheduled sessions"
+          >
+            <div className="space-y-2 p-4">
               {upcomingSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-rs-border bg-rs-surface p-3"
                 >
-                  <div className="flex items-center space-x-3 sm:space-x-4">
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm sm:text-base font-medium text-gray-900">{session.userName}</h3>
-                      <p className="text-xs sm:text-sm text-gray-500">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rs-primary-tint">
+                      <MessageSquare size={16} strokeWidth={1.75} className="text-rs-primary" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-medium text-rs-text">{session.userName}</h3>
+                      <p className="truncate text-xs text-rs-text-muted">
                         {session.date} at {session.time} • {session.duration}
                       </p>
                     </div>
                   </div>
-                  <button className="text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700">
+                  <button className="shrink-0 text-xs font-medium text-rs-blue hover:underline">
                     View Details
                   </button>
                 </div>
               ))}
             </div>
-          </Card>
+          </TableCard>
 
           {/* Performance Overview */}
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Performance Overview</h2>
-              <TrendingUp className="h-5 w-5 text-gray-400" />
-            </div>
-            <div className="space-y-3 sm:space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-medium text-gray-600">Session Completion Rate</span>
-                  <span className="text-xs sm:text-sm font-medium text-gray-900">98%</span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full">
-                  <div className="h-2 bg-purple-500 rounded-full" style={{ width: '98%' }} />
-                </div>
+          <Card>
+            <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+              <div className="min-w-0 space-y-1">
+                <CardTitle>Performance Overview</CardTitle>
+                <CardDescription>Completion and satisfaction</CardDescription>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-medium text-gray-600">Response Rate</span>
-                  <span className="text-xs sm:text-sm font-medium text-gray-900">95%</span>
+              <TrendingUp size={16} strokeWidth={1.75} className="shrink-0 text-rs-text-muted" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { label: 'Session Completion Rate', value: '98%', width: '98%' },
+                { label: 'Response Rate', value: '95%', width: '95%' },
+                { label: 'Satisfaction Score', value: '4.8/5.0', width: '96%' },
+              ].map((row) => (
+                <div key={row.label} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-xs font-medium text-rs-text-secondary">{row.label}</span>
+                    <span className="shrink-0 text-xs font-medium tabular-nums text-rs-text">{row.value}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-rs-border/60">
+                    <div className="h-1.5 rounded-full bg-rs-primary" style={{ width: row.width }} />
+                  </div>
                 </div>
-                <div className="h-2 bg-gray-200 rounded-full">
-                  <div className="h-2 bg-purple-500 rounded-full" style={{ width: '95%' }} />
-                </div>
+              ))}
+              <div className="flex items-center gap-2 border-t border-rs-border pt-3 text-xs text-rs-text-muted">
+                <Calendar size={14} strokeWidth={1.75} />
+                Updated after each session
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-medium text-gray-600">Satisfaction Score</span>
-                  <span className="text-xs sm:text-sm font-medium text-gray-900">4.8/5.0</span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full">
-                  <div className="h-2 bg-purple-500 rounded-full" style={{ width: '96%' }} />
-                </div>
-              </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -230,4 +220,4 @@ const ListenerDashboard = () => {
   );
 };
 
-export default ListenerDashboard; 
+export default ListenerDashboard;

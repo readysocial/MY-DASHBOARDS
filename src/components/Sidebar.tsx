@@ -4,8 +4,6 @@ import {
   Users,
   UserCheck,
   Settings,
-  Menu,
-  X,
   Smartphone,
   Bell,
   Video,
@@ -76,9 +74,11 @@ function readCollapsedPreference(): boolean {
   }
 }
 
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<{
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+}> = ({ mobileOpen, onCloseMobile }) => {
   const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
@@ -96,7 +96,7 @@ const Sidebar: React.FC = () => {
 
   const handleNavigation = (path: string) => {
     router.push(path);
-    setIsMobileMenuOpen(false);
+    onCloseMobile();
   };
 
   const isActive = (path: string) => {
@@ -107,23 +107,10 @@ const Sidebar: React.FC = () => {
 
   return (
     <>
-      <button
-        type="button"
-        aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-md border border-rs-border bg-rs-surface text-rs-text-secondary rs-transition hover:bg-rs-page lg:hidden"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        {isMobileMenuOpen ? (
-          <X size={20} strokeWidth={1.75} />
-        ) : (
-          <Menu size={20} strokeWidth={1.75} />
-        )}
-      </button>
-
-      {isMobileMenuOpen ? (
+      {mobileOpen ? (
         <div
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={onCloseMobile}
           aria-hidden
         />
       ) : null}
@@ -131,7 +118,7 @@ const Sidebar: React.FC = () => {
       <aside
         className={cn(
           "fixed z-50 flex h-screen flex-col border-r border-rs-border bg-rs-sidebar-muted rs-transition lg:static",
-          isMobileMenuOpen
+          mobileOpen
             ? "translate-x-0"
             : "-translate-x-full lg:translate-x-0",
           isCollapsed ? "w-[52px]" : "w-60",

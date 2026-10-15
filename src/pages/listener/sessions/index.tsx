@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ListenerLayout } from '@/components/listener/ListenerLayout';
 import { ListenerSessions } from '@/components/listener/ListenerSessions';
+import { PageHeader } from '@/components/ui/page-header';
 
 const SessionsPage = () => {
   const [listenerId, setListenerId] = useState<string>('');
@@ -35,17 +36,15 @@ const SessionsPage = () => {
   return (
     <ListenerLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Your Sessions</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            View and manage your sessions
-          </p>
-        </div>
+        <PageHeader
+          title="Your Sessions"
+          description="View and manage your sessions"
+        />
 
         {listenerId ? (
           <ListenerSessions listenerId={listenerId} />
         ) : (
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-sm text-rs-text-muted">Loading...</div>
         )}
       </div>
     </ListenerLayout>

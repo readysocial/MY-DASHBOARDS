@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { ChevronDown, LogOut, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ function resolveRoute(pathname: string) {
   );
 }
 
-export default function Navbar() {
+export default function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -71,11 +71,19 @@ export default function Navbar() {
     : "AD";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-rs-border bg-rs-surface px-4 pl-16 sm:px-6 lg:pl-6">
-      <div className="min-w-0">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-rs-border bg-rs-surface px-3 sm:gap-4 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+          className="shrink-0 rounded-md p-2 text-rs-text-muted rs-transition hover:bg-rs-page hover:text-rs-text lg:hidden"
+        >
+          <Menu size={20} strokeWidth={1.75} />
+        </button>
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-sm"
+          className="flex min-w-0 items-center gap-1.5 text-sm"
         >
           {route.group ? (
             <>

@@ -9,6 +9,12 @@ import type { RelatedSessionsResponse } from '@/api/listener/repeatsession/types
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageError } from '@/components/ui/page-error';
+import { StatusBadge, statusToneFrom } from '@/components/ui/status-badge';
+import { TableCard } from '@/components/ui/table-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -71,8 +77,14 @@ export const SessionDetails: React.FC = () => {
     setVisibleThreadCount(prev => prev + THREAD_ITEMS_PER_PAGE);
   };
 
-  if (loading) return <SkeletonLoader />;
-  if (error) return <ErrorState message={error} />;
+  if (loading)
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  if (error) return <PageError message={error} onRetry={() => window.location.reload()} />;
   if (!data) return null;
 
   const { parent, children } = data;
@@ -93,60 +105,58 @@ export const SessionDetails: React.FC = () => {
   const hasMoreSessions = visibleThreadCount < allThreadSessions.length;
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8">
-      <Link href="/listener/sessions">
-        <Button variant="outline" size="sm" className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Sessions
-        </Button>
-      </Link>
-
-      <h1 className="text-4xl font-extrabold mb-8 text-gray-800 border-b pb-2 border-gray-200">
-        Session Details
-      </h1>
+    <div className="space-y-6">
+      <PageHeader
+        title="Session Details"
+        description="Review booking, notes, and follow-ups."
+        actions={
+          <Link href="/listener/sessions" passHref>
+            <Button variant="outline" size="sm">
+              <ArrowLeft size={14} strokeWidth={1.75} className="mr-1.5" />
+              Back to Sessions
+            </Button>
+          </Link>
+        }
+      />
 
       <SessionCardWithNotes session={parent} title="Parent Session" onSave={fetchTree} />
 
       {/* Related Sessions Threaded View Section */}
       {allRelatedSessions.length > 0 && (
-        <section className="mt-10">
-          <Button
-            variant="ghost"
-            className="flex items-center gap-2 text-lg font-semibold mb-4"
-            onClick={() => setShowComments(!showComments)}
-          >
-            <MessageCircle className="h-5 w-5" /> Session Thread ({allRelatedSessions.length + 1})
-            {showComments ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </Button>
-
-          {showComments && (
-            <div className="space-y-4">
-              {/* Show sessions in chronological order */}
+        <TableCard
+          title={`Session Thread (${allRelatedSessions.length + 1})`}
+          description="Parent and follow-up sessions in chronological order"
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowComments(!showComments)}
+              aria-expanded={showComments}
+            >
+              <MessageCircle size={14} strokeWidth={1.75} className="mr-1.5" />
+              {showComments ? 'Hide' : 'Show'}
+              {showComments ? <ChevronUp size={14} strokeWidth={1.75} className="ml-1.5" /> : <ChevronDown size={14} strokeWidth={1.75} className="ml-1.5" />}
+            </Button>
+          }
+        >
+          {showComments ? (
+            <div className="grid grid-cols-1 gap-2 p-3 md:grid-cols-2">
               {visibleSessions.map((session, index) => (
-                <div 
-                  key={session._id} 
-                  className={`border rounded-lg p-4 bg-white shadow-sm ${
-                    index === 0 
-                      ? 'border-blue-200'  // Parent session
-                      : 'border-purple-200'  // Related sessions
-                  }`}
+                <div
+                  key={session._id}
+                  className="rounded-lg border border-rs-border bg-rs-surface p-3"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                        index === 0 
-                          ? 'bg-blue-100 border border-blue-200' 
-                          : 'bg-purple-100 border border-purple-200'
-                      }`}>
-                        <User className={`h-4 w-4 ${
-                          index === 0 ? 'text-blue-600' : 'text-purple-600'
-                        }`} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rs-primary-tint">
+                        <User size={14} strokeWidth={1.75} className="text-rs-primary" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-medium text-rs-text">
                           {session.user.anonymousName}
-                          {index === 0 && ' (You)'}
+                          {index === 0 && <span className="ml-1 text-[11px] font-normal text-rs-text-muted">· Parent</span>}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-[11px] tabular-nums text-rs-text-muted">
                           {new Date(session.time).toLocaleDateString(undefined, {
                             year: 'numeric',
                             month: 'short',
@@ -158,37 +168,29 @@ export const SessionDetails: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <Badge 
-                      className={`${
-                        session.status === 'successful' 
-                          ? 'bg-green-100 text-green-800' 
-                          : session.status === 'unsuccessful' 
-                            ? 'bg-red-100 text-red-800' 
-                            : session.status === 'cancelled' 
-                              ? 'bg-gray-100 text-gray-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                      } capitalize px-2 py-1 text-xs`}
-                    >
+                    <StatusBadge tone={statusToneFrom(session.status)}>
                       {session.status}
-                    </Badge>
+                    </StatusBadge>
                   </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-3 ml-2">
-                    <p className="text-gray-700">{session.comment || 'No comment'}</p>
-                  </div>
+
+                  <p className="line-clamp-3 rounded-md bg-rs-page px-2.5 py-1.5 text-[13px] leading-relaxed text-rs-text-secondary">
+                    {session.comment || 'No comment'}
+                  </p>
                 </div>
               ))}
 
               {hasMoreSessions && (
-                <div className="flex justify-center mt-4">
-                  <Button onClick={handleLoadMore} variant="outline">
+                <div className="flex justify-center pt-1">
+                  <Button onClick={handleLoadMore} variant="outline" size="sm">
                     Load More
                   </Button>
                 </div>
               )}
             </div>
+          ) : (
+            <EmptyState title="Thread hidden" description="Toggle Show to view the session thread." />
           )}
-        </section>
+        </TableCard>
       )}
     </div>
   );
@@ -228,118 +230,146 @@ const SessionCardWithNotes: React.FC<CardProps> = ({ session, title, onSave }) =
       .then(() => toast.success('Copied!'))
       .catch(() => toast.error('Copy failed'));
 
+  const reflections = session.reflectData?.userReflectionData ?? [];
+
   return (
-    <div className="border rounded-xl p-6 shadow-sm bg-white">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
-        <StatusBadge status={session.status} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
-        <InfoRow icon={<User />} label="User">
-          <span className="text-gray-700">{session.user.anonymousName}</span>
-        </InfoRow>
-
-        <InfoRow icon={<Calendar />} label="Date">
-          <span className="text-gray-700">
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+        <div className="min-w-0 space-y-1">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>
             {new Date(session.time).toLocaleDateString(undefined, {
               year: 'numeric',
               month: 'short',
               day: 'numeric',
             })}
-          </span>
-        </InfoRow>
-
-        <InfoRow icon={<Clock />} label="Time">
-          <span className="text-gray-700">
+            {' · '}
             {new Date(session.time).toLocaleTimeString(undefined, {
               hour: '2-digit',
               minute: '2-digit',
             })}
-          </span>
-        </InfoRow>
+          </CardDescription>
+        </div>
+        <StatusBadge tone={statusToneFrom(session.status)}>{session.status}</StatusBadge>
+      </CardHeader>
+      <CardContent className="space-y-3 p-3">
+        {/* Compact meta strip — 4 cells, no dead whitespace */}
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rs-border bg-rs-border lg:grid-cols-4">
+          <MetaCell icon={<User size={14} strokeWidth={1.75} />} label="User" value={session.user.anonymousName} />
+          <MetaCell
+            icon={<Calendar size={14} strokeWidth={1.75} />}
+            label="Date"
+            value={new Date(session.time).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+            tabular
+          />
+          <MetaCell
+            icon={<Clock size={14} strokeWidth={1.75} />}
+            label="Time"
+            value={new Date(session.time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            tabular
+          />
+          <div className="bg-rs-surface px-3 py-2.5">
+            <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">
+              <Tag size={14} strokeWidth={1.75} /> Topic
+            </dt>
+            <dd className="mt-1">
+              <Badge variant="secondary" className="font-normal">{session.topic}</Badge>
+            </dd>
+          </div>
+        </dl>
 
-        <InfoRow icon={<Tag />} label="Topic">
-          <Badge variant="secondary" className="font-normal px-2 py-1">{session.topic}</Badge>
-        </InfoRow>
-
-        {session.meetingLink && (
-          <InfoRow icon={<Link2 />} label="Meeting Link">
-            <button
-              onClick={() => copyToClipboard(session.meetingLink!)}
-              className="text-blue-600 hover:text-blue-800 underline truncate text-left max-w-xs"
-            >
-              {session.meetingLink}
-            </button>
-          </InfoRow>
-        )}
-
-        {/* HIGH-CONTRAST NOTES */}
-        <InfoRow icon={<MessageSquare />} label="Notes" full>
-          <div className="bg-gray-100 rounded-lg p-4 w-full">
+        {/* Notes + side panel — fills width instead of stacking full-width rows */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+          <div className="rounded-lg border border-rs-border bg-rs-surface px-3 py-2.5 lg:col-span-3">
+            <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">
+              <MessageSquare size={14} strokeWidth={1.75} /> Notes
+            </p>
             {editing ? (
-              <div className="space-y-3">
+              <div className="mt-1.5 space-y-2">
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={3}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none text-gray-900 text-base bg-white"
+                  className="w-full rounded-md border border-rs-border bg-rs-surface p-2 text-sm text-rs-text outline-none rs-focus-ring"
                   placeholder="Add a note…"
                 />
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
+                  <Button size="sm" onClick={handleSave} disabled={saving}>
                     {saving ? 'Saving…' : 'Save'}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditing(false)}
-                    className="border-gray-400 text-gray-600 hover:bg-gray-200"
-                  >
+                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
                     Cancel
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <p className="text-gray-900 font-bold text-lg leading-relaxed">
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 text-sm leading-relaxed text-rs-text-secondary">
                   {session.comment || 'No note yet.'}
                 </p>
                 {canEdit && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditing(true)}
-                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                  >
+                  <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="shrink-0">
                     Edit Note
                   </Button>
                 )}
               </div>
             )}
           </div>
-        </InfoRow>
 
-        {session.reflectData?.userReflectionData?.length && (
-          <InfoRow icon={<MessageSquare />} label="Reflection" full>
-            <ul className="list-disc list-inside text-gray-700 space-y-1">
-              {session.reflectData.userReflectionData.map((r, i) => (
-                <li key={i} className="text-sm">
-                  <strong>{r.question}</strong>: {r.answer}
-                </li>
-              ))}
-            </ul>
-          </InfoRow>
-        )}
-      </div>
-    </div>
+          <div className="space-y-3 lg:col-span-2">
+            {session.meetingLink ? (
+              <div className="rounded-lg border border-rs-border bg-rs-surface px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">
+                  <Link2 size={14} strokeWidth={1.75} /> Meeting Link
+                </p>
+                <button
+                  onClick={() => copyToClipboard(session.meetingLink!)}
+                  className="mt-1 block max-w-full truncate text-left text-sm text-rs-blue hover:underline"
+                >
+                  {session.meetingLink}
+                </button>
+              </div>
+            ) : null}
+            {reflections.length > 0 ? (
+              <div className="rounded-lg border border-rs-border bg-rs-surface px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">
+                  <MessageSquare size={14} strokeWidth={1.75} /> Reflection
+                </p>
+                <ul className="mt-1 list-inside list-disc space-y-1 text-sm text-rs-text-secondary">
+                  {reflections.map((r, i) => (
+                    <li key={i}>
+                      <strong className="font-medium text-rs-text">{r.question}</strong>: {r.answer}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-rs-border px-3 py-2.5 text-xs text-rs-text-muted">
+                No reflection submitted for this session.
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
+
+const MetaCell: React.FC<{ icon: React.ReactNode; label: string; value: string; tabular?: boolean }> = ({
+  icon,
+  label,
+  value,
+  tabular,
+}) => (
+  <div className="bg-rs-surface px-3 py-2.5">
+    <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">
+      <span className="shrink-0">{icon}</span> {label}
+    </dt>
+    <dd className={`mt-1 truncate text-sm font-medium text-rs-text ${tabular ? 'tabular-nums' : ''}`} title={value}>
+      {value}
+    </dd>
+  </div>
+);
 
 const InfoRow: React.FC<{
   icon: React.ReactNode;
@@ -347,50 +377,28 @@ const InfoRow: React.FC<{
   children: React.ReactNode;
   full?: boolean;
 }> = ({ icon, label, children, full = false }) => (
-  <div className={`flex items-start gap-3 ${full ? 'col-span-1 md:col-span-2' : ''}`}>
-    <span className="text-gray-500 mt-1">{icon}</span>
-    <div>
-      <span className="block text-gray-500 text-xs font-medium uppercase tracking-wide">{label}</span>
-      {children}
+  <div className={`flex items-start gap-2.5 ${full ? 'col-span-1 md:col-span-2' : ''}`}>
+    <span className="mt-0.5 shrink-0 text-rs-text-muted">{icon}</span>
+    <div className="min-w-0 flex-1">
+      <span className="block text-[11px] font-medium uppercase tracking-wide text-rs-text-muted">{label}</span>
+      <div className="mt-0.5">{children}</div>
     </div>
   </div>
 );
 
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const classes: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    successful: 'bg-green-100 text-green-800 border-green-200',
-    unsuccessful: 'bg-red-100 text-red-800 border-red-200',
-    cancelled: 'bg-gray-100 text-gray-800 border-gray-200',
-  };
-  const display = {
-    pending: 'Pending',
-    successful: 'Successful',
-    unsuccessful: 'Unsuccessful',
-    cancelled: 'Cancelled',
-  }[status] || 'Unknown';
-  return (
-    <Badge className={`${classes[status] || 'bg-gray-100 text-gray-800'} capitalize border px-2 py-1 text-xs`}>
-      {display}
-    </Badge>
-  );
-};
-
 const SkeletonLoader = () => (
-  <div className="p-6 max-w-5xl mx-auto space-y-6">
-    <div className="h-10 w-40 bg-gray-200 rounded"></div>
-    <div className="h-40 w-full rounded-xl bg-gray-200"></div>
-    <div className="h-10 w-48 bg-gray-200 rounded"></div>
-    <div className="h-40 w-full rounded-xl bg-gray-200"></div>
+  <div className="space-y-3">
+    <Skeleton className="h-10 w-full rounded-xl" />
+    <Skeleton className="h-40 w-full rounded-xl" />
   </div>
 );
 
 const ErrorState: React.FC<{ message: string }> = ({ message }) => (
-  <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-    <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
-    <h2 className="text-xl font-semibold text-gray-800 mb-2">Something Went Wrong</h2>
-    <p className="text-gray-600 mb-4 max-w-md">{message}</p>
-    <Button variant="outline" onClick={() => window.location.reload()}>
+  <div className="flex h-64 flex-col items-center justify-center px-4 text-center">
+    <AlertTriangle size={32} strokeWidth={1.75} className="mb-3 text-rs-primary" />
+    <h2 className="text-sm font-medium text-rs-text">Something Went Wrong</h2>
+    <p className="mb-4 mt-1 max-w-md text-sm text-rs-text-muted">{message}</p>
+    <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
       Retry
     </Button>
   </div>

@@ -4,7 +4,6 @@ export type SessionStatus = 'successful' | 'unsuccessful' | 'cancelled' | 'pendi
 
 export interface UpdateStatusRequest {
   status: SessionStatus;
-  issueRefund?: boolean;
 }
 
 export interface UpdateStatusResponse {

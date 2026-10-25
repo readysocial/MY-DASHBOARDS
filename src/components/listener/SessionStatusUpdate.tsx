@@ -63,37 +63,31 @@ export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
       successful: "Mark this session as successful?",
     };
 
-    let issueRefund = false;
-    if (isPaid && (newStatus === "cancelled" || newStatus === "unsuccessful")) {
-      const choice = await confirm({
-        title: "Update session & refund sparks?",
-        description: `${messages[newStatus]} Sparks were paid for this session. Confirm to update status and refund sparks.`,
-        confirmText: "Update & refund",
-        variant: "destructive",
-      });
-      if (!choice) return;
-      issueRefund = true;
-    } else {
-      const confirmed = await confirm({
-        title: "Update session",
-        description:
-          messages[newStatus] || `Change status to "${newStatus}"?`,
-        confirmText: "Confirm",
-      });
-      if (!confirmed) return;
-    }
+    // Status changes never refund; refunds are their own action in the
+    // payment column (SessionPaymentCell).
+    const refundNote =
+      isPaid && (newStatus === "cancelled" || newStatus === "unsuccessful")
+        ? " The user's Sparks won't be refunded. To refund them, use Refund sparks in the Payment column afterwards."
+        : "";
+    const confirmed = await confirm({
+      title: "Update session",
+      description:
+        (messages[newStatus] || `Change status to "${newStatus}"?`) +
+        refundNote,
+      confirmText: "Confirm",
+    });
+    if (!confirmed) return;
 
     try {
       setIsLoading(true);
       setError(null);
       const result = await updateSessionStatus(sessionId, {
         status: newStatus,
-        ...(issueRefund ? { issueRefund: true } : {}),
       });
       onStatusUpdated(
         result.session.status,
         (result.session as { paymentStatus?: PaymentStatus }).paymentStatus ??
-          (issueRefund ? "refunded" : paymentStatus),
+          paymentStatus,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status");

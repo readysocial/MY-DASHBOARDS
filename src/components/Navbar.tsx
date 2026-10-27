@@ -13,6 +13,7 @@ const ROUTE_META: { path: string; label: string; group?: string }[] = [
   { path: "/sessions", label: "Sessions", group: "Manage" },
   { path: "/notifications", label: "Notifications", group: "Engage" },
   { path: "/app-version", label: "App Version", group: "System" },
+  { path: "/payment-methods", label: "Payment Methods", group: "System" },
   { path: "/settings", label: "Settings", group: "System" },
 ];
 

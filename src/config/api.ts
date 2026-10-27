@@ -43,6 +43,7 @@ export const API_ENDPOINTS = {
         `${API_URL}/admin/dashboard/payments/${encodeURIComponent(reference)}/verify`,
     },
     pricing: `${API_URL}/admin/pricing-config`,
+    paymentMethods: `${API_URL}/admin/payment-methods`,
     analytics: `${API_URL}/admin/dashboard/analytics`,
     supportLookup: `${API_URL}/admin/support/lookup`,
     listenersPerformance: `${API_URL}/admin/listeners/performance`,

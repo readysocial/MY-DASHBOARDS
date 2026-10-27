@@ -3,7 +3,8 @@ export type AuditAction =
   | "wallet.status"
   | "session.refund"
   | "pricing.update"
-  | "app_version.set";
+  | "app_version.set"
+  | "payment_methods.update";
 
 export interface AuditLogEntry {
   _id?: string;

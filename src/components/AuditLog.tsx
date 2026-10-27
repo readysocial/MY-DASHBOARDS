@@ -33,6 +33,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   "session.refund": "Session refund",
   "pricing.update": "Pricing update",
   "app_version.set": "App version",
+  "payment_methods.update": "Payment methods",
 };
 
 const ACTION_OPTIONS: Array<{ value: AuditAction | ""; label: string }> = [
@@ -42,6 +43,10 @@ const ACTION_OPTIONS: Array<{ value: AuditAction | ""; label: string }> = [
   { value: "session.refund", label: ACTION_LABELS["session.refund"] },
   { value: "pricing.update", label: ACTION_LABELS["pricing.update"] },
   { value: "app_version.set", label: ACTION_LABELS["app_version.set"] },
+  {
+    value: "payment_methods.update",
+    label: ACTION_LABELS["payment_methods.update"],
+  },
 ];
 
 const formatDate = (value?: string) =>

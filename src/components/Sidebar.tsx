@@ -1,6 +1,22 @@
-import React, { useState } from 'react';
-import { Home, Users, UserCheck, BarChart2, Settings, LogOut, Menu, X, Smartphone, Bell, Video, LucideIcon } from 'lucide-react';
-import { useRouter } from 'next/router';
+import React, { useEffect, useState } from "react";
+import {
+  Home,
+  Users,
+  UserCheck,
+  Settings,
+  Smartphone,
+  Bell,
+  Video,
+  Zap,
+  CreditCard,
+  Tag,
+  Search,
+  PanelLeftClose,
+  PanelLeft,
+  LucideIcon,
+} from "lucide-react";
+import { useRouter } from "next/router";
+import { cn } from "@/lib/utils";
 
 interface NavItemProps {
   Icon: LucideIcon;
@@ -10,131 +26,244 @@ interface NavItemProps {
   collapsed?: boolean;
 }
 
-const Sidebar: React.FC = () => {
+interface NavGroup {
+  label: string;
+  items: { icon: LucideIcon; text: string; path: string }[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Overview",
+    items: [{ icon: Home, text: "Dashboard", path: "/" }],
+  },
+  {
+    label: "Manage",
+    items: [
+      { icon: Users, text: "Users", path: "/users" },
+      { icon: Zap, text: "Sparks", path: "/sparks" },
+      { icon: CreditCard, text: "Payments", path: "/payments" },
+      { icon: UserCheck, text: "Listeners", path: "/listeners" },
+      { icon: Video, text: "Sessions", path: "/sessions" },
+      { icon: Search, text: "Support", path: "/support" },
+    ],
+  },
+  {
+    label: "Engage",
+    items: [{ icon: Bell, text: "Notifications", path: "/notifications" }],
+  },
+  {
+    label: "System",
+    items: [
+      { icon: Tag, text: "Pricing", path: "/pricing" },
+      { icon: CreditCard, text: "Payment Methods", path: "/payment-methods" },
+      { icon: Smartphone, text: "App Version", path: "/app-version" },
+      // Audit UI hidden for now — API + /audit page remain; re-enable when ready
+      // { icon: ScrollText, text: "Audit", path: "/audit" },
+      { icon: Settings, text: "Settings", path: "/settings" },
+    ],
+  },
+];
+
+const COLLAPSED_KEY = "adminSidebarCollapsed";
+
+function readCollapsedPreference(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+const Sidebar: React.FC<{
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+}> = ({ mobileOpen, onCloseMobile }) => {
   const router = useRouter();
-  const [activeItem, setActiveItem] = useState<string>('Dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const menuItems = [
-    { icon: Home, text: 'Dashboard', path: '/' },
-    { icon: Users, text: 'Users', path: '/users' },
-    { icon: Bell, text: 'Notifications', path: '/notifications' },
-    { icon: UserCheck, text: 'Listeners', path: '/listeners' },
-    { icon: Video, text: 'Sessions', path: '/sessions' },
-    // { icon: BarChart2, text: 'Analytics', path: '/analytics' },
-    { icon: Smartphone, text: 'App Version', path: '/app-version' },
-    { icon: Settings, text: 'Settings', path: '/settings' },
-  ];
+  useEffect(() => {
+    setIsCollapsed(readCollapsedPreference());
+  }, []);
 
-  const handleNavigation = (path: string, text: string) => {
-    setActiveItem(text);
-    router.push(path);
-    setIsMobileMenuOpen(false);
+  const setCollapsed = (collapsed: boolean) => {
+    setIsCollapsed(collapsed);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // ignore quota / private mode
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    router.push('/auth');
+  const handleNavigation = (path: string) => {
+    router.push(path);
+    onCloseMobile();
+  };
+
+  const isActive = (path: string) => {
+    if (path === "/")
+      return router.pathname === "/" || router.pathname === "/dashboard";
+    return router.pathname === path || router.pathname.startsWith(`${path}/`);
   };
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-md"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        {isMobileMenuOpen ? (
-          <X size={24} className="text-gray-600" />
-        ) : (
-          <Menu size={24} className="text-gray-600" />
-        )}
-      </button>
-
-      {/* Overlay for mobile menu */}
-      {isMobileMenuOpen && (
+      {mobileOpen ? (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={onCloseMobile}
+          aria-hidden
         />
-      )}
+      ) : null}
 
-      {/* Sidebar Container */}
-      <div
-        className={`
-          fixed lg:static
-          h-screen
-          bg-white
-          shadow-lg
-          transition-all
-          duration-300
-          z-50
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isCollapsed ? 'w-20' : 'w-64'}
-        `}
+      <aside
+        className={cn(
+          "fixed z-50 flex h-screen flex-col border-r border-rs-border bg-rs-sidebar-muted rs-transition lg:static",
+          mobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0",
+          isCollapsed ? "w-[52px]" : "w-60",
+        )}
       >
-        {/* Header */}
-        <div className="bg-red-600 p-4 flex items-center justify-between">
-        <h1 className={`text-white font-extrabold tracking-wider ${isCollapsed ? 'text-xl' : 'text-2xl'}`}>
-    Ready Social
-  </h1>
-          <button
-            className="hidden lg:block text-white"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-          >
-            {isCollapsed ? (
-              <Menu size={20} />
-            ) : (
-              <X size={20} />
-            )}
-          </button>
+        <div
+          className={cn(
+            "flex h-14 shrink-0 items-center",
+            isCollapsed ? "justify-center" : "justify-between gap-2 px-3",
+          )}
+        >
+          {isCollapsed ? (
+            <button
+              type="button"
+              className="hidden h-8 w-8 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text lg:flex"
+              onClick={() => setCollapsed(false)}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <PanelLeft size={16} strokeWidth={1.75} />
+            </button>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
+                  aria-hidden
+                >
+                  R
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold tracking-tight text-rs-text">
+                    Ready Social
+                  </p>
+                  <p className="truncate text-[11px] text-rs-text-muted">
+                    Admin
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="hidden h-8 w-8 items-center justify-center rounded-md text-rs-text-muted rs-transition hover:bg-rs-surface hover:text-rs-text lg:flex"
+                onClick={() => setCollapsed(true)}
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose size={16} strokeWidth={1.75} />
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-grow overflow-y-auto">
-          <ul className="space-y-1 p-2">
-            {menuItems.map((item) => (
-              <NavItem
-                key={item.text}
-                Icon={item.icon}
-                text={item.text}
-                active={router.pathname === item.path}
-                collapsed={isCollapsed}
-                onClick={() => handleNavigation(item.path, item.text)}
-              />
-            ))}
-          </ul>
+        <nav
+          className={cn(
+            "flex-1 overflow-y-auto pb-2",
+            isCollapsed ? "px-1.5" : "px-2",
+          )}
+        >
+          {isCollapsed ? (
+            <div className="mb-1 flex justify-center pb-1 lg:hidden">
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
+                aria-hidden
+              >
+                R
+              </span>
+            </div>
+          ) : null}
+          {NAV_GROUPS.map((group, groupIndex) => (
+            <div
+              key={group.label}
+              className={cn(
+                isCollapsed ? "mb-1" : "mb-3",
+                isCollapsed &&
+                  groupIndex > 0 &&
+                  "mt-1 border-t border-rs-border/80 pt-1",
+              )}
+            >
+              {!isCollapsed ? (
+                <p className="mb-1 px-2.5 text-[11px] font-medium text-rs-text-muted">
+                  {group.label}
+                </p>
+              ) : null}
+              <ul className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavItem
+                    key={item.path}
+                    Icon={item.icon}
+                    text={item.text}
+                    active={isActive(item.path)}
+                    collapsed={isCollapsed}
+                    onClick={() => handleNavigation(item.path)}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        {/* Logout Button */}
-        <button 
-          onClick={handleLogout}
-          className={`
-            flex items-center p-4 hover:bg-gray-100 w-full
-            ${isCollapsed ? 'justify-center' : ''}
-          `}
-        >
-          <LogOut size={20} className="text-gray-600" />
-          {!isCollapsed && <span className="text-gray-600 ml-3">Logout</span>}
-        </button>
-      </div>
+        {isCollapsed ? (
+          <div className="hidden shrink-0 border-t border-rs-border p-1.5 lg:block">
+            <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white">
+              R
+            </div>
+          </div>
+        ) : null}
+      </aside>
     </>
   );
 };
 
-const NavItem: React.FC<NavItemProps> = ({ Icon, text, active, onClick, collapsed }) => {
+const NavItem: React.FC<NavItemProps> = ({
+  Icon,
+  text,
+  active,
+  onClick,
+  collapsed,
+}) => {
   return (
-    <li
-      onClick={onClick}
-      className={`
-        flex items-center py-2 px-3 rounded-lg cursor-pointer
-        ${active ? 'bg-red-100 text-red-600' : 'text-gray-600 hover:bg-gray-100'}
-        ${collapsed ? 'justify-center' : ''}
-      `}
-    >
-      <Icon size={20} className={active ? 'text-red-600' : 'text-gray-400'} />
-      {!collapsed && <span className="ml-3">{text}</span>}
+    <li className={cn(collapsed && "flex justify-center")}>
+      <button
+        type="button"
+        onClick={onClick}
+        title={collapsed ? text : undefined}
+        aria-label={collapsed ? text : undefined}
+        className={cn(
+          "flex items-center rounded-md text-sm rs-transition",
+          collapsed
+            ? "h-9 w-9 justify-center"
+            : "w-full px-2.5 py-2",
+          active
+            ? "bg-rs-surface font-medium text-rs-text shadow-[inset_0_0_0_1px_var(--rs-border)]"
+            : "text-rs-text-secondary hover:bg-rs-surface/70 hover:text-rs-text",
+        )}
+      >
+        <Icon
+          size={16}
+          strokeWidth={1.75}
+          className={cn(
+            "shrink-0",
+            active ? "text-rs-primary" : "text-rs-text-muted",
+          )}
+        />
+        {!collapsed ? <span className="ml-2.5 truncate">{text}</span> : null}
+      </button>
     </li>
   );
 };

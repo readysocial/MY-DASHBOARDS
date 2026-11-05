@@ -1,29 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Search,
   Plus,
-  Calendar,
   X,
-  Eye,
   Edit2,
-  Video,
-  Clock,
-  Headphones,
   RefreshCw,
   Tag,
   Check,
   Trash2,
-  Copy,
-  Repeat,
-  CheckCircle,
-  AlertCircle
+  Download,
 } from 'lucide-react';
 import { getAuthHeaders, handleUnauthorized, validateToken } from '../utils/api';
 import { API_URL } from '@/config/api';
 import { SessionMeetingLink } from '@/components/listener/SessionMeetingLink';
 import { Button } from '@/components/ui/button';
-import { SessionStatusUpdate } from '@/components/listener/SessionStatusUpdate';
+import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageError } from '@/components/ui/page-error';
+import { Modal } from '@/components/ui/modal';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+  SortableTableHead,
+} from '@/components/ui/table';
+import { TableCard } from '@/components/ui/table-card';
+import { TablePagination } from '@/components/ui/table-pagination';
+import { TableCardSearch } from '@/components/ui/table-search';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SessionStatusUpdate, SessionPaymentCell } from '@/components/listener/SessionStatusUpdate';
 import { confirm } from '@/lib/confirm';
+import { toast } from "sonner";
+import { cn } from '@/lib/utils';
 
 interface User {
   _id: string;
@@ -74,6 +85,8 @@ interface Session {
   time: string; // This is the ISO 8601 string from the backend
   meetingLink?: string;
   status: SessionStatus;
+  paymentStatus?: string;
+  sessionCost?: number;
   reflectData?: ReflectData;
   repeats?: Repeats;
   repeatSessionId?: string; // Indicates this session is a repeat
@@ -86,87 +99,12 @@ type SessionProgress = 'scheduled' | 'ongoing' | 'completed';
 type SessionStatus = 'successful' | 'unsuccessful' | 'cancelled' | 'pending';
 
 // --- SessionProgressBadge remains the same ---
-const ProgressBadge: React.FC<{ progress: SessionProgress }> = ({ progress }) => {
-  const progressClasses = {
-    'scheduled': 'bg-blue-100 text-blue-800',
-    'ongoing': 'bg-yellow-100 text-yellow-800',
-    'completed': 'bg-green-100 text-green-800'
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs ${progressClasses[progress]}`}>
-      {progress}
-    </span>
-  );
-};
-
-// --- Rotate animation for refresh button ---
-const rotateAnimation = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const RefreshButton: React.FC<{ onClick: () => void; isLoading: boolean }> = ({ onClick, isLoading }) => {
-  return (
-    <>
-      <style>{rotateAnimation}</style>
-      <button
-        onClick={onClick}
-        disabled={isLoading}
-        className={`p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors
-          flex items-center justify-center ${isLoading ? 'cursor-not-allowed' : ''}`}
-        title="Refresh"
-      >
-        <RefreshCw
-          className={`h-5 w-5 text-gray-600
-            ${isLoading ? 'animate-spin' : 'transform transition-transform hover:rotate-180'}`}
-        />
-      </button>
-    </>
-  );
-};
-
-// --- StatusBadge remains the same ---
-const StatusBadge: React.FC<{ status: Session['status'] }> = ({ status }) => {
-  const statusClasses = {
-    'successful': 'bg-green-100 text-green-800',
-    'unsuccessful': 'bg-yellow-100 text-yellow-800',
-    'cancelled': 'bg-red-100 text-red-800',
-    'pending': 'bg-blue-100 text-blue-800'
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs ${statusClasses[status]}`}>
-      {status}
-    </span>
-  );
-};
-
-// Simplified RepeatBadge: Shows count for originals, "Repeated" tag for repeats
-const RepeatBadge: React.FC<{
-  repeatCount?: number;
-  isRepeated?: boolean;
-}> = ({ repeatCount, isRepeated }) => {
-  if (isRepeated) {
-    return (
-      <span className="px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
-        Repeated
-      </span>
-    );
-  }
-  if (repeatCount !== undefined) {
-    return (
-      <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-        {repeatCount}
-      </span>
-    );
-  }
-  return (
-    <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-      0
-    </span>
-  );
-};
+/** Tiny timing hint — not a second status pill. */
+const ProgressHint: React.FC<{ progress: SessionProgress }> = ({
+  progress,
+}) => (
+  <span className="text-[11px] capitalize text-rs-text-muted">{progress}</span>
+);
 
 // Helper function to format date with proper timezone handling
 const formatDateDisplay = (dateString: string) => {
@@ -414,26 +352,6 @@ const Sessions: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const generatePageNumbers = (currentPage: number, totalPages: number) => {
-    const pageNumbers = [];
-    pageNumbers.push(1);
-    let start = Math.max(2, currentPage - 2);
-    let end = Math.min(totalPages - 1, currentPage + 2);
-    if (start > 2) {
-      pageNumbers.push('...');
-    }
-    for (let i = start; i <= end; i++) {
-      pageNumbers.push(i);
-    }
-    if (end < totalPages - 1) {
-      pageNumbers.push('...');
-    }
-    if (totalPages > 1) {
-      pageNumbers.push(totalPages);
-    }
-    return pageNumbers;
-  };
-
   // Topic management handlers (unchanged)
   const handleCreateTopic = async () => {
     if (!validateToken()) return;
@@ -465,7 +383,7 @@ const Sessions: React.FC = () => {
       }
       setNewTopic('');
       fetchTopics();
-      alert('Topic created successfully!');
+      toast.success('Topic created successfully!');
     } catch (error) {
       console.error('Error creating topic:', error);
       setTopicError(error instanceof Error ? error.message : 'Failed to create topic');
@@ -565,93 +483,93 @@ const Sessions: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting sessions:', error);
-      alert('Failed to export sessions. Please try again.');
+      toast.error('Failed to export sessions. Please try again.');
     }
   };
 
-  // --- Updated Mobile Card Renderer ---
   const renderMobileCard = (session: Session) => {
     if (!session.user) {
       return null;
     }
-    // Use the helper function to format date and time
     const { formattedDate, formattedTime } = formatDateDisplay(session.time);
+    const topic = session.topicRef?.topic || session.topic;
     return (
-      <div key={session._id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h3 className="font-medium text-gray-900">
+      <div
+        key={session._id}
+        className="space-y-3 rounded-lg border border-rs-border bg-rs-surface p-3"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-rs-text">
               {session.user.anonymousName ?? 'Anonymous User'}
-            </h3>
+            </p>
+            <p className="truncate text-xs text-rs-text-muted">
+              {session.listener?.name ?? 'No listener'}
+              {session.isRepeated
+                ? ' · Repeated'
+                : session.repeatCount
+                  ? ` · ${session.repeatCount} repeats`
+                  : ''}
+            </p>
           </div>
-          <div className="flex flex-col gap-2">
-            <ProgressBadge progress={getSessionProgress(session.time)} />
-            <StatusBadge status={session.status} />
-            <RepeatBadge
-              repeatCount={session.repeatCount}
-              isRepeated={session.isRepeated}
-            />
-          </div>
+          <ProgressHint progress={getSessionProgress(session.time)} />
         </div>
-        <div className="space-y-2 text-sm text-gray-600">
-          {session.listener ? (
-            <div className="flex items-center">
-              <Headphones className="h-4 w-4 mr-2" />
-              <div className="flex flex-col">
-                <span>{session.listener.name}</span>
-                <span className="text-xs text-gray-500">{session.listener.email}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center">
-              <Headphones className="h-4 w-4 mr-2" />
-              <span className="text-sm text-gray-500">No Listener Assigned</span>
-            </div>
-          )}
-          {/* Updated Time Display using the helper function */}
-          <div className="flex items-center">
-            <Clock className="h-4 w-4 mr-2" />
-            <div className="flex flex-col">
-              <span>{formattedDate}</span>
-              <span className="text-xs text-gray-500">{formattedTime}</span>
-            </div>
+        <div className="flex items-baseline justify-between gap-3 text-sm">
+          <div>
+            <p className="text-rs-text">{formattedDate}</p>
+            <p className="text-xs text-rs-text-muted">{formattedTime}</p>
           </div>
-          <div className="flex items-center">
-            <Tag className="h-4 w-4 mr-2" />
-            <span>{session.topicRef?.topic || session.topic}</span>
-          </div>
-          {session.reflectData && (
-            <div className="mt-4 border-t border-gray-100 pt-3">
-              <h4 className="font-medium text-gray-900 mb-2">Session Reflection</h4>
-              {session.reflectData.userReflectionData.map((reflection) => (
-                <div key={reflection._id} className="mb-2 last:mb-0 pl-2 border-l-2 border-gray-200">
-                  <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                  <p className="text-sm text-gray-900">{reflection.answer}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="max-w-[50%] truncate text-right text-rs-text-secondary">
+            {topic}
+          </p>
         </div>
-        <div className="mt-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <SessionMeetingLink
-              sessionId={session._id}
-              initialMeetingLink={session.meetingLink}
-              onLinkAdded={(newLink) => {
-                setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
-              }}
-              isEditable={true}
-            />
-          </div>
-          <div className="pt-2 border-t border-gray-100">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Update Status</h4>
-            {/* ✅ USE THE EXTERNAL SESSION STATUS UPDATE COMPONENT */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rs-border pt-3">
+          <SessionMeetingLink
+            sessionId={session._id}
+            initialMeetingLink={session.meetingLink}
+            onLinkAdded={(newLink) => {
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s._id === session._id ? { ...s, meetingLink: newLink } : s
+                )
+              );
+            }}
+            isEditable={true}
+          />
+          <div className="flex flex-wrap items-start gap-3">
             <SessionStatusUpdate
               sessionId={session._id}
               currentStatus={session.status}
               sessionTime={session.time}
-              onStatusUpdated={(newStatus) => {
-                setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
+              paymentStatus={session.paymentStatus}
+              onStatusUpdated={(newStatus, nextPaymentStatus) => {
+                setSessions((prev) =>
+                  prev.map((s) =>
+                    s._id === session._id
+                      ? {
+                          ...s,
+                          status: newStatus,
+                          ...(nextPaymentStatus
+                            ? { paymentStatus: nextPaymentStatus }
+                            : {}),
+                        }
+                      : s
+                  )
+                );
+              }}
+            />
+            <SessionPaymentCell
+              sessionId={session._id}
+              currentStatus={session.status}
+              paymentStatus={session.paymentStatus}
+              onPaymentUpdated={(nextPaymentStatus) => {
+                setSessions((prev) =>
+                  prev.map((s) =>
+                    s._id === session._id
+                      ? { ...s, paymentStatus: nextPaymentStatus }
+                      : s
+                  )
+                );
               }}
             />
           </div>
@@ -660,466 +578,446 @@ const Sessions: React.FC = () => {
     );
   };
 
-  // --- Updated Table Renderer ---
-  const renderTable = () => {
+  const totalPages = Math.max(1, Math.ceil(totalSessions / sessionsPerPage));
+
+  const sessionsCardActions = (
+    <TableCardSearch
+      value={searchTerm}
+      onChange={(value) => {
+        setSearchTerm(value);
+        setCurrentPage(1);
+      }}
+      aria-label="Search sessions"
+    />
+  );
+
+  const renderSessionsPanel = () => {
+    const rows = filteredSessions.filter((session) => session.user);
+
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('user')}>User</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('listener')}>Listener</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('time')}>Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('topic')}>Topic</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Link</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('repeats')}>Repeat Count</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reflection</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Update Status</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredSessions.map((session) => {
-              if (!session.user) return null;
-              // Use the helper function to format date and time
-              const { formattedDate, formattedTime } = formatDateDisplay(session.time);
-              return (
-                <tr key={session._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-gray-900">
-                        {session.user.anonymousName ?? 'Anonymous User'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {session.listener ? (
-                      <div className="flex flex-col">
-                        <span className="text-sm text-gray-900">{session.listener.name}</span>
-                        <span className="text-xs text-gray-500">{session.listener.email}</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-500">No Listener</span>
-                    )}
-                  </td>
-                  {/* Updated Time Cell using the helper function */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-900">{formattedDate}</span>
-                      <span className="text-xs text-gray-500">{formattedTime}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {session.topicRef?.topic || session.topic}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <SessionMeetingLink
-                      sessionId={session._id}
-                      initialMeetingLink={session.meetingLink}
-                      onLinkAdded={(newLink) => {
-                        setSessions(prev => prev.map(s => s._id === session._id ? { ...s, meetingLink: newLink } : s));
-                      }}
-                      isEditable={true}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <ProgressBadge progress={getSessionProgress(session.time)} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={session.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <RepeatBadge
-                      repeatCount={session.repeatCount}
-                      isRepeated={session.isRepeated}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {session.reflectData ? (
-                      <div className="max-w-xs">
-                        {session.reflectData.userReflectionData.map((reflection) => (
-                          <div key={reflection._id} className="mb-2 last:mb-0">
-                            <p className="text-xs font-medium text-gray-500">{reflection.question}</p>
-                            <p className="text-sm text-gray-900">{reflection.answer}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-500">No reflection</span>
-                    )}
-                  </td>
-                  {/* ✅ USE THE EXTERNAL SESSION STATUS UPDATE COMPONENT */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <SessionStatusUpdate
-                      sessionId={session._id}
-                      currentStatus={session.status}
-                      sessionTime={session.time}
-                      onStatusUpdated={(newStatus) => {
-                        setSessions(prev => prev.map(s => s._id === session._id ? { ...s, status: newStatus } : s));
-                      }}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <TableCard
+        title="All sessions"
+        description={`${totalSessions} booking${totalSessions === 1 ? '' : 's'}`}
+        actions={sessionsCardActions}
+        footer={
+          <TablePagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={totalSessions}
+            itemLabel="sessions"
+            onPageChange={setCurrentPage}
+          />
+        }
+      >
+        <div className="hidden sm:block">
+          <Table variant="plain">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <SortableTableHead
+                  column="user"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                >
+                  Session
+                </SortableTableHead>
+                <SortableTableHead
+                  column="time"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                >
+                  When
+                </SortableTableHead>
+                <SortableTableHead
+                  column="topic"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                >
+                  Topic
+                </SortableTableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Meeting</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableEmpty colSpan={6}>No sessions found</TableEmpty>
+              ) : (
+                rows.map((session) => {
+                  const { formattedDate, formattedTime } = formatDateDisplay(
+                    session.time
+                  );
+                  const metaBits = [
+                    session.listener?.name,
+                    session.isRepeated
+                      ? 'Repeated'
+                      : session.repeatCount
+                        ? `${session.repeatCount} repeats`
+                        : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <TableRow key={session._id}>
+                      <TableCell className="max-w-[14rem]">
+                        <p className="truncate font-medium text-rs-text">
+                          {session.user.anonymousName ?? 'Anonymous User'}
+                        </p>
+                        <p className="truncate text-xs text-rs-text-muted">
+                          {metaBits.length > 0
+                            ? metaBits.join(' · ')
+                            : 'No listener'}
+                        </p>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <p className="text-sm text-rs-text">{formattedDate}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-rs-text-muted">
+                            {formattedTime}
+                          </span>
+                          <span className="text-rs-border">·</span>
+                          <ProgressHint
+                            progress={getSessionProgress(session.time)}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[12rem]">
+                        <span className="line-clamp-1 text-sm text-rs-text">
+                          {session.topicRef?.topic || session.topic}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <SessionStatusUpdate
+                          sessionId={session._id}
+                          currentStatus={session.status}
+                          sessionTime={session.time}
+                          paymentStatus={session.paymentStatus}
+                          onStatusUpdated={(newStatus, nextPaymentStatus) => {
+                            setSessions((prev) =>
+                              prev.map((s) =>
+                                s._id === session._id
+                                  ? {
+                                      ...s,
+                                      status: newStatus,
+                                      ...(nextPaymentStatus
+                                        ? {
+                                            paymentStatus: nextPaymentStatus,
+                                          }
+                                        : {}),
+                                    }
+                                  : s
+                              )
+                            );
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <SessionPaymentCell
+                          sessionId={session._id}
+                          currentStatus={session.status}
+                          paymentStatus={session.paymentStatus}
+                          onPaymentUpdated={(nextPaymentStatus) => {
+                            setSessions((prev) =>
+                              prev.map((s) =>
+                                s._id === session._id
+                                  ? { ...s, paymentStatus: nextPaymentStatus }
+                                  : s
+                              )
+                            );
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <SessionMeetingLink
+                          sessionId={session._id}
+                          initialMeetingLink={session.meetingLink}
+                          onLinkAdded={(newLink) => {
+                            setSessions((prev) =>
+                              prev.map((s) =>
+                                s._id === session._id
+                                  ? { ...s, meetingLink: newLink }
+                                  : s
+                              )
+                            );
+                          }}
+                          isEditable={true}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="space-y-2 p-3 sm:hidden">
+          {rows.length === 0 ? (
+            <p className="py-6 text-center text-sm text-rs-text-muted">
+              No sessions found
+            </p>
+          ) : (
+            rows.map(renderMobileCard)
+          )}
+        </div>
+      </TableCard>
     );
   };
 
-  // --- renderTopicModal function remains the same ---
+  const closeTopicModal = () => {
+    setShowTopicModal(false);
+    setNewTopic('');
+    setTopicError(null);
+    setEditingTopicId(null);
+    setEditingTopicName('');
+  };
+
+  // --- renderTopicModal ---
   const renderTopicModal = () => (
-    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div className="inline-block align-bottom bg-gray-900 rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-700">
-          <div className="bg-gray-800 px-6 py-4 border-b border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0 bg-red-500/10 p-2 rounded-lg">
-                  <Tag className="h-8 w-8 text-red-500" aria-hidden="true" />
-                </div>
-                <h3 className="text-2xl font-semibold text-white tracking-tight">
-                  Manage Topics
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setShowTopicModal(false);
-                  setNewTopic('');
-                  setTopicError(null);
-                  setEditingTopicId(null);
-                }}
-                className="text-gray-400 hover:text-gray-300 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-          <div className="bg-gray-900 px-6 py-8">
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="topic-name" className="block text-lg font-medium text-gray-200 mb-3">
-                  {editingTopicId ? 'Edit Topic Name' : 'Create New Topic'}
-                </label>
-                <div className="relative">
-                  <input
-                    id="topic-name"
-                    type="text"
-                    className="w-full px-5 py-4 text-xl bg-gray-800 border-2 border-gray-700 rounded-xl
-                      text-white placeholder-gray-400 focus:border-red-500 focus:ring-2 focus:ring-red-500
-                      focus:ring-opacity-50 transition-all duration-200 shadow-sm
-                      hover:border-gray-600"
-                    placeholder={editingTopicId ? "Enter updated topic name" : "e.g., Career Development, Mental Health"}
-                    value={editingTopicId ? editingTopicName : newTopic}
-                    onChange={(e) => {
-                      if (editingTopicId) {
-                        setEditingTopicName(e.target.value);
-                      } else {
-                        setNewTopic(e.target.value);
-                      }
-                      setTopicError(null);
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !isTopicOperationLoading) {
-                        if (editingTopicId) {
-                          handleEditTopic(editingTopicId, editingTopicName);
-                        } else {
-                          handleCreateTopic();
-                        }
-                      }
-                    }}
-                  />
-                  {(!editingTopicId && newTopic) || (editingTopicId && editingTopicName) && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <Tag className="h-6 w-6 text-red-500" />
-                    </div>
-                  )}
-                </div>
-                {topicError && (
-                  <div className="mt-3 flex items-center space-x-2 text-red-500">
-                    <X className="h-5 w-5" />
-                    <p className="text-sm">{topicError}</p>
-                  </div>
-                )}
-                <p className="mt-3 text-sm text-gray-400">
-                  {editingTopicId
-                    ? "Update the topic name. This will affect all sessions using this topic."
-                    : "Choose a clear and specific name that describes the topic. This will help users find relevant sessions."}
-                </p>
-              </div>
-              <div className="mt-8">
-                <h4 className="text-lg font-medium text-gray-200 mb-4 flex items-center">
-                  <Tag className="h-5 w-5 mr-2 text-red-500" />
-                  Existing Topics
-                </h4>
-                {isLoadingTopics ? (
-                  <div className="flex justify-center py-4">
-                    <RefreshCw className="h-6 w-6 text-gray-400 animate-spin" />
-                  </div>
-                ) : existingTopics.length > 0 ? (
-                  <div className="space-y-3">
-                    {existingTopics.map((topic) => (
-                      editingTopicId === topic._id ? (
-                        <div key={topic._id} className="flex items-center space-x-3 bg-gray-800 px-4 py-3 rounded-xl w-full">
-                          <div className="flex-1">
-                            <input
-                              type="text"
-                              value={editingTopicName}
-                              onChange={(e) => setEditingTopicName(e.target.value)}
-                              className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg
-                                border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-                              placeholder="Enter updated topic name"
-                            />
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEditTopic(topic._id, editingTopicName)}
-                              className="p-2 text-green-500 hover:text-green-400 transition-colors"
-                              disabled={isTopicOperationLoading}
-                            >
-                              <Check className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingTopicId(null);
-                                setEditingTopicName('');
-                              }}
-                              className="p-2 text-gray-400 hover:text-gray-300 transition-colors"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div key={topic._id} className="flex items-center justify-between bg-gray-800 px-4 py-3 rounded-xl w-full">
-                          <div className="flex items-center space-x-3">
-                            <Tag className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <span className="text-base text-gray-300">{topic.topic}</span>
-                              {topic.count > 0 && (
-                                <span className="text-sm text-gray-500 ml-2">({topic.count} session{topic.count !== 1 ? 's' : ''})</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex space-x-3">
-                            <button
-                              onClick={() => {
-                                setEditingTopicId(topic._id);
-                                setEditingTopicName(topic.topic);
-                              }}
-                              className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                              disabled={isTopicOperationLoading}
-                            >
-                              <Edit2 className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTopic(topic._id)}
-                              className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                              disabled={isTopicOperationLoading}
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400 text-sm text-center py-4 bg-gray-800 rounded-xl">
-                    No topics found. Create your first topic!
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-800 px-6 py-4 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-700">
-            {editingTopicId ? null : (
-              <button
-                type="button"
-                className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl
-                  text-white text-lg font-medium bg-red-500 hover:bg-red-600
-                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500
-                  transition-colors duration-200 sm:ml-3"
-                onClick={handleCreateTopic}
-                disabled={isTopicOperationLoading || !newTopic.trim()}
-              >
-                {isTopicOperationLoading ? (
-                  <>
-                    <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-5 w-5 mr-2" />
-                    Create Topic
-                  </>
-                )}
-              </button>
-            )}
-            <button
+    <Modal
+      open={showTopicModal}
+      onClose={closeTopicModal}
+      title="Manage topics"
+      description="Create and edit session topics used across the platform."
+      className="max-w-xl"
+      footer={
+        <>
+          <Button type="button" variant="outline" size="sm" onClick={closeTopicModal}>
+            Close
+          </Button>
+          {!editingTopicId ? (
+            <Button
               type="button"
-              className="mt-3 sm:mt-0 w-full sm:w-auto flex items-center justify-center px-6 py-3
-                rounded-xl text-lg font-medium text-gray-300 bg-gray-700 hover:bg-gray-600
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500
-                transition-colors duration-200"
-              onClick={() => {
-                setShowTopicModal(false);
-                setNewTopic('');
-                setTopicError(null);
-                setEditingTopicId(null);
-              }}
+              size="sm"
+              onClick={handleCreateTopic}
+              disabled={isTopicOperationLoading || !newTopic.trim()}
             >
-              Close
-            </button>
-          </div>
+              {isTopicOperationLoading ? (
+                <>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Create topic
+                </>
+              )}
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <div className="space-y-1.5">
+          <label
+            htmlFor="topic-name"
+            className="text-[11px] font-medium text-rs-text-muted"
+          >
+            {editingTopicId ? 'Edit topic name' : 'New topic'}
+          </label>
+          <Input
+            id="topic-name"
+            value={editingTopicId ? editingTopicName : newTopic}
+            placeholder={
+              editingTopicId
+                ? 'Updated topic name'
+                : 'e.g. Career Development, Mental Health'
+            }
+            className="focus-visible:border-rs-text-muted/40 focus-visible:ring-rs-text-muted/20"
+            onChange={(e) => {
+              if (editingTopicId) setEditingTopicName(e.target.value);
+              else setNewTopic(e.target.value);
+              setTopicError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || isTopicOperationLoading) return;
+              if (editingTopicId) {
+                handleEditTopic(editingTopicId, editingTopicName);
+              } else {
+                handleCreateTopic();
+              }
+            }}
+          />
+          {topicError ? (
+            <p className="text-[11px] text-rs-primary">{topicError}</p>
+          ) : (
+            <p className="text-[11px] text-rs-text-muted">
+              {editingTopicId
+                ? 'Updating renames this topic on all sessions that use it.'
+                : 'Use a clear name so users can find relevant sessions.'}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[11px] font-medium text-rs-text-muted">
+            Existing topics
+          </p>
+          {isLoadingTopics ? (
+            <div className="flex justify-center py-8">
+              <RefreshCw className="h-4 w-4 animate-spin text-rs-text-muted" />
+            </div>
+          ) : existingTopics.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-rs-border px-3 py-6 text-center text-xs text-rs-text-muted">
+              No topics yet. Create the first one above.
+            </p>
+          ) : (
+            <ul className="divide-y divide-rs-border rounded-lg border border-rs-border">
+              {existingTopics.map((topic) => (
+                <li
+                  key={topic._id}
+                  className="flex items-center gap-2 px-3 py-2.5"
+                >
+                  {editingTopicId === topic._id ? (
+                    <>
+                      <Input
+                        value={editingTopicName}
+                        onChange={(e) => setEditingTopicName(e.target.value)}
+                        className="h-8 flex-1 focus-visible:border-rs-text-muted/40 focus-visible:ring-rs-text-muted/20"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !isTopicOperationLoading) {
+                            handleEditTopic(topic._id, editingTopicName);
+                          }
+                          if (e.key === 'Escape') {
+                            setEditingTopicId(null);
+                            setEditingTopicName('');
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-rs-success"
+                        disabled={isTopicOperationLoading}
+                        onClick={() =>
+                          handleEditTopic(topic._id, editingTopicName)
+                        }
+                        aria-label="Save topic"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-rs-text-muted"
+                        onClick={() => {
+                          setEditingTopicId(null);
+                          setEditingTopicName('');
+                        }}
+                        aria-label="Cancel edit"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Tag
+                        className="h-3.5 w-3.5 shrink-0 text-rs-text-muted"
+                        strokeWidth={1.75}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-rs-text">
+                          {topic.topic}
+                        </p>
+                        {topic.count > 0 ? (
+                          <p className="text-[11px] text-rs-text-muted">
+                            {topic.count} session
+                            {topic.count !== 1 ? 's' : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-rs-text-muted"
+                        disabled={isTopicOperationLoading}
+                        onClick={() => {
+                          setEditingTopicId(topic._id);
+                          setEditingTopicName(topic.topic);
+                        }}
+                        aria-label={`Edit ${topic.topic}`}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-rs-text-muted hover:text-rs-primary"
+                        disabled={isTopicOperationLoading}
+                        onClick={() => handleDeleteTopic(topic._id)}
+                        aria-label={`Delete ${topic.topic}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center justify-between mb-6">
-        <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Sessions</h1>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:flex items-center space-x-4">
-          <button
-            className="flex items-center justify-center bg-red-500 text-white
-              px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-            onClick={() => {
-              setEditingTopicId(null);
-              setShowTopicModal(true);
-            }}
-          >
-            <Tag className="h-4 w-4 mr-2" />
-            <span>Manage Topics</span>
-          </button>
-          <RefreshButton
-            onClick={() => {
-              setCurrentPage(1);
-              fetchSessions();
-            }}
-            isLoading={isLoading}
-          />
-          <div className="relative w-64">
-            <input
-              type="text"
-              className="w-full focus:ring-blue-500 focus:border-blue-500 block pr-10
-                sm:text-sm border-gray-300 rounded-lg"
-              placeholder="Search sessions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-          <button
-            className="flex items-center justify-center bg-green-500 text-white
-              px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            onClick={exportSessions}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span>Export Sessions</span>
-          </button>
-        </div>
-      </div>
-      <div className="mt-4 flex justify-between items-center">
-        <div className="flex space-x-2">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="border rounded-lg p-2 bg-white text-gray-800"
-          >
-            <option value="user">User</option>
-            <option value="listener">Listener</option>
-            <option value="time">Time</option>
-            <option value="topic">Topic</option>
-            <option value="repeats">Repeats</option>
-          </select>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className="border rounded-lg p-2 bg-white text-gray-800"
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-          <button
-            onClick={() => {
-              setCurrentPage(1);
-              fetchSessions();
-            }}
-            className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Sort
-          </button>
-        </div>
-      </div>
-      <div className="mt-8">
-        {isLoading ? (
-          <div className="flex justify-center items-center min-h-[400px]">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full border-4 border-gray-200"></div>
-              <div className="w-12 h-12 rounded-full border-4 border-red-500 border-t-transparent animate-spin absolute top-0 left-0"></div>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-600">{error}</div>
-        ) : (
+    <div className="space-y-6">
+      <PageHeader
+        title="Sessions"
+        description="Review bookings, meeting links, and session outcomes."
+        actions={
           <>
-            <div className="hidden sm:block">{renderTable()}</div>
-            <div className="sm:hidden space-y-4">{sessions.map(renderMobileCard)}</div>
-            {showTopicModal && renderTopicModal()}
-          </>
-        )}
-        <div className="mt-6 flex flex-wrap justify-center items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded-md text-sm ${
-              currentPage === 1
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-          >
-            Previous
-          </button>
-          {generatePageNumbers(currentPage, Math.ceil(totalSessions / sessionsPerPage)).map((pageNum, index) => (
-            <button
-              key={index}
-              onClick={() => typeof pageNum === 'number' ? setCurrentPage(pageNum) : null}
-              disabled={pageNum === '...'}
-              className={`px-3 py-1 rounded-md text-sm ${
-                pageNum === currentPage
-                  ? 'bg-red-500 text-white'
-                  : pageNum === '...'
-                    ? 'bg-transparent cursor-default'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCurrentPage(1);
+                fetchSessions();
+              }}
+              disabled={isLoading}
             >
-              {pageNum}
-            </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalSessions / sessionsPerPage), prev + 1))}
-            disabled={currentPage === Math.ceil(totalSessions / sessionsPerPage)}
-            className={`px-3 py-1 rounded-md text-sm ${
-              currentPage === Math.ceil(totalSessions / sessionsPerPage)
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-          >
-            Next
-          </button>
+              <RefreshCw
+                className={cn('mr-2 h-3.5 w-3.5', isLoading && 'animate-spin')}
+              />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportSessions}>
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Export
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingTopicId(null);
+                setShowTopicModal(true);
+              }}
+            >
+              <Tag className="mr-2 h-3.5 w-3.5" />
+              Manage Topics
+            </Button>
+          </>
+        }
+      />
+
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
-      </div>
+      ) : error ? (
+        <PageError message={error} onRetry={() => void fetchSessions()} />
+      ) : (
+        renderSessionsPanel()
+      )}
+
+      {renderTopicModal()}
     </div>
   );
 };

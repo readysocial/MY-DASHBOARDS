@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Video, Link as LinkIcon, Check, X } from 'lucide-react';
-import { addMeetingLink } from '@/api/admin/sessions/api'; // <-- admin endpoint
+import { Video, Link as LinkIcon, Check, X, Pencil } from 'lucide-react';
+import { addMeetingLink } from '@/api/admin/sessions/api';
+import { cn } from '@/lib/utils';
 
 interface SessionMeetingLinkProps {
   sessionId: string;
@@ -34,103 +35,113 @@ export const SessionMeetingLink: React.FC<SessionMeetingLinkProps> = ({
       onLinkAdded(updatedLink);
       setIsEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add meeting link');
+      setError(
+        err instanceof Error ? err.message : 'Failed to add meeting link'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* ---------- READ-ONLY ---------- */
-  if (!isEditable)
+  if (!isEditable) {
     return meetingLink ? (
-      <div className="flex items-center gap-1 sm:gap-2 text-gray-600">
-        <Video className="h-3 w-3 sm:h-4 sm:w-4" />
+      <a
+        href={meetingLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs text-rs-blue hover:underline"
+      >
+        <Video className="h-3.5 w-3.5" />
+        Join
+      </a>
+    ) : (
+      <span className="text-xs text-rs-text-muted">—</span>
+    );
+  }
+
+  if (isEditing) {
+    return (
+      <div className="flex min-w-[12rem] flex-col gap-1">
+        <div className="flex items-center gap-1">
+          <Input
+            type="url"
+            placeholder="https://…"
+            value={tempLink}
+            onChange={(e) => setTempLink(e.target.value)}
+            className="h-8 flex-1 text-xs"
+            disabled={isLoading}
+          />
+          <Button
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={handleSave}
+            disabled={!tempLink.trim() || isLoading}
+            aria-label="Save meeting link"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0"
+            onClick={() => {
+              setIsEditing(false);
+              setTempLink('');
+              setError(null);
+            }}
+            disabled={isLoading}
+            aria-label="Cancel"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        {error ? (
+          <span className="text-[11px] text-rs-primary">{error}</span>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (meetingLink) {
+    return (
+      <div className="flex items-center gap-0.5">
         <a
           href={meetingLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs sm:text-sm text-purple-600 hover:text-purple-800 underline"
+          className={cn(
+            'inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs',
+            'text-rs-blue hover:bg-rs-blue-tint'
+          )}
         >
-          Join Meeting
+          <Video className="h-3.5 w-3.5" />
+          Join
         </a>
-      </div>
-    ) : null;
-
-  /* ---------- EDIT MODE ---------- */
-  return (
-    <div className="mt-3 sm:mt-4 space-y-2">
-      {isEditing ? (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-          <Input
-  type="url"
-  placeholder="https://meet.google.com/abc-defg-hjk"
-  value={tempLink}
-  onChange={(e) => setTempLink(e.target.value)}
-  className="flex-1 text-xs sm:text-sm font-medium text-gray-900 placeholder-gray-500 py-1.5 sm:py-2"
-  disabled={isLoading}
-
-            />
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!tempLink.trim() || isLoading}
-              className="bg-green-600 hover:bg-green-700 py-1.5 sm:py-2"
-            >
-              <Check className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setIsEditing(false);
-                setTempLink('');
-                setError(null);
-              }}
-              disabled={isLoading}
-              className="py-1.5 sm:py-2"
-            >
-              <X className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-          </div>
-          {error && <p className="text-xs sm:text-sm text-red-600">{error}</p>}
-        </div>
-      ) : meetingLink ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 sm:gap-2">
-        <Video className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
-                  <a
-                    href={meetingLink}
-                target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs sm:text-sm font-bold text-purple-700 hover:text-purple-900 underline"
-                 >
-                 Join Meeting
-  </a>
-</div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setTempLink(meetingLink);
-              setIsEditing(true);
-            }}
-            className="text-xs sm:text-sm font-bold text-gray-900 py-1.5 sm:py-2"
-          >
-            Edit Link
-          </Button>
-        </div>
-      ) : (
         <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setIsEditing(true)}
-        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-bold text-gray-800 py-1.5 sm:py-2"
-      >
-        <LinkIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-        Add Meeting Link
-      </Button>
-      )}
-    </div>
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-rs-text-muted"
+          onClick={() => {
+            setTempLink(meetingLink);
+            setIsEditing(true);
+          }}
+          aria-label="Edit meeting link"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-8 px-2 text-xs text-rs-text-secondary"
+      onClick={() => setIsEditing(true)}
+    >
+      <LinkIcon className="mr-1.5 h-3.5 w-3.5" />
+      Add link
+    </Button>
   );
 };

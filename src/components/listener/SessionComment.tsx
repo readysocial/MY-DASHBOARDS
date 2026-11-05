@@ -70,7 +70,7 @@ export const SessionComment: React.FC<SessionCommentProps> = ({
               size="sm"
               onClick={handleAddComment}
               disabled={isLoading}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-rs-primary hover:bg-rs-primary/90"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -97,13 +97,13 @@ export const SessionComment: React.FC<SessionCommentProps> = ({
       ) : (
         <div className="space-y-2">
           {existingComment ? (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-gray-700 whitespace-pre-wrap">{existingComment}</p>
+            <div className="bg-rs-page p-4 rounded-lg">
+              <p className="text-rs-text-secondary whitespace-pre-wrap">{existingComment}</p>
               {canEdit && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="mt-2 text-xs text-gray-600 hover:text-gray-900"
+                  className="mt-2 text-xs text-rs-text-secondary hover:text-rs-text"
                   onClick={handleEditClick}
                 >
                   <Pencil className="h-3 w-3 mr-1" />

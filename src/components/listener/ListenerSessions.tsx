@@ -1,6 +1,5 @@
 // ListenerSessions.tsx
 import React, { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
 import {
   Calendar,
   ChevronLeft,
@@ -8,7 +7,6 @@ import {
   ChevronFirst,
   ChevronLast,
   Eye,
-  AlertCircle,
   Video,
   ExternalLink,
   User,
@@ -19,6 +17,12 @@ import Link from 'next/link';
 import { getListenerSessions } from '@/api/listener/getsessions/api';
 import type { Session } from '@/api/listener/getsessions/types';
 import { SessionRepeatRecommendation } from './SessionRepeatRecommendation';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmpty } from '@/components/ui/table';
+import { TableCard } from '@/components/ui/table-card';
+import { StatusBadge, statusToneFrom } from '@/components/ui/status-badge';
+import { InlineAlert } from '@/components/ui/inline-alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 /* ---------- helpers ---------- */
 const isParent = (s: Session): boolean => Number(s.repeats?.count) > 0;
@@ -43,22 +47,6 @@ const fmtTime = (d?: string) => {
   return isNaN(date.getTime())
     ? 'Invalid Time'
     : date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-};
-
-const statusBadge = (st?: Session['status']) => {
-  const base = 'px-3 py-1.5 rounded-full text-xs font-medium border';
-  switch (st) {
-    case 'pending':
-      return `${base} bg-yellow-100 text-yellow-800 border-yellow-200`;
-    case 'successful':
-      return `${base} bg-green-100 text-green-800 border-green-200`;
-    case 'unsuccessful':
-      return `${base} bg-red-100 text-red-800 border-red-200`;
-    case 'cancelled':
-      return `${base} bg-gray-100 text-gray-800 border-gray-200`;
-    default:
-      return `${base} bg-gray-100 text-gray-800 border-gray-200`;
-  }
 };
 
 /* ---------- component ---------- */
@@ -104,140 +92,130 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
   /* ---------- render ---------- */
   if (loading)
     return (
-      <Card className="p-6">
-        <div className="flex h-64 items-center justify-center text-gray-700">
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-            <span className="text-sm font-medium">Loading sessions...</span>
-          </div>
+      <TableCard title="Sessions" description="Your booked sessions">
+        <div className="space-y-2 p-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-3/4" />
         </div>
-      </Card>
+      </TableCard>
     );
 
   if (error)
     return (
-      <Card className="p-6">
-        <div className="flex items-start gap-3 text-red-700">
-          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-          <div>
-            <span className="font-medium">Error</span>
-            <p className="mt-1 text-sm">{error}</p>
-          </div>
-        </div>
-      </Card>
+      <InlineAlert variant="error" onDismiss={() => setError(null)}>
+        {error}
+      </InlineAlert>
     );
 
   if (total === 0)
     return (
-      <Card className="p-8 text-center">
-        <Calendar className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">No Sessions Found</h3>
-        <p className="text-gray-600">You don’t have any sessions yet.</p>
-      </Card>
+      <TableCard title="Sessions" description="Your booked sessions">
+        <EmptyState
+          title="No Sessions Found"
+          description="You don't have any sessions yet."
+        />
+      </TableCard>
     );
 
   return (
-    <div className="space-y-6">
-      {/* ---------- table container ---------- */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                User
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Date & Time
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Topic
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Status
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Repeats
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Actions
-              </th>
-            </tr>
-          </thead>
+    <TableCard
+      title="Sessions"
+      description={`${total} session${total !== 1 ? 's' : ''} total`}
+      footer={
+        pageCount > 1 ? (
+          <div className="flex w-full flex-col items-center justify-between gap-3 sm:flex-row">
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setPage(0)} disabled={page === 0} aria-label="Go to first page">
+                <ChevronFirst size={16} strokeWidth={1.75} />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} aria-label="Go to previous page">
+                <ChevronLeft size={16} strokeWidth={1.75} />
+              </Button>
+            </div>
+            <span className="text-xs tabular-nums text-rs-text-muted">
+              Page {page + 1} of {pageCount}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page === pageCount - 1} aria-label="Go to next page">
+                <ChevronRight size={16} strokeWidth={1.75} />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => setPage(pageCount - 1)} disabled={page === pageCount - 1} aria-label="Go to last page">
+                <ChevronLast size={16} strokeWidth={1.75} />
+              </Button>
+            </div>
+          </div>
+        ) : undefined
+      }
+    >
+      <Table variant="plain">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>User</TableHead>
+            <TableHead>Date &amp; Time</TableHead>
+            <TableHead>Topic</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Repeats</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
 
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {rows.map((s) => {
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableEmpty colSpan={6}>No sessions on this page</TableEmpty>
+          ) : (
+            rows.map((s) => {
               const userName = s.user?.anonymousName || 'Anonymous User';
               const repeatCount = Number(s.repeats?.count ?? 0);
 
               return (
-                <tr key={s._id}>
+                <TableRow key={s._id}>
                   {/* User */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div
-                        className={`mr-3 flex h-9 w-9 items-center justify-center rounded-full border ${
-                          isParent(s)
-                            ? 'bg-purple-100 border-purple-200'
-                            : isRepeat(s)
-                            ? 'bg-blue-100 border-blue-200'
-                            : 'bg-gray-100 border-gray-200'
-                        }`}
-                      >
-                        <User
-                          className={`h-5 w-5 ${
-                            isParent(s) ? 'text-purple-600' : isRepeat(s) ? 'text-blue-600' : 'text-gray-600'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-900">{userName}</div>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-rs-primary-tint">
+                        <User size={16} strokeWidth={1.75} className="text-rs-primary" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{userName}</div>
                         {isRepeat(s) && (
-                          <div className="mt-1 text-xs text-gray-500">🔁 Repeat Session</div>
+                          <div className="text-[11px] text-rs-text-muted">Repeat Session</div>
+                        )}
+                        {isParent(s) && (
+                          <div className="text-[11px] text-rs-text-muted">Parent session</div>
                         )}
                       </div>
                     </div>
-                  </td>
+                  </TableCell>
 
                   {/* Date & Time */}
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">{fmtDate(s.time)}</div>
-                    <div className="mt-1 text-sm text-gray-700">{fmtTime(s.time)}</div>
-                  </td>
+                  <TableCell>
+                    <div className="font-medium">{fmtDate(s.time)}</div>
+                    <div className="text-xs text-rs-text-muted">{fmtTime(s.time)}</div>
+                  </TableCell>
 
                   {/* Topic */}
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-800">
-                      <Tag className="mr-1.5 h-4 w-4 text-gray-500" />
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-rs-border bg-rs-page px-2 py-0.5 text-xs font-medium text-rs-text-secondary">
+                      <Tag size={12} strokeWidth={1.75} className="text-rs-text-muted" />
                       {s.topic || 'No Topic'}
                     </span>
-                  </td>
+                  </TableCell>
 
                   {/* Status */}
-                  <td className="px-6 py-4">
-                    <span className={statusBadge(s.status)}>{s.status}</span>
-                  </td>
+                  <TableCell>
+                    <StatusBadge tone={statusToneFrom(s.status || '')}>{s.status}</StatusBadge>
+                  </TableCell>
 
                   {/* Repeat Count */}
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    <span className="font-bold text-gray-900">{repeatCount}</span>
-                  </td>
+                  <TableCell className="tabular-nums">{repeatCount}</TableCell>
 
                   {/* Actions */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-2">
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
                       <Link href={`/listener/sessions/${s._id}/details`} passHref>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start gap-2 font-bold"
-                          style={{
-                            transition: 'none',
-                            backgroundColor: 'transparent',
-                            borderColor: '#D1D5DB',
-                            color: '#374151',
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
+                        <Button variant="outline" size="sm" className="whitespace-nowrap">
+                          <Eye size={14} strokeWidth={1.75} className="mr-1.5" />
                           View Details
                         </Button>
                       </Link>
@@ -247,21 +225,11 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
                           href={s.meetingLink.trim()}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block w-full"
                         >
-                          <Button
-                            size="sm"
-                            className="w-full justify-start gap-2 font-bold"
-                            style={{
-                              transition: 'none',
-                              backgroundColor: '#3B82F6',
-                              color: 'white',
-                              borderColor: '#3B82F6',
-                            }}
-                          >
-                            <Video className="h-4 w-4" />
-                            Join Meeting
-                            <ExternalLink className="h-3 w-3" />
+                          <Button size="sm" className="whitespace-nowrap">
+                            <Video size={14} strokeWidth={1.75} className="mr-1.5" />
+                            Join
+                            <ExternalLink size={12} strokeWidth={1.75} className="ml-1" />
                           </Button>
                         </a>
                       )}
@@ -272,96 +240,17 @@ export const ListenerSessions: React.FC<{ listenerId: string }> = ({ listenerId 
                         onRecommendationMade={() => setPage(0)}
                       />
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
-            })}
-          </tbody>
-        </table>
+            })
+          )}
+        </TableBody>
+      </Table>
+      <div className="flex items-center gap-2 border-t border-rs-border px-4 py-3 text-xs text-rs-text-muted">
+        <Calendar size={14} strokeWidth={1.75} />
+        Meeting links appear when an admin adds them
       </div>
-
-      {/* ---------- pagination ---------- */}
-      {pageCount > 1 && (
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-6 sm:flex-row">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              onClick={() => setPage(0)}
-              disabled={page === 0}
-              aria-label="Go to first page"
-              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
-              style={{
-                transition: 'all 0.2s ease',
-                backgroundColor: 'transparent',
-                borderColor: '#E5E7EB',
-                color: '#1F2937', // <-- DARKER CHEVRON COLOR
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
-            >
-              <ChevronFirst className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              aria-label="Go to previous page"
-              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
-              style={{
-                transition: 'all 0.2s ease',
-                backgroundColor: 'transparent',
-                borderColor: '#E5E7EB',
-                color: '#1F2937', // <-- DARKER CHEVRON COLOR
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <span className="text-sm font-bold text-gray-900">
-            Page {page + 1} of {pageCount}
-          </span>
-
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-              disabled={page === pageCount - 1}
-              aria-label="Go to next page"
-              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
-              style={{
-                transition: 'all 0.2s ease',
-                backgroundColor: 'transparent',
-                borderColor: '#E5E7EB',
-                color: '#1F2937', // <-- DARKER CHEVRON COLOR
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setPage(pageCount - 1)}
-              disabled={page === pageCount - 1}
-              aria-label="Go to last page"
-              className="h-8 w-8 p-0 font-bold text-gray-900 hover:text-gray-800"
-              style={{
-                transition: 'all 0.2s ease',
-                backgroundColor: 'transparent',
-                borderColor: '#E5E7EB',
-                color: '#1F2937', // <-- DARKER CHEVRON COLOR
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#D1D5DB')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
-            >
-              <ChevronLast className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+    </TableCard>
   );
 };

@@ -6,9 +6,9 @@ import {
   Calendar,
   UserCircle,
   LogOut,
-  Tag,
   X
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ListenerSidebarProps {
   onCloseSidebar?: () => void;
@@ -25,11 +25,6 @@ const navigationItems = [
     href: '/listener/sessions',
     icon: Calendar
   },
- // {
-  //   name: 'Topics',
-  //   href: '/listener/topics',
-  //   icon: Tag
-  // },
   {
     name: 'Profile',
     href: '/listener/profile',
@@ -50,62 +45,81 @@ export const ListenerSidebar = ({ onCloseSidebar }: ListenerSidebarProps) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+    <div className="flex h-full flex-col border-r border-rs-border bg-rs-sidebar-muted">
       {/* Logo and Close Button */}
-      <div className="p-6 flex items-center justify-between">
-        <Link href="/listener/dashboard" className="flex items-center">
-          <img
-            src="/logo.jpg"
-            alt="Logo"
-            className="h-8 w-8 rounded-full"
-          />
-          <span className="ml-3 text-xl font-semibold text-gray-900">
-            Listener Portal
+      <div className="flex h-14 shrink-0 items-center justify-between gap-2 px-3">
+        <Link href="/listener/dashboard" className="flex min-w-0 items-center gap-2.5">
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rs-primary text-[11px] font-semibold text-white"
+            aria-hidden
+          >
+            R
           </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-tight text-rs-text">
+              Ready Social
+            </p>
+            <p className="truncate text-[11px] text-rs-text-muted">
+              Listener
+            </p>
+          </div>
         </Link>
         {onCloseSidebar && (
           <button
             onClick={onCloseSidebar}
-            className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            className="rounded-md p-2 text-rs-text-muted hover:bg-rs-surface hover:text-rs-text lg:hidden"
+            aria-label="Close menu"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" strokeWidth={1.75} />
           </button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-        {navigationItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={() => onCloseSidebar?.()}
-              className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg
-                transition-colors duration-150 hover:bg-purple-50
-                ${isActive(item.href)
-                  ? 'text-purple-700 bg-purple-50'
-                  : 'text-gray-700 hover:text-purple-700'
-                }`}
-            >
-              <Icon className="h-5 w-5 mr-3" />
-              {item.name}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-2 pb-2">
+        <p className="mb-1 px-2.5 text-[11px] font-medium text-rs-text-muted">
+          Overview
+        </p>
+        <ul className="space-y-0.5">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  onClick={() => onCloseSidebar?.()}
+                  className={cn(
+                    "flex w-full items-center rounded-md px-2.5 py-2 text-sm rs-transition",
+                    active
+                      ? "bg-rs-surface font-medium text-rs-text shadow-[inset_0_0_0_1px_var(--rs-border)]"
+                      : "text-rs-text-secondary hover:bg-rs-surface/70 hover:text-rs-text",
+                  )}
+                >
+                  <Icon
+                    size={16}
+                    strokeWidth={1.75}
+                    className={cn(
+                      "mr-2.5 shrink-0",
+                      active ? "text-rs-primary" : "text-rs-text-muted",
+                    )}
+                  />
+                  <span className="truncate">{item.name}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
 
       {/* Profile & Logout */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="shrink-0 border-t border-rs-border p-2">
         <button
           onClick={handleLogout}
-          className="flex items-center px-4 py-3 text-sm font-medium text-gray-700
-            rounded-lg transition-colors duration-150 hover:bg-red-50 hover:text-red-700
-            w-full"
+          className="flex w-full items-center rounded-md px-2.5 py-2 text-sm text-rs-text-secondary rs-transition hover:bg-rs-surface/70 hover:text-rs-text"
         >
-          <LogOut className="h-5 w-5 mr-3" />
-          Logout
+          <LogOut size={16} strokeWidth={1.75} className="mr-2.5 shrink-0 text-rs-text-muted" />
+          <span className="truncate">Logout</span>
         </button>
       </div>
     </div>

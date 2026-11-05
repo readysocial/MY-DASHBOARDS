@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import { InlineAlert } from '../ui/inline-alert';
 import { Eye, EyeOff } from 'lucide-react';
 import { API_URL } from '@/config/api';
 
@@ -8,33 +9,19 @@ interface LoginProps {
   onSuccess: () => void;
 }
 
-type AlertType = 'success' | 'error' | null;
-
-interface AlertMessage {
-  type: AlertType;
-  text: string;
-}
-
 export default function Login({ onSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [alert, setAlert] = useState<AlertMessage>({ type: null, text: '' });
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const showAlert = (type: AlertType, text: string) => {
-    setAlert({ type, text });
-    setTimeout(() => {
-      setAlert({ type: null, text: '' });
-    }, 5000);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setAlert({ type: null, text: '' });
+    setError(null);
 
     try {
       const response = await fetch(`${API_URL}/admin/auth`, {
@@ -51,43 +38,32 @@ export default function Login({ onSuccess }: LoginProps) {
 
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('adminToken', data.accessToken);
-      showAlert('success', 'Login successful!');
+      localStorage.setItem('adminEmail', formData.email);
       onSuccess();
     } catch (err) {
-      showAlert('error', err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const Alert = ({ type, text }: { type: AlertType; text: string }) => {
-    if (!type || !text) return null;
-
-    const alertClasses = {
-      success: 'bg-green-100 text-green-700 border-green-400',
-      error: 'bg-red-100 text-red-700 border-red-400',
-    };
-
-    return (
-      <div className={`p-4 rounded-md border ${type ? alertClasses[type] : ''} mb-4`}>
-        {text}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-        <p className="text-gray-600 mt-2">Please sign in to your account</p>
+        <h2 className="text-xl font-semibold text-rs-text">Ready Social</h2>
+        <p className="text-sm text-rs-text-muted mt-2">Sign in to the admin dashboard</p>
       </div>
-      
-      <Alert type={alert.type} text={alert.text} />
-      
+
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
+          {error}
+        </InlineAlert>
+      ) : null}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="text-sm font-medium text-rs-text-secondary">
               Email Address
             </label>
             <Input
@@ -96,13 +72,12 @@ export default function Login({ onSuccess }: LoginProps) {
               placeholder="name@company.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="text-gray-900 placeholder:text-gray-500"
               required
             />
           </div>
-          
+
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="text-sm font-medium text-rs-text-secondary">
               Password
             </label>
             <div className="relative">
@@ -112,37 +87,25 @@ export default function Login({ onSuccess }: LoginProps) {
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="text-gray-900 placeholder:text-gray-500 pr-10"
+                className="pr-10"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-rs-text-muted hover:text-rs-text"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
         </div>
-        
-        <Button 
-          type="submit" 
-          disabled={loading} 
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5"
-        >
-          {loading ? 'Signing in...' : 'Sign In'}
+
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
-
-      <div className="text-sm text-center text-gray-600">
-        <p>Having trouble signing in? Contact your system administrator</p>
-      </div>
     </div>
   );
 }

@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  ArrowUp, 
-  ArrowDown, 
-  Users, 
-  UserCheck, 
-  Calendar,
-  BarChart2,
-  Clock,
-  User,
-  Headphones,
-  Video
-} from "lucide-react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { RefreshCw, Zap, Users, Wallet } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   Card,
   CardContent,
@@ -21,347 +19,354 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableEmpty,
+} from "@/components/ui/table";
+import { TableCard } from "@/components/ui/table-card";
+import { StatCard } from "@/components/ui/stat-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { colors } from "@/styles/tokens";
+import { API_URL } from "@/config/api";
+import { getAuthHeaders, handleUnauthorized, validateToken } from "@/utils/api";
+import { getDashboardAnalytics } from "@/api/admin/analytics/api";
+import type {
+  AnalyticsOverview,
+  AnalyticsSeriesPoint,
+} from "@/api/admin/analytics/types";
+import { getPricingConfig } from "@/api/admin/pricing/api";
+import type { PricingConfig } from "@/api/admin/pricing/types";
 
-// Sample data for the analytics chart
-const chartData = [
-  { name: 'Jan', totalSessions: 150, activeUsers: 800, activeListeners: 50 },
-  { name: 'Feb', totalSessions: 170, activeUsers: 1600, activeListeners: 55 },
-  { name: 'Mar', totalSessions: 140, activeUsers: 1500, activeListeners: 45 },
-  { name: 'Apr', totalSessions: 160, activeUsers: 1550, activeListeners: 60 },
-  { name: 'May', totalSessions: 140, activeUsers: 1700, activeListeners: 52 },
-  { name: 'Jun', totalSessions: 120, activeUsers: 1400, activeListeners: 48 },
-  // ... continue with remaining months
-];
-
-// Interfaces
-interface MetricCardProps {
-  title: string;
-  value: string;
-  change: number;
-  icon: React.ReactNode;
-}
-
-interface ActiveUserItemProps {
-  label: string;
-  value: string;
-  change: number;
-}
-
-interface SessionRowProps {
-  id: string;
-  date: string;
-  user: string;
-  listener: string;
-  duration: string;
+interface RecentSession {
+  _id: string;
+  user?: { anonymousName?: string | null };
+  listener?: { name?: string | null } | null;
+  topic?: string;
+  topicRef?: { topic?: string };
+  time: string;
   status: string;
 }
 
-interface ListenerStatsProps {
-  name: string;
-  specialties: string;
-  rating: number;
-  sessionsCompleted: number;
-}
+const formatNumber = (n: number | undefined) => (n ?? 0).toLocaleString();
 
-interface NotificationProps {
-  text: string;
-  time: string;
-  type: 'user' | 'listener' | 'session';
-}
+const formatMoney = (
+  sparks: number | undefined,
+  pricing: PricingConfig | null,
+) => {
+  if (!pricing || sparks == null) return undefined;
+  const amount = sparks * pricing.pricePerSpark;
+  return `≈ ${amount.toLocaleString()} ${pricing.currency}`;
+};
 
-// Component Definitions (same structure, updated content)
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, change, icon }) => (
-  <Card className="transition-all hover:shadow-lg">
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <div className="w-8 h-8 bg-[#F3F4F6] rounded-full flex items-center justify-center">
-        {icon}
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="text-xl sm:text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground flex items-center mt-1">
-        <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
-        <span className="text-green-500">{change}% This week</span>
-      </p>
-    </CardContent>
-  </Card>
-);
-
-const ActiveUserItem: React.FC<ActiveUserItemProps> = ({ label, value, change }) => (
-  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-    <span className="font-semibold text-sm sm:text-base">{label}</span>
-    <div className="text-right">
-      <p className="font-bold text-sm sm:text-base">{value}</p>
-      <p className={`text-xs sm:text-sm ${change >= 0 ? 'text-green-500' : 'text-red-500'} flex items-center justify-end`}>
-        {change >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
-        {Math.abs(change)}%
-      </p>
-    </div>
-  </div>
-);
-
-const SessionRow: React.FC<SessionRowProps> = ({ id, date, user, listener, duration, status }) => (
-  <TableRow>
-    <TableCell className="font-medium">{id}</TableCell>
-    <TableCell>{date}</TableCell>
-    <TableCell>{user}</TableCell>
-    <TableCell>{listener}</TableCell>
-    <TableCell>{duration}</TableCell>
-    <TableCell>
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        status === 'Completed' ? 'bg-green-100 text-green-800' :
-        status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-        'bg-yellow-100 text-yellow-800'
-      }`}>
-        {status}
-      </span>
-    </TableCell>
-  </TableRow>
-);
-
-const ListenerStats: React.FC<ListenerStatsProps> = ({ name, specialties, rating, sessionsCompleted }) => (
-  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-    <div>
-      <p className="font-semibold text-sm sm:text-base">{name}</p>
-      <p className="text-xs sm:text-sm text-muted-foreground">{specialties}</p>
-    </div>
-    <div className="text-right">
-      <p className="text-sm font-semibold">⭐ {rating.toFixed(1)}</p>
-      <p className="text-xs text-muted-foreground">{sessionsCompleted} sessions</p>
-    </div>
-  </div>
-);
-
-const Notification: React.FC<{ text: string; time: string; type: 'user' | 'listener' | 'session' }> = ({ text, time, type }) => {
-  const icons = {
-    user: <User className="h-4 w-4 text-red-500" />,
-    listener: <Headphones className="h-4 w-4 text-green-500" />,
-    session: <Video className="h-4 w-4 text-purple-500" />
-  };
-
-  return (
-    <div className="flex items-center py-2 border-b border-gray-100 last:border-0">
-      <div className="mr-3">{icons[type]}</div>
-      <div className="flex-1">
-        <p className="text-sm">{text}</p>
-        <p className="text-xs text-muted-foreground">{time}</p>
-      </div>
-    </div>
-  );
+const formatPeriodLabel = (period: string) => {
+  const [y, m] = period.split("-");
+  const date = new Date(Number(y), Number(m) - 1, 1);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    year: "2-digit",
+  });
 };
 
 const Dashboard: React.FC = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('2024');
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [series, setSeries] = useState<AnalyticsSeriesPoint[]>([]);
+  const [pricing, setPricing] = useState<PricingConfig | null>(null);
+  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    validateToken();
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [analytics, pricingConfig, sessionsRes] = await Promise.all([
+        getDashboardAnalytics(6),
+        getPricingConfig().catch(() => null),
+        fetch(
+          `${API_URL}/sessions/platform/all?limit=10&sortBy=createdAt&sortOrder=desc`,
+          {
+            headers: getAuthHeaders(),
+          },
+        ),
+      ]);
+
+      setOverview(analytics.overview);
+      setSeries(analytics.series || []);
+      setPricing(pricingConfig);
+
+      if (sessionsRes.status === 401) {
+        handleUnauthorized(sessionsRes);
+        return;
+      }
+      if (sessionsRes.ok) {
+        const sessionsData = await sessionsRes.json();
+        const list: RecentSession[] = Array.isArray(sessionsData)
+          ? sessionsData
+          : sessionsData.sessions || sessionsData.data || [];
+        setRecentSessions(list.slice(0, 8));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const chartData = series.map((row) => ({
+    name: formatPeriodLabel(row.period),
+    sessions: row.sessions,
+    purchased: row.sparksPurchased,
+    redeemed: row.sparksRedeemed,
+  }));
+
+  const rateHint = pricing
+    ? `1 spark = ${pricing.pricePerSpark.toLocaleString()} ${pricing.currency}`
+    : undefined;
 
   return (
-    <div className="p-2 sm:p-6 bg-white min-h-screen">
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <MetricCard 
-          title="Total Users" 
-          value="25,431" 
-          change={12} 
-          icon={<Users className="text-red-500" />} 
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        }
+      />
+
+      {error ? (
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
+          {error}
+        </InlineAlert>
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Unspent sparks"
+          value={loading ? "…" : formatNumber(overview?.totalSparksNotRedeemed)}
+          secondary={
+            loading
+              ? undefined
+              : formatMoney(overview?.totalSparksNotRedeemed, pricing)
+          }
+          hint="Balance held in active wallets (fiat at current rate)"
         />
-        <MetricCard 
-          title="Active Listeners" 
-          value="142" 
-          change={8} 
-          icon={<UserCheck className="text-green-500" />} 
+        <StatCard
+          label="Sparks purchased"
+          value={loading ? "…" : formatNumber(overview?.totalPurchased)}
+          secondary={
+            loading ? undefined : formatMoney(overview?.totalPurchased, pricing)
+          }
+          hint="Lifetime completed top-ups (fiat at current rate)"
         />
-        <MetricCard 
-          title="Total Sessions" 
-          value="1,893" 
-          change={15} 
-          icon={<Calendar className="text-purple-500" />} 
+        <StatCard
+          label="Total sessions"
+          value={loading ? "…" : formatNumber(overview?.totalSessions)}
+          hint="All booked sessions on the platform"
         />
-        <MetricCard 
-          title="Completion Rate" 
-          value="89%" 
-          change={5} 
-          icon={<BarChart2 className="text-orange-500" />} 
+        <StatCard
+          label="Active users (30d)"
+          value={loading ? "…" : formatNumber(overview?.activeUsers30d)}
+          hint="Users with a session in the last 30 days"
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="mt-4 sm:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Main Chart Card */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-              <div>
-                <CardTitle className="text-lg sm:text-xl">Platform Analytics</CardTitle>
-                <CardDescription className="text-sm">Overview of users, listeners, and sessions</CardDescription>
-              </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Select period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['2021', '2022', '2023', '2024'].map(year => (
-                      <SelectItem key={year} value={year}>{year}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button>Download Report</Button>
-              </div>
-            </div>
+            <CardTitle className="text-base">Activity</CardTitle>
+            <CardDescription>
+              Sessions booked and sparks purchased / redeemed by month
+              {rateHint ? ` · ${rateHint}` : ""}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full sm:w-auto flex justify-start overflow-x-auto">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="users">Users</TabsTrigger>
-                <TabsTrigger value="listeners">Listeners</TabsTrigger>
-                <TabsTrigger value="sessions">Sessions</TabsTrigger>
-              </TabsList>
-              <TabsContent value="overview" className="mt-4">
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="totalSessions" fill="#EF4444" />
-                      <Bar dataKey="activeUsers" fill="#FCA5A5"  />
-                      <Bar dataKey="activeListeners" fill="#22C55E" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </TabsContent>
-            </Tabs>
+          <CardContent className="h-[280px] pt-0">
+            {loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-rs-text-muted">
+                Loading chart…
+              </div>
+            ) : chartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-rs-text-muted">
+                No activity in this period.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar
+                    dataKey="sessions"
+                    name="Sessions"
+                    fill={colors.chart.primary}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="purchased"
+                    name="Purchased"
+                    fill={colors.chart.secondary}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="redeemed"
+                    name="Redeemed"
+                    fill={colors.chart.tertiary}
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
-        {/* Active Users Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">User Statistics</CardTitle>
+            <CardTitle className="text-base">Spark inventory</CardTitle>
+            <CardDescription>Wallet and ledger totals</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <ActiveUserItem label="New Users" value="1,245" change={20} />
-              <ActiveUserItem label="Active Users" value="18,556" change={12} />
-              <ActiveUserItem label="Returning Users" value="8,126" change={5} />
-              <ActiveUserItem label="Premium Users" value="2,854" change={15} />
-            </div>
+          <CardContent className="space-y-3 text-sm">
+            <InventoryRow
+              icon={<Wallet className="h-4 w-4" />}
+              label="Total wallets"
+              value={formatNumber(overview?.totalWalletsCount)}
+              loading={loading}
+            />
+            <InventoryRow
+              icon={<Zap className="h-4 w-4" />}
+              label="Active wallets"
+              value={formatNumber(overview?.activeWalletsCount)}
+              loading={loading}
+            />
+            <InventoryRow
+              icon={<Zap className="h-4 w-4" />}
+              label="Redeemed (sessions)"
+              value={formatNumber(overview?.totalRedeemed)}
+              secondary={formatMoney(overview?.totalRedeemed, pricing)}
+              loading={loading}
+            />
+            <InventoryRow
+              icon={<Users className="h-4 w-4" />}
+              label="Gifted"
+              value={formatNumber(overview?.totalGifted)}
+              secondary={formatMoney(overview?.totalGifted, pricing)}
+              loading={loading}
+            />
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Sessions and Top Listeners Section */}
-      <div className="mt-4 sm:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Recent Sessions Table */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Sessions</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Listener</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
+      <TableCard
+        title="Recent sessions"
+        description="Latest bookings across the platform"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/sessions">View all</Link>
+          </Button>
+        }
+      >
+        <Table variant="plain">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>User</TableHead>
+              <TableHead>Listener</TableHead>
+              <TableHead>Topic</TableHead>
+              <TableHead>When</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="px-4 py-8">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-3/4" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : recentSessions.length === 0 ? (
+              <TableEmpty colSpan={5}>No sessions yet</TableEmpty>
+            ) : (
+              recentSessions.map((session) => (
+                <TableRow key={session._id}>
+                  <TableCell className="font-medium">
+                    {session.user?.anonymousName || "Anonymous"}
+                  </TableCell>
+                  <TableCell>{session.listener?.name || "—"}</TableCell>
+                  <TableCell className="max-w-[10rem] truncate">
+                    {session.topicRef?.topic || session.topic || "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-rs-text-muted">
+                    {new Date(session.time).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge tone={statusToneFrom(session.status)}>
+                      {session.status}
+                    </StatusBadge>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                <SessionRow 
-                  id="S-1234"
-                  date="Mar 15, 2024"
-                  user="John Doe"
-                  listener="Sarah Smith"
-                  duration="45 mins"
-                  status="Completed"
-                />
-                <SessionRow 
-                  id="S-1235"
-                  date="Mar 15, 2024"
-                  user="Alice Johnson"
-                  listener="Mike Brown"
-                  duration="30 mins"
-                  status="In Progress"
-                />
-                <SessionRow 
-                  id="S-1236"
-                  date="Mar 14, 2024"
-                  user="Emma Wilson"
-                  listener="David Lee"
-                  duration="60 mins"
-                  status="Completed"
-                />
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Top Listeners and Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Top Listeners</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <ListenerStats 
-                name="Sarah Smith"
-                specialties="Anxiety, Depression"
-                rating={4.9}
-                sessionsCompleted={156}
-              />
-              <ListenerStats 
-                name="Mike Brown"
-                specialties="Stress Management"
-                rating={4.8}
-                sessionsCompleted={142}
-              />
-              <ListenerStats 
-                name="David Lee"
-                specialties="Relationship Counseling"
-                rating={4.7}
-                sessionsCompleted={128}
-              />
-            </div>
-
-            <div>
-              <h4 className="text-md font-semibold mb-4">Recent Activities</h4>
-              <div className="space-y-2">
-                <Notification 
-                  text="New user registration: Emma Wilson"
-                  time="2 hours ago"
-                  type="user"
-                />
-                <Notification 
-                  text="Session completed with Sarah Smith"
-                  time="3 hours ago"
-                  type="session"
-                />
-                <Notification 
-                  text="New listener approved: James Chen"
-                  time="5 hours ago"
-                  type="listener"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableCard>
     </div>
   );
 };
+
+const InventoryRow: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  secondary?: string;
+  loading: boolean;
+}> = ({ icon, label, value, secondary, loading }) => (
+  <div className="flex items-center justify-between gap-3 border-b border-rs-border pb-2 last:border-0 last:pb-0">
+    <div className="flex min-w-0 items-center gap-2 text-rs-text-secondary">
+      <span className="shrink-0 text-rs-text-muted">{icon}</span>
+      <span className="truncate">{label}</span>
+    </div>
+    <div className="shrink-0 text-right">
+      <p className="font-semibold tabular-nums text-rs-text">
+        {loading ? "…" : value}
+      </p>
+      {secondary && !loading ? (
+        <p className="text-[11px] tabular-nums text-rs-text-muted">{secondary}</p>
+      ) : null}
+    </div>
+  </div>
+);
 
 export default Dashboard;

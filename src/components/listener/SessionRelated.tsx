@@ -69,7 +69,7 @@ export const SessionRelated = ({
       case 'unsuccessful':
         return <XCircle className="h-4 w-4 text-red-500" />;
       case 'cancelled':
-        return <XCircle className="h-4 w-4 text-gray-500" />;
+        return <XCircle className="h-4 w-4 text-rs-text-muted" />;
       default:
         return <Clock3 className="h-4 w-4 text-blue-500" />;
     }
@@ -78,7 +78,7 @@ export const SessionRelated = ({
   // If this is a repeat session, show link to parent
   if (isRepeatSession && repeatSessionId) {
     return (
-      <div className="mt-4 border-t border-gray-100 pt-4">
+      <div className="mt-4 border-t border-rs-border pt-4">
         <Card 
           className="p-4 border-amber-100 hover:border-amber-200 hover:shadow-md cursor-pointer transition-all"
           onClick={() => onRelatedSessionClick?.({ _id: repeatSessionId } as Session)}
@@ -89,8 +89,8 @@ export const SessionRelated = ({
                 <Link2 className="h-4 w-4 text-amber-600" />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-900">View Original Session</span>
-                <span className="text-xs text-gray-500">This is a follow-up session</span>
+                <span className="text-sm font-medium text-rs-text">View Original Session</span>
+                <span className="text-xs text-rs-text-muted">This is a follow-up session</span>
               </div>
             </div>
             <ArrowLeft className="h-5 w-5 text-amber-400" />
@@ -103,7 +103,7 @@ export const SessionRelated = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-4">
-        <RefreshCw className="h-5 w-5 text-gray-400 animate-spin" />
+        <RefreshCw className="h-5 w-5 text-rs-text-muted animate-spin" />
       </div>
     );
   }
@@ -133,11 +133,11 @@ export const SessionRelated = ({
   }
 
   return (
-    <div className="mt-6 border-t border-gray-100 pt-6">
+    <div className="mt-6 border-t border-rs-border pt-6">
       <div className="flex items-center gap-2 mb-4">
-        <MessageCircle className="h-5 w-5 text-purple-500" />
-        <h3 className="text-lg font-medium text-gray-900">Session Comments</h3>
-        <span className="text-sm text-gray-500">
+        <MessageCircle className="h-5 w-5 text-rs-primary" />
+        <h3 className="text-lg font-medium text-rs-text">Session Comments</h3>
+        <span className="text-sm text-rs-text-muted">
           ({sessionsWithComments.length})
         </span>
       </div>
@@ -156,10 +156,10 @@ export const SessionRelated = ({
                     <User className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-rs-text">
                       {session.user.anonymousName}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-rs-text-muted">
                       {formatDate(session.time)} at {formatTime(session.time)}
                     </span>
                   </div>
@@ -167,8 +167,8 @@ export const SessionRelated = ({
                 
                 {/* Comment Display */}
                 {session.comment && session.comment.trim() !== '' && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700">{session.comment}</p>
+                  <div className="bg-rs-page rounded-lg p-3">
+                    <p className="text-sm text-rs-text-secondary">{session.comment}</p>
                   </div>
                 )}
               </div>

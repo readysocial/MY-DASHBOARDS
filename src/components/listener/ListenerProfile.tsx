@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TableCard } from '@/components/ui/table-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageError } from '@/components/ui/page-error';
+import { InlineAlert } from '@/components/ui/inline-alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getListenerProfile } from '@/api/listener/listenerprofile/api';
 import { updateListenerProfile } from '@/api/listener/listenerupdate/api';
 import type { ListenerProfile as ListenerProfileType } from '@/api/listener/listenerprofile/types';
@@ -166,18 +171,15 @@ export const ListenerProfile = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Loading profile...</div>
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
 
   if (error && !profile) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
+    return <PageError message={error} onRetry={() => window.location.reload()} />;
   }
 
   if (!profile) {
@@ -193,216 +195,210 @@ export const ListenerProfile = () => {
   };
 
   return (
-    <div className="container mx-auto py-4 sm:py-8 px-4">
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">My Profile</h1>
+    <div className="space-y-6">
+      <PageHeader
+        title="My Profile"
+        description="Your public listener details and availability."
+        actions={
+          !isEditing ? (
+            <Button variant="outline" size="sm" onClick={enterEditMode}>
+              <Pencil size={14} strokeWidth={1.75} className="mr-1.5" />
+              Edit Profile
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={cancelEdit} disabled={saving}>
+                <X size={14} strokeWidth={1.75} className="mr-1.5" />
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                <Save size={14} strokeWidth={1.75} className="mr-1.5" />
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+            </>
+          )
+        }
+      />
 
       {successMessage && (
-        <div className="p-3 sm:p-4 rounded-md mb-4 sm:mb-6 text-xs sm:text-sm bg-green-50 text-green-700 border border-green-200">
+        <InlineAlert variant="success" onDismiss={() => setSuccessMessage(null)}>
           {successMessage}
-        </div>
+        </InlineAlert>
       )}
 
       {error && (
-        <div className="p-3 sm:p-4 rounded-md mb-4 sm:mb-6 text-xs sm:text-sm bg-red-50 text-red-700 border border-red-200">
+        <InlineAlert variant="error" onDismiss={() => setError(null)}>
           {error}
-        </div>
+        </InlineAlert>
       )}
 
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+      <div className="grid items-stretch gap-4 lg:grid-cols-5">
         {/* Basic Information */}
-        <Card className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Basic Information</h2>
-            {!isEditing ? (
-              <Button
-                variant="outline"
-                className="text-purple-600 border-purple-600 hover:bg-purple-50 text-xs sm:text-sm py-1.5 sm:py-2"
-                onClick={enterEditMode}
-              >
-                <Pencil className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Edit Profile
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={cancelEdit}
-                  disabled={saving}
-                  className="border-gray-300 text-xs sm:text-sm py-1.5 sm:py-2"
-                >
-                  <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm py-1.5 sm:py-2"
-                >
-                  <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3 sm:space-y-4">
-            {/* Name */}
-            <div className="flex items-start">
-              <UserCircle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 mr-2 sm:mr-3 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-xs sm:text-sm text-gray-500">Name</div>
-                {isEditing ? (
-                  <>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                      className="mt-1 focus-visible:ring-purple-500"
-                      placeholder="Enter your name"
-                    />
-                    {formErrors.name && (
-                      <p className="mt-1 text-xs text-red-600 font-medium">{formErrors.name}</p>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-sm sm:text-base text-gray-900">{profile.name}</div>
-                )}
-              </div>
-            </div>
-
-            {/* Email (always read-only) */}
-            <div className="flex items-start">
-              <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 mr-2 sm:mr-3 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-xs sm:text-sm text-gray-500">
-                  Email
-                  {isEditing && (
-                    <span className="ml-2 text-xs text-gray-400">(cannot be changed)</span>
+        <Card className="flex h-full flex-col lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+            <CardDescription>Shown to users when booking</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-0 text-sm">
+            <ProfileRow icon={<UserCircle size={16} strokeWidth={1.75} />} label="Name">
+              {isEditing ? (
+                <div className="w-full">
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter your name"
+                  />
+                  {formErrors.name && (
+                    <p className="mt-1 text-xs font-medium text-rs-primary">{formErrors.name}</p>
                   )}
                 </div>
-                <div className="text-sm sm:text-base text-gray-900">{profile.email}</div>
-              </div>
-            </div>
+              ) : (
+                <span className="font-medium text-rs-text">{profile.name}</span>
+              )}
+            </ProfileRow>
 
-            {/* Phone */}
-            <div className="flex items-start">
-              <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 mr-2 sm:mr-3 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-xs sm:text-sm text-gray-500">Phone</div>
-                {isEditing ? (
-                  <>
-                    <Input
-                      type="tel"
-                      value={formData.phoneNumber}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))
-                      }
-                      className="mt-1 focus-visible:ring-purple-500"
-                      placeholder="Enter your phone number"
-                    />
-                    {formErrors.phoneNumber && (
-                      <p className="mt-1 text-xs text-red-600 font-medium">
-                        {formErrors.phoneNumber}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-sm sm:text-base text-gray-900">{profile.phoneNumber}</div>
+            <ProfileRow icon={<Mail size={16} strokeWidth={1.75} />} label="Email">
+              <span className="break-all font-medium text-rs-text">
+                {profile.email}
+                {isEditing && (
+                  <span className="ml-2 text-[11px] font-normal text-rs-text-muted">(cannot be changed)</span>
                 )}
-              </div>
-            </div>
+              </span>
+            </ProfileRow>
 
-            {/* Gender */}
-            <div className="flex items-start">
-              <User className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 mr-2 sm:mr-3 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-xs sm:text-sm text-gray-500">Gender</div>
-                {isEditing ? (
-                  <>
-                    <select
-                      value={formData.gender}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, gender: e.target.value }))
-                      }
-                      className="mt-1 w-full border border-gray-300 rounded-md shadow-sm py-1.5 sm:py-2 px-2 sm:px-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    >
-                      <option value="">Select gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                    {formErrors.gender && (
-                      <p className="mt-1 text-xs text-red-600 font-medium">{formErrors.gender}</p>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-sm sm:text-base text-gray-900 capitalize">
-                    {profile.gender || '—'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+            <ProfileRow icon={<Phone size={16} strokeWidth={1.75} />} label="Phone">
+              {isEditing ? (
+                <div className="w-full">
+                  <Input
+                    type="tel"
+                    value={formData.phoneNumber}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))
+                    }
+                    placeholder="Enter your phone number"
+                  />
+                  {formErrors.phoneNumber && (
+                    <p className="mt-1 text-xs font-medium text-rs-primary">
+                      {formErrors.phoneNumber}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <span className="font-medium tabular-nums text-rs-text">{profile.phoneNumber}</span>
+              )}
+            </ProfileRow>
+
+            <ProfileRow icon={<User size={16} strokeWidth={1.75} />} label="Gender" last>
+              {isEditing ? (
+                <div className="w-full">
+                  <select
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, gender: e.target.value }))
+                    }
+                    className="w-full rounded-md border border-rs-border bg-rs-surface px-3 py-2 text-sm text-rs-text outline-none rs-focus-ring"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                  {formErrors.gender && (
+                    <p className="mt-1 text-xs font-medium text-rs-primary">{formErrors.gender}</p>
+                  )}
+                </div>
+              ) : (
+                <span className="font-medium capitalize text-rs-text">{profile.gender || '—'}</span>
+              )}
+            </ProfileRow>
+          </CardContent>
         </Card>
 
         {/* Description */}
-        <Card className="p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">About Me</h2>
-          {isEditing ? (
-            <>
-              <Textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, description: e.target.value }))
-                }
-                className="min-h-[120px] focus-visible:ring-purple-500"
-                placeholder="Tell us about yourself"
-              />
-              {formErrors.description && (
-                <p className="mt-1 text-xs text-red-600 font-medium">{formErrors.description}</p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm sm:text-base text-gray-700">{profile.description}</p>
-          )}
+        <Card className="flex h-full flex-col lg:col-span-2">
+          <CardHeader>
+            <CardTitle>About Me</CardTitle>
+            <CardDescription>Short bio users see</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <div>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                  className="min-h-[120px]"
+                  placeholder="Tell us about yourself"
+                />
+                {formErrors.description && (
+                  <p className="mt-1 text-xs font-medium text-rs-primary">{formErrors.description}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed text-rs-text-secondary">{profile.description}</p>
+            )}
+          </CardContent>
         </Card>
+      </div>
 
-        {/* Availability Schedule */}
-        <Card className="p-4 sm:p-6 md:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Availability Schedule</h2>
-            <Button
-              variant="outline"
-              className="text-purple-600 border-purple-600 hover:bg-purple-50 text-xs sm:text-sm py-1.5 sm:py-2"
-              onClick={() => router.push('/listener/schedule')}
-            >
-              <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              Edit Schedule
-            </Button>
-          </div>
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {profile.availability.map((day) => (
-              <div key={day._id} className="border rounded-lg p-3 sm:p-4">
-                <h3 className="text-sm sm:text-base font-medium text-gray-900 capitalize mb-2">
-                  {day.dayOfWeek}
-                </h3>
-                <div className="space-y-1 sm:space-y-2">
-                  {day.times.map((time) => (
+      {/* Availability Schedule */}
+      <TableCard
+        title="Availability Schedule"
+        description="Weekly slots available for booking"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => router.push('/listener/schedule')}>
+            <Clock size={14} strokeWidth={1.75} className="mr-1.5" />
+            Edit Schedule
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {profile.availability.map((day) => (
+            <div key={day._id} className="rounded-lg border border-rs-border bg-rs-surface p-3">
+              <h3 className="text-sm font-medium capitalize text-rs-text">
+                {day.dayOfWeek}
+              </h3>
+              <div className="mt-1.5 space-y-1">
+                {day.times.length === 0 ? (
+                  <p className="text-xs text-rs-text-muted">No slots</p>
+                ) : (
+                  day.times.map((time) => (
                     <div
                       key={time._id}
-                      className={`text-xs sm:text-sm ${
+                      className={`text-xs tabular-nums ${
                         time.isAvailable
-                          ? 'text-green-600'
-                          : 'text-gray-500 line-through'
+                          ? 'text-rs-success'
+                          : 'text-rs-text-muted line-through'
                       }`}
                     >
                       {formatTime(time.startTime)} - {formatTime(time.endTime)}
                     </div>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+            </div>
+          ))}
+        </div>
+      </TableCard>
     </div>
   );
 };
+
+const ProfileRow: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+  last?: boolean;
+}> = ({ icon, label, children, last }) => (
+  <div
+    className={`flex items-center justify-between gap-3 py-2.5 ${
+      last ? '' : 'border-b border-rs-border'
+    }`}
+  >
+    <div className="flex min-w-0 shrink-0 items-center gap-2 text-rs-text-secondary">
+      <span className="shrink-0 text-rs-text-muted">{icon}</span>
+      <span className="text-[13px]">{label}</span>
+    </div>
+    <div className="flex min-w-0 flex-1 justify-end text-right">{children}</div>
+  </div>
+);

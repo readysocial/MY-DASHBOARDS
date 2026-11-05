@@ -1,139 +1,220 @@
-// SessionStatusUpdate.tsx
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { updateSessionStatus } from '@/api/admin/sessions/api';
-import type { SessionStatus } from '@/api/listener/updatestatus/types'; // ✅ correct file
-import { AlertCircle, CheckCircle2, XCircle, Clock } from 'lucide-react';
-import { confirm } from '@/lib/confirm';
+import React, { useState } from "react";
+import {
+  refundSessionPayment,
+  updateSessionStatus,
+} from "@/api/admin/sessions/api";
+import type { SessionStatus } from "@/api/listener/updatestatus/types";
+import { confirm } from "@/lib/confirm";
+import { StatusBadge, statusToneFrom } from "@/components/ui/status-badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { RotateCcw } from "lucide-react";
+
+export type PaymentStatus = "paid" | "refunded" | "unpaid" | string | undefined;
 
 interface SessionStatusUpdateProps {
   sessionId: string;
   currentStatus: SessionStatus;
   sessionTime: string;
-  onStatusUpdated: (newStatus: SessionStatus) => void;
+  paymentStatus?: PaymentStatus;
+  onStatusUpdated: (
+    newStatus: SessionStatus,
+    paymentStatus?: PaymentStatus,
+  ) => void;
+  className?: string;
 }
 
+interface SessionPaymentCellProps {
+  sessionId: string;
+  currentStatus: SessionStatus;
+  paymentStatus?: PaymentStatus;
+  onPaymentUpdated: (paymentStatus: PaymentStatus) => void;
+  className?: string;
+}
+
+/**
+ * Session outcome only — badge when settled, select when pending.
+ * Payment UI lives in SessionPaymentCell.
+ */
 export const SessionStatusUpdate: React.FC<SessionStatusUpdateProps> = ({
   sessionId,
   currentStatus,
   sessionTime,
+  paymentStatus,
   onStatusUpdated,
+  className,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isSessionInPast = new Date(sessionTime) < new Date();
+  const oneHourAfterSession = new Date(sessionTime);
+  oneHourAfterSession.setHours(oneHourAfterSession.getHours() + 1);
+  const canMarkComplete = isSessionInPast && new Date() >= oneHourAfterSession;
+  const isPaid = paymentStatus === "paid";
+
   const handleStatusUpdate = async (newStatus: SessionStatus) => {
+    if (newStatus === currentStatus) return;
+
     const messages: Record<string, string> = {
-      cancelled: 'Are you sure you want to cancel this session? This action cannot be undone.',
-      unsuccessful: 'Are you sure you want to mark this session as "Unsuccessful"? This cannot be undone.',
-      successful: 'Are you sure you want to mark this session as "Successful"?',
+      cancelled: "Cancel this session? This cannot be undone.",
+      unsuccessful:
+        "Mark this session as unsuccessful? This cannot be undone.",
+      successful: "Mark this session as successful?",
     };
 
+    // Status changes never refund; refunds are their own action in the
+    // payment column (SessionPaymentCell).
+    const refundNote =
+      isPaid && (newStatus === "cancelled" || newStatus === "unsuccessful")
+        ? " The user's Sparks won't be refunded. To refund them, use Refund sparks in the Payment column afterwards."
+        : "";
     const confirmed = await confirm({
-      title: 'Confirm Status Change',
-      description: messages[newStatus] || `Change session status to "${newStatus}"?`,
-      confirmText: 'Confirm',
+      title: "Update session",
+      description:
+        (messages[newStatus] || `Change status to "${newStatus}"?`) +
+        refundNote,
+      confirmText: "Confirm",
     });
     if (!confirmed) return;
 
     try {
       setIsLoading(true);
       setError(null);
-      const result = await updateSessionStatus(sessionId, { status: newStatus });
-      onStatusUpdated(result.session.status);
+      const result = await updateSessionStatus(sessionId, {
+        status: newStatus,
+      });
+      onStatusUpdated(
+        result.session.status,
+        (result.session as { paymentStatus?: PaymentStatus }).paymentStatus ??
+          paymentStatus,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update status');
+      setError(err instanceof Error ? err.message : "Failed to update status");
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* ---------- Session timing logic ---------- */
-  const isSessionInPast = new Date(sessionTime) < new Date();
-  const oneHourAfterSession = new Date(sessionTime);
-  oneHourAfterSession.setHours(oneHourAfterSession.getHours() + 1);
-  // Can mark as successful/unsuccessful only after session + 1 hour
-  const canMarkComplete = isSessionInPast && new Date() >= oneHourAfterSession;
-
-  // Show final status for non-pending sessions
-  if (currentStatus !== 'pending') {
+  if (currentStatus !== "pending") {
     return (
-      <div className="flex items-center gap-2">
-        {currentStatus === 'successful' && (
-          <div className="flex items-center gap-2 text-green-400">
-            <CheckCircle2 size={16} />
-            <span className="text-sm">Completed Successfully</span>
-          </div>
-        )}
-        {currentStatus === 'unsuccessful' && (
-          <div className="flex items-center gap-2 text-red-400">
-            <XCircle size={16} />
-            <span className="text-sm">Completed with Issues</span>
-          </div>
-        )}
-        {currentStatus === 'cancelled' && (
-          <div className="flex items-center gap-2 text-slate-400">
-            <AlertCircle size={16} />
-            <span className="text-sm">Cancelled</span>
-          </div>
-        )}
+      <div className={cn("space-y-1", className)}>
+        <StatusBadge tone={statusToneFrom(currentStatus)}>
+          {currentStatus}
+        </StatusBadge>
+        {error ? (
+          <p className="text-[11px] text-rs-primary">{error}</p>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-3">
-        {/* Cancel button - always available for pending sessions */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleStatusUpdate('cancelled')}
-            disabled={isLoading}
-            className="border-slate-600 text-slate-700 hover:bg-slate-100"
-          >
-            <AlertCircle size={14} className="mr-1" />
-            Cancel Session
-          </Button>
-        </div>
-
-        {/* Completion buttons - only available after session + 1 hour */}
+    <div className={cn("min-w-[9.5rem] space-y-1", className)}>
+      <select
+        value=""
+        disabled={isLoading}
+        aria-label="Update session status"
+        onChange={(e) => {
+          const value = e.target.value as SessionStatus;
+          e.target.value = "";
+          if (value) void handleStatusUpdate(value);
+        }}
+        className="h-8 w-full rounded-md border border-rs-border bg-rs-surface px-2 text-xs text-rs-text disabled:opacity-50"
+      >
+        <option value="" disabled>
+          {isLoading ? "Updating…" : "Pending — update"}
+        </option>
+        <option value="cancelled">Cancel session</option>
         {canMarkComplete ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              onClick={() => handleStatusUpdate('successful')}
-              disabled={isLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle2 size={14} className="mr-1" />
-              Successful
-            </Button>
+          <>
+            <option value="successful">Mark successful</option>
+            <option value="unsuccessful">Mark unsuccessful</option>
+          </>
+        ) : null}
+      </select>
+      {!canMarkComplete ? (
+        <p className="text-[11px] leading-tight text-rs-text-muted">
+          {isSessionInPast
+            ? "Outcome available 1h after start"
+            : "Outcome after session ends"}
+        </p>
+      ) : null}
+      {error ? <p className="text-[11px] text-rs-primary">{error}</p> : null}
+    </div>
+  );
+};
 
-            <Button
-              size="sm"
-              onClick={() => handleStatusUpdate('unsuccessful')}
-              disabled={isLoading}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              <XCircle size={14} className="mr-1" />
-              Unsuccessful
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-slate-400">
-            <Clock size={14} />
-            <span className="text-xs">
-              {!isSessionInPast
-                ? "Completion status available after session ends"
-                : "Available 1 hr after session start"}
-            </span>
-          </div>
-        )}
-      </div>
+/**
+ * Payment status + optional compact refund action (paid + cancelled/unsuccessful).
+ */
+export const SessionPaymentCell: React.FC<SessionPaymentCellProps> = ({
+  sessionId,
+  currentStatus,
+  paymentStatus,
+  onPaymentUpdated,
+  className,
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-      {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
-    </>
+  const status = paymentStatus || "unpaid";
+  const canRefund =
+    status === "paid" &&
+    (currentStatus === "cancelled" || currentStatus === "unsuccessful");
+
+  const handleExplicitRefund = async () => {
+    const reasonOk = await confirm({
+      title: "Refund session sparks?",
+      description:
+        "This will credit the session sparks back to the user. Continue?",
+      confirmText: "Refund sparks",
+      variant: "destructive",
+    });
+    if (!reasonOk) return;
+
+    const reason =
+      window.prompt(
+        "Refund reason (required)",
+        "Support refund — session cancelled/unsuccessful",
+      ) || "";
+    if (!reason.trim()) {
+      setError("Refund reason is required");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      await refundSessionPayment(sessionId, reason.trim());
+      onPaymentUpdated("refunded");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to refund");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className={cn("flex flex-col items-start gap-1.5", className)}>
+      <StatusBadge tone={statusToneFrom(status)}>{status}</StatusBadge>
+      {canRefund ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 px-2 text-xs"
+          disabled={isLoading}
+          onClick={() => void handleExplicitRefund()}
+        >
+          <RotateCcw
+            className={cn("h-3 w-3", isLoading && "animate-spin")}
+            strokeWidth={1.75}
+          />
+          {isLoading ? "Refunding…" : "Refund sparks"}
+        </Button>
+      ) : null}
+      {error ? <p className="text-[11px] text-rs-primary">{error}</p> : null}
+    </div>
   );
 };

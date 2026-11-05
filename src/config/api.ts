@@ -23,7 +23,31 @@ export const API_ENDPOINTS = {
         `${API_URL}/sessions/${sessionId}/update-status`,
       addMeetingLink: (sessionId: string) =>
         `${API_URL}/sessions/${sessionId}/add-link`,
+      refund: (sessionId: string) =>
+        `${API_URL}/sessions/${sessionId}/refund`,
     },
+    sparks: {
+      stats: `${API_URL}/admin/dashboard/spark-stats`,
+      wallets: `${API_URL}/admin/dashboard/wallets`,
+      walletDetails: (userId: string) =>
+        `${API_URL}/admin/dashboard/wallets/${userId}`,
+      walletStatus: (userId: string) =>
+        `${API_URL}/admin/dashboard/wallets/${userId}/status`,
+      adjustSparks: `${API_URL}/admin/dashboard/adjust-sparks`,
+      transactions: `${API_URL}/admin/dashboard/transactions`,
+    },
+    payments: {
+      list: `${API_URL}/admin/dashboard/payments`,
+      details: (id: string) => `${API_URL}/admin/dashboard/payments/${id}`,
+      verify: (reference: string) =>
+        `${API_URL}/admin/dashboard/payments/${encodeURIComponent(reference)}/verify`,
+    },
+    pricing: `${API_URL}/admin/pricing-config`,
+    paymentMethods: `${API_URL}/admin/payment-methods`,
+    analytics: `${API_URL}/admin/dashboard/analytics`,
+    supportLookup: `${API_URL}/admin/support/lookup`,
+    listenersPerformance: `${API_URL}/admin/listeners/performance`,
+    auditLog: `${API_URL}/admin/audit-log`,
   },
 
   listeners: {
